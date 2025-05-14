@@ -46,3 +46,6 @@ dist/
 .DS_Store
 Thumbs.db
 /data
+
+# Ignore gdrive-sa.json
+gdrive-sa.json
