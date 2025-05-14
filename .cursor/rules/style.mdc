@@ -1,0 +1,29 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# .cursor/rules/style.mdc
+---
+description: "Modern Python style conventions for scientific code (ruff-first)"
+alwaysApply: true
+---
+## Code Style
+
+### Rules
+- Single toolchain: **Ruff** (`ruff format` + lint + import-sorting).
+  - Configure in **pyproject.toml** `[tool.ruff]` section.
+  - Line length = 88 chars (Black default).
+- Use **type hints** on every public function/class; enforce with **pyright**.
+- Variable names: descriptive, snake_case; constants in UPPER_SNAKE_CASE; classes in PascalCase.
+- Remove dead / commented-out code before merge (enforced with vulture).
+- Commit only UTF-8 `.py`, `.toml`, `.md` & text assets—never binary notebooks.
+- All code and doc changes must pass pre-commit hooks (ruff, pyright, yaml, etc.).
+- All quality gates and automation tasks are run via Nox sessions (format, lint, type_check, tests).
+- Conventional Commits enforced with commitlint.
+
+### Checklist
+- [ ] `pre-commit run --all-files` passes (ruff format + lint + pyright).
+- [ ] No single-letter identifiers beyond trivial indices (`i`, `j`, `k`).
+- [ ] `vulture` reports **0 unused** code paths.  (Run `tox -e deadcode` if configured.)
+- [ ] `nox -s lint type_check tests` passes on CI and local.

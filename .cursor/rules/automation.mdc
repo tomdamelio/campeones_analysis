@@ -1,0 +1,22 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# .cursor/rules/automation.mdc
+---
+description: "Automation – Nox, pre-commit, reusable GitHub Actions"
+alwaysApply: true
+---
+## Automation
+
+### Rules
+- Task runner: **Nox** (`nox -s lint tests docs`).
+  - Sessions: `format`, `lint`, `type_check`, `tests`, `docs`, `deadcode`.
+- **pre-commit** hooks: ruff-format, ruff-lint, pyright, commitlint, nbstripout.
+- CI: GitHub Actions using **reusable workflows** (`.github/workflows/*.yml`) to DRY pipeline.
+- Any multi-step research pipeline must have a reproducible **nox session** or **Snakemake workflow**.
+
+### Checklist
+- [ ] `nox -s lint tests` passes on a fresh clone.
+- [ ] `pre-commit install` executed immediately after cloning.
