@@ -1,0 +1,15 @@
+name: campeones
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - mne
+  - mne-bids
+  - neurokit2
+  - scikit-learn
+  - jupyterlab
+  - matplotlib
+  - pandas
+  - numpy
+  - seaborn
+  - dvc[gdrive]

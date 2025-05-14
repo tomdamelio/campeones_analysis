@@ -1,0 +1,47 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+.env/
+.venv/
+env/
+venv/
+.micromamba/
+.mamba/
+.nox/
+
+# Data, results, and large files
+data/
+results/
+*.h5
+*.csv
+*.tsv
+*.edf
+*.fif
+*.set
+*.bdf
+*.vhdr
+*.vmrk
+*.eeg
+*.mat
+
+# DVC cache and pointers
+!.dvc
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# VSCode and IDE configs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db

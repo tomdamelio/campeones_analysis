@@ -1,0 +1,23 @@
+[project]
+name = "campeones_analysis"
+version = "0.1.0"
+description = "Análisis de datos de experimento sobre Emociones en contextos inmersivos con datos de EEG y medidas perifericas"
+authors = [
+    { name = "Tomas Ariel D'Amelio", email = "dameliotomas@gmail.com" }
+]
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pyright",
+    "pytest",
+    "nox",
+    "pre-commit",
+    "mkdocs",
+    "vulture",
+    "commitlint"
+]
+
+[tool.ruff]
+line-length = 88
