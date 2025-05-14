@@ -1,0 +1,8 @@
+site_name: Campeones Analysis
+theme:
+  name: material
+
+nav:
+  - Home: index.md
+
+docs_dir: docs

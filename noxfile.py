@@ -16,10 +16,16 @@ def lint(session):
 @nox.session
 def type_check(session):
     session.install("pyright")
-    session.run("pyright", ".", external=True)
+    session.run("pyright", "src", "tests", external=True)
 
 
 @nox.session
 def tests(session):
-    session.install("pytest")
+    session.install(".[dev]")  # Install project with dev dependencies
     session.run("pytest", ".", external=True)
+
+
+@nox.session
+def docs(session):
+    session.install("mkdocs-material")
+    session.run("mkdocs", "build", "--strict", external=True)

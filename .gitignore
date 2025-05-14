@@ -49,3 +49,8 @@ Thumbs.db
 
 # Ignore gdrive-sa.json
 gdrive-sa.json
+
+# Generated documentation files
+site/
+docs/_build/
+*.js.map

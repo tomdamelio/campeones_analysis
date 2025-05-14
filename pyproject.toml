@@ -6,6 +6,18 @@ authors = [
     { name = "Tomas Ariel D'Amelio", email = "dameliotomas@gmail.com" }
 ]
 requires-python = ">=3.11"
+dependencies = [
+    "mne",
+    "mne-bids",
+    "neurokit2",
+    "scikit-learn",
+    "jupyterlab",
+    "matplotlib",
+    "pandas",
+    "numpy",
+    "seaborn",
+    "dvc[gdrive]"
+]
 
 [project.optional-dependencies]
 dev = [
