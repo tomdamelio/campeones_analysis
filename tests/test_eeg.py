@@ -1,5 +1,7 @@
+# Este es un comentario de prueba para practicar el flujo de PR
 """Tests for the EEG processing module."""
 
+# ...resto del archivo...
 import numpy as np
 
 # Import your EEG processing functions here
