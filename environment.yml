@@ -13,3 +13,11 @@ dependencies:
   - numpy
   - seaborn
   - dvc[gdrive]
+  - autoreject
+  - pyprep
+  - mne-icalabel
+  - gitpython
+  - pyxdf
+  - mnelab
+  - pywavelets
+  - pytest-cov
