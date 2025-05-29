@@ -26,9 +26,6 @@ Este proyecto proporciona un flujo de trabajo reproducible, modular y automatiza
 ## Contenido
 
 - [Documentación de Tests](tests.md) - Guía completa de los scripts de test y su uso
-- [Diario de Investigación](./research_diary) - Registro detallado del proceso de investigación
-- [Guía de Instalación](installation.md) - Instrucciones para configurar el entorno de desarrollo # PENDIENTE
-- [Guía de Uso](usage.md) - Ejemplos y tutoriales de uso del pipeline # PENDIENTE
 
 ## Estructura del Proyecto
 
@@ -36,7 +33,6 @@ Este proyecto proporciona un flujo de trabajo reproducible, modular y automatiza
 campeones_analysis/
 ├── data/               # Datos del proyecto (versionados con DVC)
 ├── docs/              # Documentación
-├── research_diary/    # Diario de investigación
 ├── scripts/           # Scripts de utilidad
 ├── src/               # Código fuente del proyecto
 ├── tests/             # Tests y scripts de validación
