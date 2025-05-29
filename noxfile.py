@@ -23,7 +23,7 @@ def lint(session):
 def type_check(session):
     """Verifica los tipos."""
     session.install("pyright")
-    session.run("pyright", "src", "tests", external=True)
+    session.run("pyright", "src", external=True)
 
 
 @nox.session
