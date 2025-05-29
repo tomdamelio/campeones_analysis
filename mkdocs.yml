@@ -1,8 +1,10 @@
-site_name: Campeones Analysis
+site_name: CAMPEONES Analysis
 theme:
   name: material
 
 nav:
   - Home: index.md
+  - Arquitectura de Datos: arquitectura_datos.md
+  - Tests: tests.md
 
 docs_dir: docs
