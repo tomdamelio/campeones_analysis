@@ -10,7 +10,11 @@ A continuación se describe cada archivo y su uso:
 
 ## Archivos de Test en `./tests/read_files/`
 
+<<<<<<< HEAD
 ### `test_read_xdf.py`
+=======
+### `test_convert_xdf_to_bids.py`
+>>>>>>> 8e161a9 (chore: save local changes before rebase)
 **Descripción**: Script interactivo para leer y procesar archivos XDF, diseñado para ser ejecutado en un entorno Jupyter/IPython. Este script realiza un procesamiento completo de datos de EEG, joystick y marcadores, con soporte para el formato BIDS.
 ```python
 # Ejecutar en un entorno interactivo (Jupyter/IPython)

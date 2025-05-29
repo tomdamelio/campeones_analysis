@@ -37,7 +37,10 @@ dev = [
     "pyright>=1.1.0",
     "nox>=2023.0.0",
     "pre-commit>=3.0.0",
-    "mkdocs-material>=9.0.0",
+    "mkdocs",
+    "vulture",
+    "commitlint",
+    "mkdocs-material>=9.0.0"
 ]
 
 [tool.ruff]
