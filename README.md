@@ -79,9 +79,9 @@ MIT — see [LICENSE](LICENSE)
 6. **Colaboradores:**
    - Clonan el repo, configuran la Service Account y hacen `dvc pull` para obtener los datos.
 
-### Buenas prácticas y advertencias
-- **Nunca subas datos manualmente a la carpeta de Drive usada como remoto DVC.**
-- **Solo versiona y sincroniza datos con DVC para garantizar reproducibilidad.**
-- **El backup manual es opcional y no debe usarse como fuente de verdad para análisis reproducibles.**
-- **Asegúrate de que `.gitignore` incluya los datos, pero siempre commitea los archivos `.dvc` y `.gitignore`.
-- Si tienes problemas de autenticación, revisa la configuración de la Service Account y los permisos de la carpeta de Drive.
+### Best practices and warnings
+- **Never manually upload data to the Drive folder used as DVC remote.**
+- **Only version and sync data with DVC to ensure reproducibility.**
+- **Manual backup is optional and should not be used as source of truth for reproducible analysis.**
+- **Make sure `.gitignore` includes the data, but always commit `.dvc` and `.gitignore` files.**
+- If you have authentication issues, check the Service Account configuration and Drive folder permissions.

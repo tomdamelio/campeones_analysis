@@ -1,0 +1,3 @@
+"""
+Campeones Analysis package.
+"""

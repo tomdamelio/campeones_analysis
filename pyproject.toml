@@ -1,35 +1,81 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "campeones_analysis"
 version = "0.1.0"
-description = "Análisis de datos de experimento sobre Emociones en contextos inmersivos con datos de EEG y medidas perifericas"
-authors = [
-    { name = "Tomas Ariel D'Amelio", email = "dameliotomas@gmail.com" }
+description = "Reproducible pipeline for immersive emotion experiment data (EEG + peripheral measures) with Python"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
 ]
-requires-python = ">=3.11"
 dependencies = [
-    "mne",
-    "mne-bids",
-    "neurokit2",
-    "scikit-learn",
-    "jupyterlab",
-    "matplotlib",
-    "pandas",
-    "numpy",
-    "seaborn",
-    "dvc[gdrive]"
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "mne>=1.5.0",
+    "mne-bids>=0.13.0",
+    "pyxdf>=1.16.0",
+    "matplotlib>=3.7.0",
+    "scipy>=1.10.0",
+    "neurokit2>=0.2.0",
+    "autoreject>=0.4.0",
+    "pyprep>=0.4.0",
+    "mne-icalabel>=0.4.0",
+    "gitpython>=3.1.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "ruff",
-    "pyright",
-    "pytest",
-    "nox",
-    "pre-commit",
-    "mkdocs",
-    "vulture",
-    "commitlint"
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "pyright>=1.1.0",
+    "nox>=2023.0.0",
+    "pre-commit>=3.0.0",
+    "mkdocs-material>=9.0.0",
 ]
 
 [tool.ruff]
 line-length = 88
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "N", "UP", "PL", "RUF"]
+ignore = [
+    "E501",  # Line too long
+    "PLR0913",  # Too many arguments
+    "PLR0915",  # Too many statements
+    "PLR0912",  # Too many branches
+    "PLR2004",  # Magic value used in comparison
+    "PLR1714",  # Consider merging multiple comparisons
+    "B904",  # Within an `except` clause, raise exceptions with `raise ... from err`
+    "N806",  # Variable in function should be lowercase
+    "PLW0127",  # Self-assignment of variable
+    "B028",  # No explicit `stacklevel` keyword argument found
+    "PLR0911",  # Too many return statements
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["campeones_analysis"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.pyright]
+include = ["src", "tests"]
+exclude = ["**/node_modules", "**/__pycache__"]
+ignore = ["src/campeones_analysis/utils"]
+reportMissingImports = true
+reportMissingTypeStubs = false
+pythonVersion = "3.8"
+pythonPlatform = "Windows"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=campeones_analysis --cov-report=term-missing"
