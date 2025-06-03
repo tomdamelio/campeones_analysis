@@ -1,0 +1,88 @@
+cff-version: 1.2.0
+message: >-
+  If you use this dataset, please cite it using the metadata below.
+type: dataset
+title: "CAMPEONES: Continuous Annotation and Multimodal Processing of EmOtions in Naturalistic EnvironmentS"
+version: "1.0.0"
+doi: "<DOI pending>"
+date-released: 2025-05-30
+authors:
+  - family-names: D'Amelio
+    given-names: Tomás Ariel
+    affiliation: <Affiliation>
+    orcid: "<ORCID optional>"
+  - family-names: Rodriguez Cuello
+    given-names: Jerónimo
+    affiliation: <Affiliation>
+  - family-names: Aboitiz
+    given-names: Julieta
+    affiliation: <Affiliation>
+  - family-names: Bruno
+    given-names: Nicolás Marcelo
+    affiliation: <Affiliation>
+  - family-names: Cavanna
+    given-names: Federico
+    affiliation: <Affiliation>
+  - family-names: de La Fuente
+    given-names: Laura Alethia
+    affiliation: <Affiliation>
+  - family-names: Müller
+    given-names: Stephanie Andrea
+    affiliation: <Affiliation>
+  - family-names: Pallavicini
+    given-names: Carla
+    affiliation: <Affiliation>
+  - family-names: Engemann
+    given-names: Denis-Alexander
+    affiliation: <Affiliation>
+  - family-names: Vidaurre
+    given-names: Diego
+    affiliation: <Affiliation>
+  - family-names: Tagliazucchi
+    given-names: Enzo
+    affiliation: <Affiliation>
+license: CC-BY-4.0
+repository-code: "<https://github.com/tomdamelio/campeones_analysis>"
+keywords:
+  - emotion
+  - multimodal
+  - EEG
+  - physiology
+  - naturalistic stimuli
+preferred-citation:
+  type: dataset
+  title: "CAMPEONES: Continuous Annotation and Multimodal Processing of EmOtions in Naturalistic EnvironmentS"
+  authors:
+    - family-names: D'Amelio
+      given-names: Tomás Ariel
+    - family-names: Rodriguez Cuello
+      given-names: Jerónimo
+    - family-names: Aboitiz
+      given-names: Julieta
+      affiliation: <Affiliation>
+    - family-names: Bruno
+      given-names: Nicolás Marcelo
+      affiliation: <Affiliation>
+    - family-names: Cavanna
+      given-names: Federico
+      affiliation: <Affiliation>
+    - family-names: de La Fuente
+      given-names: Laura Alethia
+      affiliation: <Affiliation>
+    - family-names: Müller
+      given-names: Stephanie Andrea
+      affiliation: <Affiliation>
+    - family-names: Pallavicini
+      given-names: Carla
+      affiliation: <Affiliation>
+    - family-names: Engemann
+      given-names: Denis-Alexander
+      affiliation: <Affiliation>
+    - family-names: Vidaurre
+      given-names: Diego
+      affiliation: <Affiliation>
+    - family-names: Tagliazucchi
+      given-names: Enzo
+      affiliation: <Affiliation>
+  doi: "<DOI pending>"
+  year: 2025

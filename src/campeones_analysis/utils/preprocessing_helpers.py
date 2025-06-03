@@ -1,4 +1,5 @@
 import os
+import warnings  # Añadir importación de warnings
 
 import mne
 
@@ -69,8 +70,14 @@ def set_chs_montage(raw):
 
     raw.drop_channels(raw.info["bads"])
 
-    # Path to your .bvef file
-    bvef_file_path = os.path.join("data", "BC-32.bvef")
+    # Obtener la ruta del proyecto (3 niveles arriba del archivo actual)
+    project_root = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "..")
+    )
+    # Ruta absoluta al archivo .bvef
+    bvef_file_path = os.path.join(project_root, "data", "BC-32.bvef")
+    print(f"Cargando montaje desde: {bvef_file_path}")
+
     # Load the montage
     montage = mne.channels.read_custom_montage(bvef_file_path)
 
@@ -88,8 +95,6 @@ def make_joystick_mapping(raw):
       only those that are not joystick_x or joystick_y.
     - Verifies if the unit is 'au'; if not, warns and forces 'au'.
     """
-    import warnings  # Added missing warnings import
-
     # 1) Rename first two channels
     orig = raw.info["ch_names"][:2]
     if len(orig) < 2:
