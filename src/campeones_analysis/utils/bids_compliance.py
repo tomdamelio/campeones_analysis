@@ -651,9 +651,6 @@ def update_participant_info(
 
     Missing values should be set as 'n/a'.
     """
-    import pandas as pd
-    from pathlib import Path
-
     root_folder = Path(root_folder)
     participants_tsv = root_folder / "participants.tsv"
     # --- Columns to manage ---
@@ -743,7 +740,6 @@ def load_participant_data(csv_path: str | Path) -> dict[str, dict]:
     dict[str, dict]
         Dictionary with participant IDs as keys and their BIDS metadata as values
     """
-    import pandas as pd
     from pathlib import Path
 
     # Ensure path is a Path object
@@ -752,8 +748,8 @@ def load_participant_data(csv_path: str | Path) -> dict[str, dict]:
     # Read CSV file
     df = pd.read_csv(csv_path, encoding="utf-8", low_memory=False)
 
-    # Define mapping from CSV columns to BIDS fields
-    column_mapping = {
+    # Define mapping from CSV columns to BIDS fields (for documentation purposes)
+    _column_mapping = {
         "ID PARTICIPANTE": "subject_id",
         "Fecha de Nacimiento:": "birth_date",
         "Edad:": "age",
@@ -822,12 +818,11 @@ def load_participant_data(csv_path: str | Path) -> dict[str, dict]:
         data = {}
 
         # Process birth date (convert to ISO format)
-        if "Fecha de Nacimiento:" in row and pd.notna(row["Fecha de Nacimiento:"]):
-            try:
-                birth_date = pd.to_datetime(row["Fecha de Nacimiento:"])
-                data["birth_date"] = birth_date.strftime("%Y-%m-%d")
-            except:
-                data["birth_date"] = None
+        try:
+            birth_date = pd.to_datetime(row["Fecha de Nacimiento:"])
+            data["birth_date"] = birth_date.strftime("%Y-%m-%d")
+        except Exception:
+            data["birth_date"] = None
 
         # Process age
         if "Edad:" in row and pd.notna(row["Edad:"]):
@@ -1093,3 +1088,146 @@ def batch_update_participants(bids_root: str | Path, csv_path: str | Path):
         update_participant_info(bids_root, subject_id, **data)
 
     print(f"Updated information for {len(participants_data)} participants")
+
+
+def update_participant_tsv(root_folder, metadata):
+    """
+    Updates the participants.tsv file with new data.
+
+    Parameters
+    ----------
+    root_folder : str | Path
+        Root folder of the BIDS dataset.
+    metadata : dict
+        Dictionary containing the participant metadata.
+        Keys should be BIDS-compliant field names.
+        Missing values should be set as 'n/a'.
+    """
+    import pandas as pd
+    from pathlib import Path
+
+    root_folder = Path(root_folder)
+
+    # Path to participants.tsv file
+    participants_tsv = root_folder / "participants.tsv"
+
+    if not participants_tsv.exists():
+        # Create participants.tsv with default columns if it doesn't exist
+        participants_df = pd.DataFrame(
+            columns=["participant_id", "sex", "age", "handedness"]
+        )
+        participants_df.to_csv(participants_tsv, sep="\t", index=False)
+
+    # Read existing participants.tsv
+    participants_df = pd.read_csv(participants_tsv, sep="\t")
+
+    # Check if participant already exists
+    subject_id = metadata.get("participant_id", "")
+    if not subject_id:
+        raise ValueError("participant_id is required in metadata")
+
+    # If participant exists, update their information
+    if subject_id in participants_df["participant_id"].values:
+        for key, value in metadata.items():
+            if key in participants_df.columns:
+                participants_df.loc[
+                    participants_df["participant_id"] == subject_id, key
+                ] = value
+    else:
+        # Add new participant
+        new_row = {col: "n/a" for col in participants_df.columns}
+        new_row.update(metadata)
+        participants_df = pd.concat(
+            [participants_df, pd.DataFrame([new_row])], ignore_index=True
+        )
+
+    # Save updated participants.tsv
+    participants_df.to_csv(participants_tsv, sep="\t", index=False)
+
+    return participants_df
+
+
+def read_participants_csv(csv_path):
+    """
+    Read participant data from a custom CSV format and convert to BIDS format.
+
+    Parameters
+    ----------
+    csv_path : str | Path
+        Path to the CSV file containing participant data.
+
+    Returns
+    -------
+    dict
+        Dictionary with participant IDs as keys and their BIDS metadata as values
+    """
+    import pandas as pd
+    from pathlib import Path
+
+    # Ensure path is a Path object
+    csv_path = Path(csv_path)
+
+    # Read CSV file
+    df = pd.read_csv(csv_path, encoding="utf-8")
+
+    # Initialize dictionary to store participant data
+    participants_data = {}
+
+    # Process each row (participant)
+    for _, row in df.iterrows():
+        # Extract participant ID
+        participant_id = f"sub-{row['ID PARTICIPANTE']}"
+        data = {
+            "participant_id": participant_id,
+        }
+
+        # Extract demographic data if available
+        try:
+            birth_date = pd.to_datetime(row["Fecha de Nacimiento:"])
+            data["birth_date"] = birth_date.strftime("%Y-%m-%d")
+        except Exception:
+            data["birth_date"] = None
+
+        # Extract gender
+        try:
+            gender = row["Sexo:"].lower()
+            if gender in ["hombre", "masculino", "male", "m"]:
+                data["sex"] = "male"
+            elif gender in ["mujer", "femenino", "female", "f"]:
+                data["sex"] = "female"
+            else:
+                data["sex"] = gender
+        except Exception:
+            data["sex"] = None
+
+        # Extract age
+        try:
+            age = int(row["Edad:"])
+            data["age"] = age
+        except Exception:
+            data["age"] = None
+
+        # Extract handedness
+        try:
+            handedness = row["Mano dominante:"].lower()
+            if handedness in ["derecha", "right", "r", "diestro"]:
+                data["handedness"] = "right"
+            elif handedness in ["izquierda", "left", "l", "zurdo"]:
+                data["handedness"] = "left"
+            elif handedness in ["ambidiestro", "ambos", "both", "ambidextrous"]:
+                data["handedness"] = "ambidextrous"
+            else:
+                data["handedness"] = handedness
+        except Exception:
+            data["handedness"] = None
+
+        # Extract education
+        try:
+            data["education_level"] = row["Nivel de educación:"]
+        except Exception:
+            data["education_level"] = None
+
+        # Store participant data
+        participants_data[participant_id] = data
+
+    return participants_data

@@ -1,10 +1,9 @@
 # Standard library imports
 import json
-import os
 import sys
 import warnings
 from pathlib import Path
-from typing import List, Optional, Union, Dict, Tuple, Any, cast
+from typing import cast
 
 # Add project root to Python path for imports when running as script
 if __name__ == "__main__":
@@ -384,9 +383,7 @@ def read_and_process_xdf(subject, session, task, run, acq="a"):
                 info = mne.create_info(
                     ch_names=["STI 014"], sfreq=raw.info["sfreq"], ch_types="misc"
                 )
-                raw.add_channels(
-                    [mne.io.RawArray(stim_data, info)]
-                )
+                raw.add_channels([mne.io.RawArray(stim_data, info)])
                 raw.set_channel_types({"STI 014": "stim"})
 
             # Create events
@@ -398,11 +395,13 @@ def read_and_process_xdf(subject, session, task, run, acq="a"):
             raw.add_events(events, stim_channel="STI 014")
 
             # Save events in BIDS format
-            events_df = pd.DataFrame({
-                "onset": events[:, 0],
-                "duration": events[:, 1],
-                "description": events[:, 2]
-            })
+            events_df = pd.DataFrame(
+                {
+                    "onset": events[:, 0],
+                    "duration": events[:, 1],
+                    "description": events[:, 2],
+                }
+            )
             events_path = bids_path.copy().update(suffix="events", extension=".tsv")
             events_df.to_csv(events_path, sep="\t", index=False)
 
@@ -425,7 +424,6 @@ def read_and_process_xdf(subject, session, task, run, acq="a"):
 
 if __name__ == "__main__":
     import argparse
-    import glob
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(
