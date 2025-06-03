@@ -748,7 +748,7 @@ def load_participant_data(csv_path: str | Path) -> dict[str, dict]:
     # Read CSV file
     df = pd.read_csv(csv_path, encoding="utf-8", low_memory=False)
 
-    # Define mapping from CSV columns to BIDS fields (for documentation purposes)
+    # Define mapping from CSV columns to BIDS fields
     _column_mapping = {
         "ID PARTICIPANTE": "subject_id",
         "Fecha de Nacimiento:": "birth_date",
@@ -1103,8 +1103,8 @@ def update_participant_tsv(root_folder, metadata):
         Keys should be BIDS-compliant field names.
         Missing values should be set as 'n/a'.
     """
-    import pandas as pd
     from pathlib import Path
+    import pandas as pd
 
     root_folder = Path(root_folder)
 
@@ -1161,8 +1161,8 @@ def read_participants_csv(csv_path):
     dict
         Dictionary with participant IDs as keys and their BIDS metadata as values
     """
-    import pandas as pd
     from pathlib import Path
+    import pandas as pd
 
     # Ensure path is a Path object
     csv_path = Path(csv_path)
