@@ -3,8 +3,8 @@ message: >-
   If you use this dataset, please cite it using the metadata below.
 type: dataset
 title: "CAMPEONES: Continuous Annotation and Multimodal Processing of EmOtions in Naturalistic EnvironmentS"
-version: "1.0.0"
-doi: "<DOI pending>"
+version: "1.0.0"            
+doi: "<DOI pending>"         
 date-released: 2025-05-30
 authors:
   - family-names: D'Amelio
@@ -41,8 +41,8 @@ authors:
   - family-names: Tagliazucchi
     given-names: Enzo
     affiliation: <Affiliation>
-license: CC-BY-4.0
-repository-code: "<https://github.com/tomdamelio/campeones_analysis>"
+license: CC-BY-4.0           
+repository-code: "<https://github.com/tomdamelio/campeones_analysis>"   
 keywords:
   - emotion
   - multimodal
@@ -85,4 +85,4 @@ preferred-citation:
       given-names: Enzo
       affiliation: <Affiliation>
   doi: "<DOI pending>"
-  year: 2025
+  year: 2025 
