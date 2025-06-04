@@ -1,10 +1,10 @@
 import os
-import warnings  # Añadir importación de warnings
 
 import mne
+import numpy as np
+from scipy import interpolate
 
 #### EEG ####
-
 
 def set_chs_montage(raw):
     rename_dict = {"FP1": "Fp1", "FP2": "Fp2", "FZ": "Fz", "CZ": "Cz", "PZ": "Pz"}
@@ -48,7 +48,8 @@ def set_chs_montage(raw):
         "ECG": "ecg",
         "R_EYE": "eog",
         "L_EYE": "eog",
-        "AUDIO": "stim",
+        "AUDIO": "misc",
+        "PHOTO": "misc",
         "RESP": "resp",
         "GSR": "gsr",
         "triggerStream": "stim",
@@ -71,89 +72,78 @@ def set_chs_montage(raw):
     raw.drop_channels(raw.info["bads"])
 
     # Obtener la ruta del proyecto (3 niveles arriba del archivo actual)
-    project_root = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "..")
-    )
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
     # Ruta absoluta al archivo .bvef
     bvef_file_path = os.path.join(project_root, "data", "BC-32.bvef")
     print(f"Cargando montaje desde: {bvef_file_path}")
-
+    
     # Load the montage
     montage = mne.channels.read_custom_montage(bvef_file_path)
-
+    
     # Apply the montage to your raw data
     raw.set_montage(montage)
 
     return raw
 
 
-def make_joystick_mapping(raw):
+def make_joystick_mapping(joystick_data, joystick_timestamps, sfreq):
     """
-    - Renames the first two channels to joystick_x / joystick_y.
-    - Classifies them as 'misc' in arbitrary units.
-    - Detects all joystick_* channels and marks as bad
-      only those that are not joystick_x or joystick_y.
-    - Verifies if the unit is 'au'; if not, warns and forces 'au'.
-    """
-    # 1) Rename first two channels
-    orig = raw.info["ch_names"][:2]
-    if len(orig) < 2:
-        raise ValueError("At least 2 channels are needed for joystick.")
-    raw.rename_channels({orig[0]: "joystick_x", orig[1]: "joystick_y"})
-
-    # 2) Assign misc type and set unit to au
-    raw.set_channel_types({"joystick_x": "misc", "joystick_y": "misc"})
-    for ch in raw.info["chs"]:
-        if ch["ch_name"] in ("joystick_x", "joystick_y"):
-            unit = ch.get("unit", None)
-            # Unit check
-            if unit is not None:
-                unit_str = str(unit).lower()
-                if unit_str != "au":
-                    warnings.warn(
-                        f"Channel {ch['ch_name']} has unit '{unit}', "
-                        "expected 'au'. Will use 'au'."
-                    )
-            # Force arbitrary unit
-            ch["unit"] = "au"
-            ch["unit_mul"] = 0
-
-    # 3) Detect all joystick channels
-    joystick_chs = [ch for ch in raw.info["ch_names"] if ch.startswith("joystick_")]
-
-    # 4) Mark as bad those that are not joystick_x / joystick_y
-    bads = [ch for ch in joystick_chs if ch not in ("joystick_x", "joystick_y")]
-    raw.info["bads"] = bads.copy()
-
-    return raw
-
-
-def correct_channel_types(raw):
-    """
-    Correct channel types in the raw object, particularly for trigger channels.
+    Create a Raw object from joystick data, resampled to match EEG data.
 
     Parameters
     ----------
-    raw : mne.io.Raw
-        Raw data object to correct channel types.
+    joystick_data : array
+        Joystick data array with shape (n_samples, n_channels)
+    joystick_timestamps : array
+        Timestamps for joystick data
+    sfreq : float
+        Sampling frequency of the EEG data to match
 
     Returns
     -------
     raw : mne.io.Raw
-        Raw data object with corrected channel types.
+        Raw object containing joystick data resampled to match EEG
     """
-    # Lista de canales que deben ser TRIG
-    trigger_channels = ["AUDIO", "PHOTO", "triggerStream"]
-
-    # Crear diccionario de mapeo para los canales que necesitan corrección
-    ch_type_mapping = {}
-    for ch in trigger_channels:
-        if ch in raw.ch_names:
-            ch_type_mapping[ch] = "stim"
-
-    # Aplicar la corrección si hay canales para corregir
-    if ch_type_mapping:
-        raw.set_channel_types(ch_type_mapping)
-        print("Channel types corrected for trigger channels")
-
+    # Extract X and Y axes (assuming they are the first two channels)
+    if joystick_data.shape[1] < 2:
+        raise ValueError("Joystick data must have at least 2 channels (X and Y)")
+    
+    # Extract X and Y data
+    x_data = joystick_data[:, 0]
+    y_data = joystick_data[:, 1]
+    
+    # Calculate relative timestamps (starting from 0)
+    joystick_rel_time = joystick_timestamps - joystick_timestamps[0]
+    
+    # Create interpolation functions for X and Y
+    f_x = interpolate.interp1d(joystick_rel_time, x_data, bounds_error=False, fill_value="extrapolate")
+    f_y = interpolate.interp1d(joystick_rel_time, y_data, bounds_error=False, fill_value="extrapolate")
+    
+    # Create a new time array at the desired sampling frequency
+    # Covering the same time span as the original joystick data
+    duration = joystick_rel_time[-1]
+    new_time = np.arange(0, duration, 1.0/sfreq)
+    
+    # Resample the data using the interpolation functions
+    new_x = f_x(new_time)
+    new_y = f_y(new_time)
+    
+    # Combine into a single array
+    joystick_array = np.vstack([new_x, new_y])
+    
+    # Create info structure
+    info = mne.create_info(
+        ch_names=['joystick_x', 'joystick_y'],
+        sfreq=sfreq,
+        ch_types=['misc', 'misc']
+    )
+    
+    # Create Raw object
+    raw = mne.io.RawArray(joystick_array, info)
+    
+    print(f"Joystick data resampled from {len(joystick_timestamps)} points to {len(new_time)} points")
+    print(f"Original duration: {duration:.2f}s, Resampled duration: {new_time[-1]:.2f}s")
+    
     return raw
+
+
