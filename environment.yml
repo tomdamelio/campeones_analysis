@@ -20,5 +20,4 @@ dependencies:
   - pyxdf
   - mnelab
   - pywavelets
-  - pytest-cov
   - mkdocs-material

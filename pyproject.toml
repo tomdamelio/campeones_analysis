@@ -31,54 +31,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "ruff>=0.1.0",
-    "pyright>=1.1.0",
-    "nox>=2023.0.0",
-    "pre-commit>=3.0.0",
     "mkdocs",
-    "vulture",
-    "commitlint",
     "mkdocs-material>=9.0.0"
 ]
-
-[tool.ruff]
-line-length = 88
-target-version = "py38"
-
-[tool.ruff.lint]
-select = ["E", "F", "B", "I", "N", "UP", "PL", "RUF"]
-ignore = [
-    "E501",  # Line too long
-    "PLR0913",  # Too many arguments
-    "PLR0915",  # Too many statements
-    "PLR0912",  # Too many branches
-    "PLR2004",  # Magic value used in comparison
-    "PLR1714",  # Consider merging multiple comparisons
-    "B904",  # Within an `except` clause, raise exceptions with `raise ... from err`
-    "N806",  # Variable in function should be lowercase
-    "PLW0127",  # Self-assignment of variable
-    "B028",  # No explicit `stacklevel` keyword argument found
-    "PLR0911",  # Too many return statements
-]
-
-[tool.ruff.lint.isort]
-known-first-party = ["campeones_analysis"]
-
-[tool.ruff.lint.mccabe]
-max-complexity = 10
-
-[tool.pyright]
-include = ["src", "tests"]
-exclude = ["**/node_modules", "**/__pycache__"]
-ignore = ["src/campeones_analysis/utils"]
-reportMissingImports = true
-reportMissingTypeStubs = false
-pythonVersion = "3.8"
-pythonPlatform = "Windows"
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-addopts = "-v --cov=campeones_analysis --cov-report=term-missing"
