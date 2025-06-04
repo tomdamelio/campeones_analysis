@@ -1,22 +1,22 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: true
 ---
 # .cursor/rules/tests.mdc
 ---
-description: "Pytest, coverage, property-based tests"
-globs: ["tests/**", "src/**"]
+description: "Validación manual y rápida"
+globs: ["src/**"]
 ---
 ## Testing & Quality
 
 ### Rules
-- Framework: **pytest** + **pytest-cov** (target ≥ 90 % on core code).
-- Add **hypothesis** tests for critical numerical routines.
-- Integration test: minimal end-to-end run with toy dataset (< 10 s).
-- Run **pyright** in the test session (`pytest --type-check`) via pytest-pyright plugin.
+- Manual validation of core functionality.
+- Ad-hoc testing during development.
+- For critical code, implement specific validations as needed.
+- Prioritize rapid development-testing-correction cycles.
 
 ### Checklist
-- [ ] `pytest -q` passes locally and in CI.
-- [ ] Coverage report ≥ 90 % lines for `src/project_name/**`.
-- [ ] At least one Hypothesis strategy in the suite.
+- [ ] Core functionality has been manually validated.
+- [ ] Basic testing with real data has been performed.
+- [ ] Errors found are documented and corrected.

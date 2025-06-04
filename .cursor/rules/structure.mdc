@@ -1,6 +1,6 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: true
 ---
 # .cursor/rules/structure.mdc
@@ -12,7 +12,7 @@ alwaysApply: true
 
 ```text
 campeones_analysis/                 # ← project root (Git repo)
-├── .github/workflows/              # CI pipelines (pytest · ruff · nbconvert)
+├── .github/workflows/              # CI pipelines (simplificadas)
 │   └── ci.yml
 ├── .dvc/                           # internal DVC control files
 │   └── config                      # points to gdrive remote
@@ -25,7 +25,7 @@ campeones_analysis/                 # ← project root (Git repo)
 │   └── model_glhmm.yaml
 ├── docs/                           # ★ MkDocs-Material sources / API docs
 │   └── index.md
-├── notebooks/                      # exploratory notebooks (Jupytext-synced)
+├── notebooks/                      # exploratory notebooks 
 │   ├── 00_overview.ipynb
 │   ├── eeg/
 │   └── ml/
@@ -38,6 +38,7 @@ campeones_analysis/                 # ← project root (Git repo)
 │   │   ├── physio/
 │   │   │   ├── preprocessing.py
 │   │   │   └── features.py
+│   │   │   └── read_xdf.py         # Conversión de XDF a BIDS
 │   │   ├── behav/
 │   │   │   └── parsing.py
 │   │   ├── fusion/
@@ -47,12 +48,9 @@ campeones_analysis/                 # ← project root (Git repo)
 │   │   │   └── train_glhmm.py
 │   │   └── utils/
 │   │       └── io.py
-├── tests/                          # pytest + hypothesis suite
-│   ├── conftest.py
-│   └── test_preprocessing.py
-├── pyproject.toml                  # ★ PEP 621 metadata + Ruff/Pyright config
+├── scripts/                        # Scripts útiles
+├── pyproject.toml                  # ★ PEP 621 metadata simplificada 
 ├── environment.yml                 # micromamba/conda env spec
-├── Makefile                        # nox wrappers: env · lint · tests · docs
 └── README.md                       # project overview & 30-sec quick-start
 
 ```
@@ -60,9 +58,8 @@ campeones_analysis/                 # ← project root (Git repo)
 ### Rules
 - PyProject-only: no setup.py; use PEP 621 metadata.
 - README.md, .gitignore, pyproject.toml, LICENSE, CHANGELOG.md always present.
-- New repos generated via cookiecutter-scientific-python (maintained 2025 fork).
+- Simplified structure to enable rapid iterations.
 
 ### Checklist
 - [ ] src/project_name/__init__.py exists and exposes public API.
-
 - [ ] Large data and results paths are in .gitignore (allowlist with ! as needed).
