@@ -55,5 +55,6 @@ site/
 docs/_build/
 *.js.map
 
-# Ignore research_diary
-/research_diary
+# Ignore research_diary and its contents
+/research_diary/
+/research_diary/**/*.md
