@@ -106,6 +106,7 @@ def save_raw_bids_compliant(subject, session, task, data_type, raw, root_folder)
         write_raw_bids(
             raw,
             bids_path,
+            make_dataset_description=False,
             format="BrainVision",
             allow_preload=True,
             overwrite=True,
@@ -115,61 +116,6 @@ def save_raw_bids_compliant(subject, session, task, data_type, raw, root_folder)
             extra_columns_descriptions=extra_columns_descriptions,
         )
         print(f"Data saved at BIDS path: {bids_path}")
-
-    elif data_type == "gaze":
-        # Define the BIDS path for gaze data
-        bids_basename = make_bids_basename(
-            subject=subject,
-            session=session,
-            task=task,
-            suffix="gaze",
-            extension=".vhdr",
-        )
-        gaze_dir = os.path.join(root_folder, f"sub-{subject}", f"ses-{session}", "gaze")
-        os.makedirs(gaze_dir, exist_ok=True)
-        gaze_filepath = os.path.join(gaze_dir, bids_basename)
-
-        # raw.save(gaze_filepath, overwrite=True)
-        mne.export.export_raw(
-            gaze_filepath, raw, fmt="brainvision", add_ch_type=True, overwrite=True
-        )
-        print(f"Gaze data saved at: {gaze_filepath}")
-
-        # Metadata for gaze data
-        gaze_metadata = {
-            "TaskName": task,
-            "Manufacturer": "Gazepoint GP3",
-            "PowerLineFrequency": "n/a",
-            "SamplingFrequency": raw.info["sfreq"],
-            "SoftwareFilters": "n/a",
-            "RecordingDuration": raw.times[-1],
-            "RecordingType": "continuous",
-            "GazeChannelCount": len(raw.ch_names),
-        }
-        gaze_metadata_path = gaze_filepath.replace(".vhdr", ".json")
-        with open(gaze_metadata_path, "w") as f:
-            json.dump(gaze_metadata, f, indent=4, ensure_ascii=True)
-        print(f"Gaze metadata saved at: {gaze_metadata_path}")
-
-        # Event handling: save events to .tsv
-        events, event_id = mne.events_from_annotations(raw)
-        events_df = pd.DataFrame(events, columns=["onset", "duration", "description"])
-        events_path = os.path.join(
-            gaze_dir, f"sub-{subject}_ses-{session}_task-{task}_events.tsv"
-        )
-        events_df.to_csv(events_path, sep="\t", index=False)
-        print(f"Events saved at: {events_path}")
-
-        # Event metadata
-        events_metadata = {
-            "onset": {"Description": "Event onset", "Units": "seconds"},
-            "duration": {"Description": "Event duration", "Units": "seconds"},
-            "description": {"Description": "Event description", "event_id": event_id},
-        }
-        events_metadata_path = events_path.replace(".tsv", ".json")
-        with open(events_metadata_path, "w") as f:
-            json.dump(events_metadata, f, indent=4, ensure_ascii=True)
-        print(f"Events metadata saved at: {events_metadata_path}")
 
 
 def save_epoched_bids(
@@ -438,6 +384,9 @@ def create_bids_metadata(root_folder):
         Root folder of the BIDS dataset.
     """
     root_folder = Path(root_folder)
+    
+    # Asegurar que la carpeta existe
+    root_folder.mkdir(parents=True, exist_ok=True)
 
     # --------------------------------------------------
     # dataset_description.json
@@ -446,7 +395,7 @@ def create_bids_metadata(root_folder):
     if not dataset_json.exists():
         metadata = {
             "Name": "CAMPEONES: Continuous Annotation and Multimodal Processing of EmOtions in Naturalistic EnvironmentS",
-            "BIDSVersion": "1.10.0",
+            "BIDSVersion": "1.8.0",
             "DatasetType": "raw",
             "License": "CC BY-4.0",  # Added recommended license
             "EthicsApprovals": [
@@ -630,6 +579,8 @@ def update_participant_info(
     root_folder: str | Path,
     subject_id: str,
     *,
+    bulk: bool = False,
+    csv_path: str | Path = None,
     birth_date: str | None = None,
     age: int | float | None = None,
     gender: str | None = None,
@@ -644,15 +595,63 @@ def update_participant_info(
     medical_conditions_past: str | None = None,
     psychological_diagnosis: str | None = None,
     current_treatment: str | None = None,
+    **additional_fields
 ):
     """
-    Adds or updates a participant's row in participants.tsv
-    following BIDS 1.10 standards.
-
-    Missing values should be set as 'n/a'.
+    Adds or updates participant information in participants.tsv following BIDS 1.10 standards.
+    
+    This function can operate in two modes:
+    1. Individual update: Update a single participant with provided parameters
+    2. Bulk update: Update multiple participants from a CSV file
+    
+    Parameters
+    ----------
+    root_folder : str | Path
+        Root folder of the BIDS dataset
+    subject_id : str
+        Subject ID to update. If bulk=True, this can be None and all subjects in the CSV will be updated
+    bulk : bool, default=False
+        If True, updates multiple participants from the CSV file specified in csv_path
+    csv_path : str | Path, optional
+        Path to CSV file containing participant data (required if bulk=True)
+    birth_date : str, optional
+        Date of birth in ISO format (YYYY-MM-DD)
+    age : int | float, optional
+        Age of the participant
+    gender : str, optional
+        Gender of the participant
+    handedness : str, optional
+        Handedness of the participant
+    education_level : str, optional
+        Education level of the participant
+    university_career : str, optional
+        University career of the participant
+    nationality : str, optional
+        Nationality of the participant
+    ethnicity : str, optional
+        Ethnicity of the participant
+    residence_location : str, optional
+        Residence location of the participant
+    vr_experience_count : int, optional
+        Number of VR experiences
+    medical_conditions_current : str, optional
+        Current medical conditions
+    medical_conditions_past : str, optional
+        Past medical conditions
+    psychological_diagnosis : str, optional
+        Psychological diagnosis
+    current_treatment : str, optional
+        Current treatment
+    **additional_fields : dict
+        Any additional fields to include in participants.tsv
+    
+    Returns
+    -------
+    None
     """
     root_folder = Path(root_folder)
     participants_tsv = root_folder / "participants.tsv"
+    
     # --- Columns to manage ---
     col_order = [
         "participant_id",
@@ -673,50 +672,106 @@ def update_participant_info(
         "psychological_diagnosis",
         "current_treatment",
     ]
+    
+    # Add any additional fields from kwargs to column order
+    for field in additional_fields:
+        if field not in col_order:
+            col_order.append(field)
 
     # Load or create dataframe
     if participants_tsv.exists():
         df = pd.read_csv(participants_tsv, sep="\t")
     else:
         df = pd.DataFrame(columns=col_order)
+    
     # Ensure all columns exist
     for c in col_order:
         if c not in df.columns:
             df[c] = "n/a"
-
-    pid = f"sub-{subject_id}"
-    if pid in df.participant_id.values:
-        row_mask = df.participant_id == pid
-    else:
-        row_idx = len(df)
-        df.loc[row_idx, "participant_id"] = pid
-        df.loc[row_idx, "species"] = "Homo sapiens"  # Updated to proper binomial name
-        df.loc[row_idx, "sex"] = "n/a"  # Added default value for recommended field
-
-    # Safe assignments
-    def set_if(val, col):
-        if val is not None:
+            
+    # Bulk update mode
+    if bulk:
+        if csv_path is None:
+            raise ValueError("csv_path must be provided when bulk=True")
+        
+        # Load participant data from CSV
+        participants_data = load_participant_data(csv_path)
+        
+        # Update each participant's information
+        for subj_id, data in participants_data.items():
+            pid = f"sub-{subj_id}"
+            
+            # Check if participant exists
             if pid in df.participant_id.values:
-                df.loc[row_mask, col] = val
+                row_mask = df.participant_id == pid
             else:
-                df.loc[row_idx, col] = val
+                # Add new row
+                row_idx = len(df)
+                df.loc[row_idx, "participant_id"] = pid
+                df.loc[row_idx, "species"] = "Homo sapiens"
+                df.loc[row_idx, "sex"] = "n/a"
+                row_mask = df.participant_id == pid
+            
+            # Update fields
+            for field, value in data.items():
+                if value is not None and field in df.columns:
+                    df.loc[row_mask, field] = value
+        
+        print(f"Updated information for {len(participants_data)} participants")
+    
+    # Individual update mode
+    else:
+        pid = f"sub-{subject_id}"
+        
+        # Check if participant exists
+        if pid in df.participant_id.values:
+            row_mask = df.participant_id == pid
+        else:
+            # Add new row
+            row_idx = len(df)
+            df.loc[row_idx, "participant_id"] = pid
+            df.loc[row_idx, "species"] = "Homo sapiens"
+            df.loc[row_idx, "sex"] = "n/a"
+            row_mask = df.participant_id == pid
+        
+        # Safe assignments
+        def set_if(val, col):
+            if val is not None:
+                df.loc[row_mask, col] = val
 
-    set_if(birth_date, "birth_date")
-    set_if(age, "age")
-    set_if(gender, "gender")
-    set_if(handedness, "handedness")
-    set_if(education_level, "education_level")
-    set_if(university_career, "university_career")
-    set_if(nationality, "nationality")
-    set_if(ethnicity, "ethnicity")
-    set_if(residence_location, "residence_location")
-    set_if(vr_experience_count, "vr_experience_count")
-    set_if(medical_conditions_current, "medical_conditions_current")
-    set_if(medical_conditions_past, "medical_conditions_past")
-    set_if(psychological_diagnosis, "psychological_diagnosis")
-    set_if(current_treatment, "current_treatment")
+        set_if(birth_date, "birth_date")
+        set_if(age, "age")
+        set_if(gender, "gender")
+        set_if(handedness, "handedness")
+        set_if(education_level, "education_level")
+        set_if(university_career, "university_career")
+        set_if(nationality, "nationality")
+        set_if(ethnicity, "ethnicity")
+        set_if(residence_location, "residence_location")
+        set_if(vr_experience_count, "vr_experience_count")
+        set_if(medical_conditions_current, "medical_conditions_current")
+        set_if(medical_conditions_past, "medical_conditions_past")
+        set_if(psychological_diagnosis, "psychological_diagnosis")
+        set_if(current_treatment, "current_treatment")
+        
+        # Handle additional fields
+        for field, value in additional_fields.items():
+            set_if(value, field)
+        
+        print(f"Updated information for participant {pid}")
 
     # Reorder columns and save
+    # Ensure all columns in col_order exist in df
+    for col in col_order:
+        if col not in df.columns:
+            df[col] = "n/a"
+    
+    # Add any columns in df that aren't in col_order
+    for col in df.columns:
+        if col not in col_order:
+            col_order.append(col)
+            
+    # Reorder and save
     df = df[col_order]
     df.to_csv(participants_tsv, sep="\t", index=False)
     print(f"Updated participant information in {participants_tsv}")
@@ -748,7 +803,7 @@ def load_participant_data(csv_path: str | Path) -> dict[str, dict]:
     # Read CSV file
     df = pd.read_csv(csv_path, encoding="utf-8", low_memory=False)
 
-    # Define mapping from CSV columns to BIDS fields
+    # Define mapping from CSV columns to BIDS fields (for documentation purposes)
     _column_mapping = {
         "ID PARTICIPANTE": "subject_id",
         "Fecha de Nacimiento:": "birth_date",
@@ -1064,170 +1119,5 @@ def load_participant_data(csv_path: str | Path) -> dict[str, dict]:
 
         # Store participant data
         participants_data[subject_id] = data
-
-    return participants_data
-
-
-def batch_update_participants(bids_root: str | Path, csv_path: str | Path):
-    """
-    Updates multiple participants' information from a CSV file.
-
-    Parameters
-    ----------
-    bids_root : str | Path
-        Root folder of the BIDS dataset
-    csv_path : str | Path
-        Path to the CSV file containing participant data
-    """
-    # Load participant data from CSV
-    participants_data = load_participant_data(csv_path)
-
-    # Update each participant's information
-    for subject_id, data in participants_data.items():
-        print(f"Updating participant: sub-{subject_id}")
-        update_participant_info(bids_root, subject_id, **data)
-
-    print(f"Updated information for {len(participants_data)} participants")
-
-
-def update_participant_tsv(root_folder, metadata):
-    """
-    Updates the participants.tsv file with new data.
-
-    Parameters
-    ----------
-    root_folder : str | Path
-        Root folder of the BIDS dataset.
-    metadata : dict
-        Dictionary containing the participant metadata.
-        Keys should be BIDS-compliant field names.
-        Missing values should be set as 'n/a'.
-    """
-    from pathlib import Path
-    import pandas as pd
-
-    root_folder = Path(root_folder)
-
-    # Path to participants.tsv file
-    participants_tsv = root_folder / "participants.tsv"
-
-    if not participants_tsv.exists():
-        # Create participants.tsv with default columns if it doesn't exist
-        participants_df = pd.DataFrame(
-            columns=["participant_id", "sex", "age", "handedness"]
-        )
-        participants_df.to_csv(participants_tsv, sep="\t", index=False)
-
-    # Read existing participants.tsv
-    participants_df = pd.read_csv(participants_tsv, sep="\t")
-
-    # Check if participant already exists
-    subject_id = metadata.get("participant_id", "")
-    if not subject_id:
-        raise ValueError("participant_id is required in metadata")
-
-    # If participant exists, update their information
-    if subject_id in participants_df["participant_id"].values:
-        for key, value in metadata.items():
-            if key in participants_df.columns:
-                participants_df.loc[
-                    participants_df["participant_id"] == subject_id, key
-                ] = value
-    else:
-        # Add new participant
-        new_row = {col: "n/a" for col in participants_df.columns}
-        new_row.update(metadata)
-        participants_df = pd.concat(
-            [participants_df, pd.DataFrame([new_row])], ignore_index=True
-        )
-
-    # Save updated participants.tsv
-    participants_df.to_csv(participants_tsv, sep="\t", index=False)
-
-    return participants_df
-
-
-def read_participants_csv(csv_path):
-    """
-    Read participant data from a custom CSV format and convert to BIDS format.
-
-    Parameters
-    ----------
-    csv_path : str | Path
-        Path to the CSV file containing participant data.
-
-    Returns
-    -------
-    dict
-        Dictionary with participant IDs as keys and their BIDS metadata as values
-    """
-    from pathlib import Path
-    import pandas as pd
-
-    # Ensure path is a Path object
-    csv_path = Path(csv_path)
-
-    # Read CSV file
-    df = pd.read_csv(csv_path, encoding="utf-8")
-
-    # Initialize dictionary to store participant data
-    participants_data = {}
-
-    # Process each row (participant)
-    for _, row in df.iterrows():
-        # Extract participant ID
-        participant_id = f"sub-{row['ID PARTICIPANTE']}"
-        data = {
-            "participant_id": participant_id,
-        }
-
-        # Extract demographic data if available
-        try:
-            birth_date = pd.to_datetime(row["Fecha de Nacimiento:"])
-            data["birth_date"] = birth_date.strftime("%Y-%m-%d")
-        except Exception:
-            data["birth_date"] = None
-
-        # Extract gender
-        try:
-            gender = row["Sexo:"].lower()
-            if gender in ["hombre", "masculino", "male", "m"]:
-                data["sex"] = "male"
-            elif gender in ["mujer", "femenino", "female", "f"]:
-                data["sex"] = "female"
-            else:
-                data["sex"] = gender
-        except Exception:
-            data["sex"] = None
-
-        # Extract age
-        try:
-            age = int(row["Edad:"])
-            data["age"] = age
-        except Exception:
-            data["age"] = None
-
-        # Extract handedness
-        try:
-            handedness = row["Mano dominante:"].lower()
-            if handedness in ["derecha", "right", "r", "diestro"]:
-                data["handedness"] = "right"
-            elif handedness in ["izquierda", "left", "l", "zurdo"]:
-                data["handedness"] = "left"
-            elif handedness in ["ambidiestro", "ambos", "both", "ambidextrous"]:
-                data["handedness"] = "ambidextrous"
-            else:
-                data["handedness"] = handedness
-        except Exception:
-            data["handedness"] = None
-
-        # Extract education
-        try:
-            data["education_level"] = row["Nivel de educación:"]
-        except Exception:
-            data["education_level"] = None
-
-        # Store participant data
-        participants_data[participant_id] = data
 
     return participants_data
