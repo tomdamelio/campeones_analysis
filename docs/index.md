@@ -1,10 +1,10 @@
 # CAMPEONES Analysis
 
-Bienvenido a la documentación del Proyecto CAMPEONES, un pipeline reproducible para el análisis de datos de un experimento con datos de VR, incluyendo EEG y medidas fisiológicas periféricas.
+Bienvenido a la documentación del Proyecto CAMPEONES, un pipeline para el análisis de datos de un experimento con datos de VR, incluyendo EEG y medidas fisiológicas periféricas.
 
 ## Descripción
 
-Este proyecto proporciona un flujo de trabajo reproducible, modular y automatizado para el preprocesamiento, extracción de características y machine learning de datos de experimentos de emociones, utilizando herramientas de código abierto.
+Este proyecto proporciona un flujo de trabajo modular y simplificado para el preprocesamiento, extracción de características y machine learning de datos de experimentos de emociones, utilizando herramientas de código abierto.
 
 ## Características Principales
 
@@ -14,29 +14,39 @@ Este proyecto proporciona un flujo de trabajo reproducible, modular y automatiza
   - Machine Learning (scikit-learn)
 
 - **Reproducibilidad**:
-  - Gestión de entornos (micromamba, conda-lock)
+  - Gestión de entornos (micromamba)
   - Control de versiones de datos (DVC, Google Drive)
-  - Gates de calidad automatizados (Nox, pre-commit, ruff, pyright)
 
 - **Documentación**:
   - Guías de uso y ejemplos
   - Documentación de código
   - Diario de investigación
 
-## Contenido
+## Filosofía de Desarrollo
 
-- [Documentación de Tests](tests.md) - Guía completa de los scripts de test y su uso
+- **Iteraciones Rápidas**: Enfoque en ciclos cortos de desarrollo para facilitar la experimentación.
+- **Simplicidad**: Estructura minimalista que prioriza la funcionalidad sobre la formalidad.
+- **Validación Manual**: Comprobación directa de resultados durante el desarrollo.
 
 ## Estructura del Proyecto
 
 ```
 campeones_analysis/
-├── data/               # Datos del proyecto (versionados con DVC)
-├── docs/              # Documentación
-├── scripts/           # Scripts de utilidad
-├── src/               # Código fuente del proyecto
-├── tests/             # Tests y scripts de validación
-└── results/           # Resultados de análisis
+├── data/                # Datos del proyecto (versionados con DVC)
+│   ├── raw/             # Datos en formato BIDS
+│   ├── sourcedata/      # Datos originales
+│   └── derivatives/     # Datos procesados
+├── docs/                # Documentación
+├── scripts/             # Scripts de utilidad
+├── src/                 # Código fuente del proyecto
+│   └── campeones_analysis/
+│       ├── eeg/         # Análisis de EEG
+│       ├── physio/      # Procesamiento de señales fisiológicas
+│       ├── behav/       # Análisis comportamental
+│       ├── fusion/      # Integración multimodal
+│       ├── models/      # Modelos y análisis estadístico
+│       └── utils/       # Utilidades comunes
+└── results/             # Resultados de análisis
 ```
 
 ## Licencia
