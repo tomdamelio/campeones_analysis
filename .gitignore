@@ -15,6 +15,7 @@ venv/
 # Data, results, and large files
 data/
 results/
+data/raw/stimuli/
 *.h5
 *.csv
 *.tsv
@@ -26,6 +27,7 @@ results/
 *.vmrk
 *.eeg
 *.mat
+*.mp4
 
 # DVC cache and pointers
 !.dvc
