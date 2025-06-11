@@ -36,6 +36,14 @@ Parámetros importantes:
     --no-manual-edit: Deshabilitar edición manual de anotaciones
     --force-save: Forzar guardado de anotaciones editadas manualmente sin preguntar
     --manual-save-dir: Directorio donde guardar eventos editados manualmente (default: edited_events)
+    --load-events: Cargar eventos existentes desde derivatives/events (activado por defecto)
+    --no-load-events: No cargar eventos existentes
+    --events-dir: Directorio dentro de derivatives donde buscar los eventos existentes (default: events)
+    --events-desc: Descripción de los eventos a cargar (default: None)
+    --merge-events: Fusionar los eventos existentes con las nuevas anotaciones, actualizando onsets y duraciones (activado por defecto)
+    --no-merge-events: No fusionar los eventos existentes con las nuevas anotaciones
+    --merged-save-dir: Directorio dentro de derivatives donde guardar los eventos fusionados (default: merged_events)
+    --merged-desc: Descripción para los eventos fusionados (default: merged)
 """
 
 import os
@@ -116,9 +124,25 @@ def parse_args():
                         help="Forzar guardado de anotaciones editadas manualmente sin preguntar")
     parser.add_argument("--manual-save-dir", type=str, default="edited_events",
                         help="Directorio dentro de derivatives donde guardar eventos editados manualmente (default: edited_events)")
+    parser.add_argument("--load-events", action="store_true", default=True,
+                        help="Cargar eventos existentes desde derivatives/events (activado por defecto)")
+    parser.add_argument("--no-load-events", dest="load_events", action="store_false",
+                        help="No cargar eventos existentes")
+    parser.add_argument("--events-dir", type=str, default="events",
+                        help="Directorio dentro de derivatives donde buscar los eventos existentes (default: events)")
+    parser.add_argument("--events-desc", type=str, default=None,
+                        help="Descripción de los eventos a cargar (default: None)")
+    parser.add_argument("--merge-events", action="store_true", default=True,
+                        help="Fusionar los eventos existentes con las nuevas anotaciones, actualizando onsets y duraciones (activado por defecto)")
+    parser.add_argument("--no-merge-events", dest="merge_events", action="store_false",
+                        help="No fusionar los eventos existentes con las nuevas anotaciones")
+    parser.add_argument("--merged-save-dir", type=str, default="merged_events",
+                        help="Directorio dentro de derivatives donde guardar los eventos fusionados (default: merged_events)")
+    parser.add_argument("--merged-desc", type=str, default="merged",
+                        help="Descripción para los eventos fusionados (default: merged)")
     
     # Establecer valores predeterminados
-    parser.set_defaults(use_amplitude_detection=True, enable_manual_edit=True)
+    parser.set_defaults(use_amplitude_detection=True, enable_manual_edit=True, load_events=True, merge_events=True)
     
     return parser.parse_args()
 
@@ -1291,11 +1315,11 @@ def visualize_signals_with_annotations(raw, annotations, apply_zscore=True):
     fig = raw_plot.plot(
         title=f"Canales {', '.join(channels_to_pick)} con anotaciones automáticas",
         scalings='auto',
-        duration=180,
+        duration=540,
         start=0,
         show=True,
         block=True,
-        decim=128  # Aplicar decimación para reducir la resolución
+        decim=32  # Aplicar decimación para reducir la resolución
     )
     
     # Obtener las anotaciones actualizadas después de cerrar el visualizador
@@ -1410,11 +1434,11 @@ def compare_manual_and_auto_annotations(raw, manual_path, auto_path):
     fig = raw_combined.plot(
         title=f"Comparación de anotaciones manuales y automáticas",
         scalings='auto',
-        duration=180,
+        duration=540,
         start=0,
         show=True,
         block=True,
-        decim=128  # Aplicar decimación para reducir la resolución
+        decim=32  # Aplicar decimación para reducir la resolución
     )
     
     print("\nVisualizador cerrado.")
@@ -1586,6 +1610,364 @@ def create_dataset_description_edited(edited_root):
         print(f"Archivo dataset_description.json creado en: {dataset_desc_path}")
 
 
+def load_events_file(subject, session, task, run, acq=None, events_dir="events", desc=None):
+    """
+    Carga un archivo de eventos existente desde derivatives/events.
+    
+    Parameters
+    ----------
+    subject : str
+        ID del sujeto
+    session : str
+        ID de la sesión
+    task : str
+        ID de la tarea
+    run : str
+        ID del run
+    acq : str, optional
+        Parámetro de adquisición
+    events_dir : str, optional
+        Nombre del directorio dentro de derivatives donde buscar los eventos
+    desc : str, optional
+        Descripción de los eventos a cargar
+    
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame con los eventos cargados o None si no se encuentra el archivo
+    """
+    print(f"\n=== Cargando eventos existentes para sub-{subject} ses-{session} task-{task} run-{run} ===\n")
+    
+    # Definir rutas
+    events_root = repo_root / 'data' / 'derivatives' / events_dir
+    
+    # Asegurar formato correcto de parámetros
+    if task and task.isdigit():
+        task = task.zfill(2)
+    if run and run.isdigit():
+        run = run.zfill(3)
+    if acq:
+        acq = acq.lower()
+    
+    # Crear BIDSPath para eventos
+    events_path = BIDSPath(
+        subject=subject,
+        session=session,
+        task=task,
+        run=run,
+        acquisition=acq,
+        datatype='eeg',
+        suffix='events',
+        description=desc,
+        extension='.tsv',
+        root=events_root,
+        check=False
+    )
+    
+    print(f"Buscando archivo de eventos en: {events_path.fpath}")
+    
+    # Verificar que el archivo existe
+    if not events_path.fpath.exists():
+        print(f"¡ADVERTENCIA! Archivo de eventos no encontrado: {events_path.fpath}")
+        
+        # Si no se encuentra con la descripción especificada, intentar sin descripción
+        if desc:
+            print(f"Intentando buscar sin especificar descripción...")
+            alt_path = BIDSPath(
+                subject=subject,
+                session=session,
+                task=task,
+                run=run,
+                acquisition=acq,
+                datatype='eeg',
+                suffix='events',
+                extension='.tsv',
+                root=events_root,
+                check=False
+            )
+            if alt_path.fpath.exists():
+                print(f"Archivo encontrado sin descripción: {alt_path.fpath}")
+                events_path = alt_path
+            else:
+                # Listar todos los archivos de eventos disponibles
+                print("Archivos de eventos disponibles:")
+                for file in events_root.glob(f"sub-{subject}_ses-{session}_task-{task}_*_events.tsv"):
+                    print(f"  - {file.name}")
+                return None
+        else:
+            # Listar todos los archivos de eventos disponibles
+            print("Archivos de eventos disponibles:")
+            for file in events_root.glob(f"sub-{subject}_ses-{session}_task-{task}_*_events.tsv"):
+                print(f"  - {file.name}")
+            return None
+    
+    # Cargar eventos
+    events_df = pd.read_csv(events_path.fpath, sep='\t')
+    print(f"Eventos cargados: {len(events_df)} filas")
+    
+    return events_df
+
+def display_events_in_reverse(events_df):
+    """
+    Muestra los eventos en orden inverso, línea por línea.
+    
+    Parameters
+    ----------
+    events_df : pd.DataFrame
+        DataFrame con los eventos a mostrar
+    """
+    if events_df is None or len(events_df) == 0:
+        print("No hay eventos para mostrar.")
+        return
+    
+    print("\n=== EVENTOS EN ORDEN INVERSO ===\n")
+    print("Mostrando eventos desde el último hasta el primero:\n")
+    
+    # Crear una copia invertida del DataFrame
+    reversed_df = events_df.iloc[::-1].reset_index(drop=True)
+    
+    # Mostrar cada fila
+    for idx, row in reversed_df.iterrows():
+        print(f"Evento #{len(events_df) - idx} (original #{idx}):")
+        print(f"  Onset: {row.get('onset', 'N/A'):.2f} s")
+        print(f"  Duración: {row.get('duration', 'N/A'):.2f} s")
+        print(f"  Tipo: {row.get('trial_type', 'N/A')}")
+        
+        # Mostrar campos adicionales si existen
+        for col in row.index:
+            if col not in ['onset', 'duration', 'trial_type']:
+                print(f"  {col}: {row.get(col, 'N/A')}")
+        
+        print("-" * 40)
+    
+    print("\nFin de los eventos en orden inverso.")
+
+def merge_events_with_annotations(original_events_df, annotations, max_duration_diff=1.0):
+    """
+    Fusiona los eventos originales con las nuevas anotaciones, actualizando los onsets y duraciones.
+    Los eventos originales se asumen en orden inverso (último evento primero).
+    
+    Parameters
+    ----------
+    original_events_df : pd.DataFrame
+        DataFrame con los eventos originales (de derivatives/events)
+    annotations : mne.Annotations
+        Anotaciones generadas o editadas manualmente
+    max_duration_diff : float, optional
+        Diferencia máxima permitida en duraciones para generar un warning
+        
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame con los eventos fusionados
+    """
+    print("\n=== Fusionando eventos originales con nuevas anotaciones ===\n")
+    
+    # Verificar que hay eventos para fusionar
+    if original_events_df is None or len(original_events_df) == 0:
+        print("¡ERROR! No hay eventos originales para fusionar.")
+        return None
+    
+    if annotations is None or len(annotations) == 0:
+        print("¡ERROR! No hay anotaciones nuevas para fusionar.")
+        return None
+    
+    # Invertir el orden de los eventos originales
+    # De esta manera el primer evento en el DataFrame será el primer evento en el tiempo real
+    reversed_events_df = original_events_df.iloc[::-1].reset_index(drop=True)
+    
+    # Verificar que el número de eventos coincide
+    if len(reversed_events_df) != len(annotations):
+        print(f"¡ADVERTENCIA! El número de eventos originales ({len(reversed_events_df)}) no coincide con el número de anotaciones ({len(annotations)}).")
+        print("La fusión puede generar resultados incorrectos.")
+        
+        # Si hay menos anotaciones que eventos, truncar eventos
+        if len(annotations) < len(reversed_events_df):
+            print(f"Truncando eventos originales para coincidir con el número de anotaciones ({len(annotations)}).")
+            reversed_events_df = reversed_events_df.iloc[:len(annotations)].copy()
+        else:
+            # Si hay más anotaciones que eventos, truncar anotaciones
+            print(f"Truncando anotaciones para coincidir con el número de eventos originales ({len(reversed_events_df)}).")
+            # Crear nuevas anotaciones con solo los primeros elementos
+            annotations = mne.Annotations(
+                onset=annotations.onset[:len(reversed_events_df)],
+                duration=annotations.duration[:len(reversed_events_df)],
+                description=annotations.description[:len(reversed_events_df)]
+            )
+    
+    # Crear una copia del DataFrame original para no modificarlo
+    merged_df = reversed_events_df.copy()
+    
+    # Actualizar onsets y duraciones
+    merged_df['onset'] = annotations.onset
+    merged_df['duration'] = annotations.duration
+    
+    # Verificar diferencias significativas en duración
+    for i, (orig_dur, new_dur) in enumerate(zip(reversed_events_df['duration'], merged_df['duration'])):
+        if abs(orig_dur - new_dur) > max_duration_diff:
+            print(f"¡ADVERTENCIA! Diferencia significativa en la duración del evento {i+1}:")
+            print(f"  Original: {orig_dur:.2f}s")
+            print(f"  Nueva: {new_dur:.2f}s")
+    
+    # Mostrar resumen de la fusión
+    print("\nResumen de la fusión:")
+    print(f"  Eventos originales: {len(original_events_df)}")
+    print(f"  Eventos fusionados: {len(merged_df)}")
+    print(f"  Columnas preservadas: {', '.join(merged_df.columns)}")
+    
+    return merged_df
+
+def save_merged_events(merged_df, bids_path, original_events_path, merged_save_dir="merged_events", merged_desc="merged"):
+    """
+    Guarda los eventos fusionados en un archivo TSV en derivatives/merged_events.
+    
+    Parameters
+    ----------
+    merged_df : pd.DataFrame
+        DataFrame con los eventos fusionados
+    bids_path : mne_bids.BIDSPath
+        Ruta BIDS del archivo raw
+    original_events_path : str or Path
+        Ruta al archivo de eventos originales
+    merged_save_dir : str, optional
+        Nombre del directorio dentro de derivatives donde guardar los eventos
+    merged_desc : str, optional
+        Descripción para los eventos fusionados
+        
+    Returns
+    -------
+    str
+        Ruta del archivo guardado
+    """
+    if merged_df is None or len(merged_df) == 0:
+        print("No hay eventos fusionados para guardar.")
+        return None
+    
+    # Extraer información del bids_path
+    subject = bids_path.subject
+    session = bids_path.session
+    task = bids_path.task
+    run = bids_path.run
+    acq = bids_path.acquisition
+    
+    # Crear BIDSPath para guardar los eventos fusionados
+    merged_root = repo_root / 'data' / 'derivatives' / merged_save_dir
+    
+    output_path = BIDSPath(
+        subject=subject,
+        session=session,
+        task=task,
+        run=run,
+        acquisition=acq,
+        datatype='eeg',
+        suffix='events',
+        description=merged_desc,
+        extension='.tsv',
+        root=merged_root,
+        check=False
+    )
+    
+    # Crear el directorio si no existe
+    os.makedirs(output_path.directory, exist_ok=True)
+    
+    # Guardar el DataFrame como TSV
+    merged_df.to_csv(output_path.fpath, sep='\t', index=False)
+    
+    print(f"Eventos fusionados guardados en: {output_path.fpath}")
+    
+    # Crear el archivo JSON asociado
+    json_path = output_path.fpath.with_suffix('.json')
+    
+    # Intentar cargar el JSON original si existe
+    original_json_path = Path(original_events_path).with_suffix('.json')
+    original_json = {}
+    if original_json_path.exists():
+        try:
+            with open(original_json_path, 'r') as f:
+                original_json = json.load(f)
+        except json.JSONDecodeError:
+            print(f"Error al leer el archivo JSON original: {original_json_path}")
+    
+    # Crear el contenido del JSON con los campos del original y metadatos adicionales
+    json_content = original_json.copy()
+    
+    # Añadir información sobre el proceso de fusión
+    json_content["ProcessingMethod"] = {
+        "Description": "Fusión de eventos originales con anotaciones detectadas automáticamente y editadas manualmente",
+        "OriginalEventsSource": str(original_events_path),
+        "MergeDate": pd.Timestamp.now().strftime("%Y-%m-%dT%H:%M:%S")
+    }
+    
+    # Añadir información sobre el generador
+    if "GeneratedBy" not in json_content:
+        json_content["GeneratedBy"] = {}
+    
+    json_content["GeneratedBy"]["Name"] = "detect_markers.py"
+    json_content["GeneratedBy"]["Version"] = "1.5"
+    json_content["GeneratedBy"]["Description"] = "Fusión de eventos originales con anotaciones detectadas/editadas"
+    
+    # Guardar el JSON
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(json_content, f, indent=4)
+    
+    # Crear dataset_description.json si no existe
+    create_dataset_description_merged(merged_root)
+    
+    return str(output_path.fpath)
+
+def create_dataset_description_merged(merged_root):
+    """
+    Crea el archivo dataset_description.json para la carpeta de derivados de eventos fusionados.
+    
+    Parameters
+    ----------
+    merged_root : pathlib.Path
+        Ruta a la carpeta de derivados
+    """
+    dataset_desc_path = merged_root / 'dataset_description.json'
+    
+    if not dataset_desc_path.exists():
+        print(f"Creando dataset_description.json en {merged_root}")
+        
+        # Crear el README si no existe (requerido por BIDS)
+        readme_path = merged_root / 'README'
+        if not readme_path.exists():
+            with open(readme_path, 'w', encoding='utf-8') as f:
+                f.write("# Merged Events\n\n")
+                f.write("Este directorio contiene eventos fusionados a partir de eventos originales y anotaciones detectadas/editadas.\n")
+                f.write("Los eventos provienen de la fusión de los eventos de derivatives/events con las anotaciones generadas por detect_markers.py.\n")
+                f.write("Los eventos originales mantienen toda su metadata y estructura, pero con onsets y duraciones actualizados.\n")
+        
+        # Crear manualmente el dataset_description.json para asegurar el formato correcto
+        dataset_desc = {
+            "Name": "merged_events",
+            "BIDSVersion": "1.8.0",
+            "DatasetType": "derivative",
+            "Authors": [
+                "D'Amelio, Tomás Ariel",
+                "COCUCO"
+            ],
+            "GeneratedBy": [{
+                "Name": "detect_markers.py",
+                "Version": "1.5",
+                "Description": "Fusión de eventos originales con anotaciones detectadas/editadas"
+            }],
+            "SourceDatasets": [
+                {
+                    "URL": "file:///../../raw"  # URL en formato URI válido
+                },
+                {
+                    "URL": "file:///../events"  # URL en formato URI válido
+                }
+            ]
+        }
+        
+        # Guardar el JSON
+        with open(dataset_desc_path, 'w', encoding='utf-8') as f:
+            json.dump(dataset_desc, f, indent=4)
+        
+        print(f"Archivo dataset_description.json creado en: {dataset_desc_path}")
+
 def main():
     """Función principal del script."""
     args = parse_args()
@@ -1595,6 +1977,40 @@ def main():
         raw, bids_path = load_raw_data(
             args.subject, args.session, args.task, args.run, args.acq
         )
+        
+        # Cargar eventos existentes si se solicita
+        original_events_df = None
+        original_events_path = None
+        if args.load_events or args.merge_events:
+            original_events_df = load_events_file(
+                args.subject, args.session, args.task, args.run, args.acq,
+                events_dir=args.events_dir, desc=args.events_desc
+            )
+            
+            if original_events_df is not None:
+                # Guardar la ruta del archivo original
+                events_root = repo_root / 'data' / 'derivatives' / args.events_dir
+                events_path = BIDSPath(
+                    subject=args.subject,
+                    session=args.session,
+                    task=args.task,
+                    run=args.run,
+                    acquisition=args.acq,
+                    datatype='eeg',
+                    suffix='events',
+                    description=args.events_desc,
+                    extension='.tsv',
+                    root=events_root,
+                    check=False
+                )
+                original_events_path = events_path.fpath
+                
+                # Mostrar eventos en orden inverso
+                display_events_in_reverse(original_events_df)
+            else:
+                print("No se pudieron cargar eventos originales. No se realizará la fusión.")
+                if args.merge_events:
+                    print("Se continuará con la detección de marcadores, pero sin fusión.")
         
         # Detectar marcadores
         peaks = detect_markers(
@@ -1641,6 +2057,9 @@ def main():
             raw, annotations, apply_zscore=not args.no_zscore
         )
         
+        # Variable para almacenar la ruta del archivo de anotaciones finales
+        final_annotations_path = auto_path
+        
         # Si está habilitada la edición manual y hubo cambios, guardar las anotaciones editadas
         if args.enable_manual_edit and has_changes:
             print("\n¡Se detectaron cambios en las anotaciones!")
@@ -1652,6 +2071,7 @@ def main():
                     save_dir=args.manual_save_dir
                 )
                 print(f"\nAnotaciones editadas guardadas exitosamente en: {edited_path}")
+                final_annotations_path = edited_path
             else:
                 # Preguntar al usuario si desea guardar los cambios
                 while True:
@@ -1662,6 +2082,7 @@ def main():
                             save_dir=args.manual_save_dir
                         )
                         print(f"\nAnotaciones editadas guardadas exitosamente en: {edited_path}")
+                        final_annotations_path = edited_path
                         break
                     elif response in ['no', 'n']:
                         print("\nLos cambios en las anotaciones NO han sido guardados.")
@@ -1678,12 +2099,39 @@ def main():
                     save_dir=args.manual_save_dir
                 )
                 print(f"\nAnotaciones guardadas sin cambios en: {edited_path}")
+                final_annotations_path = edited_path
             elif input("\n¿Deseas guardar las anotaciones de todos modos? (yes/no): ").strip().lower() in ['yes', 'y', 'si', 's']:
                 edited_path = save_annotations_edited(
                     raw, updated_annotations, bids_path, auto_path,
                     save_dir=args.manual_save_dir
                 )
                 print(f"\nAnotaciones guardadas sin cambios en: {edited_path}")
+                final_annotations_path = edited_path
+        
+        # Si se solicitó fusionar los eventos, hacerlo ahora
+        if args.merge_events and original_events_df is not None:
+            # Determinar qué anotaciones usar para la fusión
+            annotations_to_merge = updated_annotations if has_changes else annotations
+            
+            # Fusionar eventos originales con las nuevas anotaciones
+            merged_df = merge_events_with_annotations(
+                original_events_df, annotations_to_merge
+            )
+            
+            if merged_df is not None:
+                # Guardar eventos fusionados
+                merged_path = save_merged_events(
+                    merged_df, bids_path, original_events_path,
+                    merged_save_dir=args.merged_save_dir,
+                    merged_desc=args.merged_desc
+                )
+                
+                if merged_path:
+                    print(f"\nEventos fusionados guardados exitosamente en: {merged_path}")
+                else:
+                    print("\nError al guardar los eventos fusionados.")
+            else:
+                print("\nError en la fusión de eventos. No se guardaron eventos fusionados.")
         
         # Comparar con anotaciones manuales solo si se especifica el flag
         if args.compare_manual_auto:
@@ -1721,7 +2169,10 @@ def main():
             print("3. Usar --enable-manual-edit para volver a habilitar la edición manual de anotaciones")
         else:
             print("3. Si deshabilitaste la edición manual, puedes usar --no-manual-edit")
-        print(f"4. Validar la estructura BIDS con 'bids-validator data/derivatives/{args.save_dir}'")
+        if args.merge_events:
+            print(f"4. Validar la estructura BIDS con 'bids-validator data/derivatives/{args.merged_save_dir}'")
+        else:
+            print(f"4. Validar la estructura BIDS con 'bids-validator data/derivatives/{args.save_dir}'")
         
     except Exception as e:
         print(f"\nERROR: {e}")
