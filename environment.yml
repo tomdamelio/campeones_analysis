@@ -21,3 +21,4 @@ dependencies:
   - mnelab
   - pywavelets
   - mkdocs-material
+  - openpyxl
