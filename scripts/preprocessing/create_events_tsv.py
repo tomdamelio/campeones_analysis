@@ -35,6 +35,7 @@ from mne_bids import BIDSPath, write_raw_bids, make_dataset_description
 import datetime
 import re
 import json
+import argparse
 
 # Buscar la raíz del repositorio si este script es llamado desde cualquier lugar
 script_path = Path(__file__).resolve()
@@ -45,6 +46,28 @@ while not (repo_root / ".git").exists() and repo_root != repo_root.parent:
 # Asegurarse de que podemos importar módulos del proyecto
 sys.path.insert(0, str(repo_root))
 from src.campeones_analysis.utils.bids_compliance import make_bids_basename
+
+
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Crea archivos events.tsv en formato BIDS a partir de planillas de órdenes"
+    )
+    
+    parser.add_argument("--subjects", type=str, nargs='+',
+                       help="Lista de IDs de sujetos a procesar (ej: 16 17 18)")
+    parser.add_argument("--session", type=str, default="vr",
+                       help="ID de la sesión (default: 'vr')")
+    parser.add_argument("--task", type=str,
+                       help="ID de la tarea específica a procesar (ej: '01')")
+    parser.add_argument("--acq", type=str,
+                       help="Parámetro de adquisición (ej: 'a')")
+    parser.add_argument("--run", type=str,
+                       help="ID del run específico a procesar (ej: '003')")
+    parser.add_argument("--all-runs", action="store_true",
+                       help="Procesar todas las runs disponibles para cada sujeto")
+    
+    return parser.parse_args()
 
 
 def time_str_to_seconds(time_str):
@@ -337,21 +360,32 @@ def assign_durations(df, durations_dict=None):
     if 'duration' not in df.columns:
         df['duration'] = 0.0
     
-    # Definir las duraciones para cada tipo de estímulo
-    affective_durations = {
-        "001": 103, "002": 229, "003": 94, "004": 60, "005": 81, "006": 162, "007": 161,
-        "008": 77, "009": 154, "010": 173, "011": 103, "012": 61, "013": 216, "014": 116
-    }
+    # Cargar las duraciones desde el archivo CSV
+    video_durations_path = repo_root / "data" / "raw" / "stimuli" / "video_durations.csv"
     
-    calm_durations = {"901": 104, "902": 93}
-    
-    practice_durations = {"991": 32, "992": 40, "993": 31, "994": 29}
-    
-    # Luminance videos tienen duración fija de 60 segundos
-    luminance_duration = 60.0
-    
-    # Fixation tiene duración fija de 300 segundos
-    fixation_duration = 300.0
+    if video_durations_path.exists():
+        print(f"Cargando duraciones de videos desde {video_durations_path}")
+        video_durations_df = pd.read_csv(video_durations_path)
+        
+        # Crear un diccionario de duraciones {filename: duration}
+        durations_dict = dict(zip(video_durations_df['filename'], video_durations_df['duration']))
+        
+        print(f"Se cargaron {len(durations_dict)} duraciones de videos")
+    else:
+        print(f"¡ADVERTENCIA! No se encontró el archivo de duraciones: {video_durations_path}")
+        print("Se utilizarán valores predeterminados para las duraciones")
+        
+        # Definir las duraciones para cada tipo de estímulo (valores predeterminados)
+        durations_dict = {
+            "1.mp4": 103, "2.mp4": 229, "3.mp4": 94, "4.mp4": 60, "5.mp4": 81, 
+            "9.mp4": 154, "10.mp4": 173, "11.mp4": 103, "12.mp4": 61, "13.mp4": 216, "14.mp4": 116,
+            "901.mp4": 104, "902.mp4": 93,
+            "991.mp4": 32, "992.mp4": 40, "993.mp4": 31, "994.mp4": 29,
+            "fixation_cross.mp4": 300,
+            "green_intensity_video_1.mp4": 60, "green_intensity_video_3.mp4": 60,
+            "green_intensity_video_7.mp4": 60, "green_intensity_video_9.mp4": 60,
+            "green_intensity_video_12.mp4": 60
+        }
     
     # Verificar que tenemos las columnas necesarias
     if 'event_type' not in df.columns or 'stim_id' not in df.columns:
@@ -364,44 +398,60 @@ def assign_durations(df, durations_dict=None):
         stim_id = str(row['stim_id'])
         
         if event_type == 'video':
-            # Para videos afectivos, buscar la duración en el diccionario
-            if stim_id in affective_durations:
-                df.loc[idx, 'duration'] = affective_durations[stim_id]
-                print(f"Asignando duración {affective_durations[stim_id]}s al video {stim_id}")
+            # Para videos afectivos, buscar por nombre de archivo (1.mp4, 2.mp4, etc.)
+            filename = f"{int(stim_id):d}.mp4"
+            if filename in durations_dict:
+                df.loc[idx, 'duration'] = durations_dict[filename]
+                print(f"Asignando duración {durations_dict[filename]}s al video {stim_id} ({filename})")
             else:
                 # Si no está en el diccionario, usar un valor por defecto
-                print(f"Advertencia: No se encontró duración para el video {stim_id}. Asignando duración por defecto.")
+                print(f"Advertencia: No se encontró duración para el video {stim_id} ({filename}). Asignando duración por defecto.")
                 df.loc[idx, 'duration'] = 103.0  # Duración por defecto
         
         elif event_type == 'video_luminance':
-            # Luminancia tiene duración fija
-            df.loc[idx, 'duration'] = luminance_duration
-            print(f"Asignando duración {luminance_duration}s al video de luminancia {stim_id}")
+            # Para videos de luminancia, usar el formato green_intensity_video_X.mp4
+            original_id = int(stim_id) - 100
+            filename = f"green_intensity_video_{original_id}.mp4"
+            if filename in durations_dict:
+                df.loc[idx, 'duration'] = durations_dict[filename]
+                print(f"Asignando duración {durations_dict[filename]}s al video de luminancia {stim_id} ({filename})")
+            else:
+                # Si no está en el diccionario, usar un valor por defecto
+                print(f"Advertencia: No se encontró duración para el video de luminancia {stim_id} ({filename}). Asignando duración por defecto.")
+                df.loc[idx, 'duration'] = 60.0  # Duración por defecto para luminancia
         
         elif event_type == 'fixation':
-            # Fijación tiene duración fija
-            df.loc[idx, 'duration'] = fixation_duration
-            print(f"Asignando duración {fixation_duration}s a la fijación")
+            # Para fijación, usar fixation_cross.mp4
+            filename = "fixation_cross.mp4"
+            if filename in durations_dict:
+                df.loc[idx, 'duration'] = durations_dict[filename]
+                print(f"Asignando duración {durations_dict[filename]}s a la fijación")
+            else:
+                # Si no está en el diccionario, usar un valor por defecto
+                print(f"Advertencia: No se encontró duración para fixation_cross.mp4. Asignando duración por defecto.")
+                df.loc[idx, 'duration'] = 300.0  # Duración por defecto para fijación
         
         elif event_type == 'calm':
-            # Para calm, buscar la duración en el diccionario
-            if stim_id in calm_durations:
-                df.loc[idx, 'duration'] = calm_durations[stim_id]
-                print(f"Asignando duración {calm_durations[stim_id]}s al estímulo calm {stim_id}")
+            # Para calm, usar 901.mp4 o 902.mp4
+            filename = f"{stim_id}.mp4"
+            if filename in durations_dict:
+                df.loc[idx, 'duration'] = durations_dict[filename]
+                print(f"Asignando duración {durations_dict[filename]}s al estímulo calm {stim_id} ({filename})")
             else:
                 # Si no está en el diccionario, usar un valor por defecto
-                print(f"Advertencia: No se encontró duración para el estímulo calm {stim_id}. Asignando duración por defecto.")
-                df.loc[idx, 'duration'] = 100.0  # Duración por defecto
+                print(f"Advertencia: No se encontró duración para el estímulo calm {stim_id} ({filename}). Asignando duración por defecto.")
+                df.loc[idx, 'duration'] = 100.0  # Duración por defecto para calm
         
         elif event_type == 'practice':
-            # Para practice, buscar la duración en el diccionario
-            if stim_id in practice_durations:
-                df.loc[idx, 'duration'] = practice_durations[stim_id]
-                print(f"Asignando duración {practice_durations[stim_id]}s al estímulo de práctica {stim_id}")
+            # Para practice, usar 991.mp4, 992.mp4, etc.
+            filename = f"{stim_id}.mp4"
+            if filename in durations_dict:
+                df.loc[idx, 'duration'] = durations_dict[filename]
+                print(f"Asignando duración {durations_dict[filename]}s al estímulo de práctica {stim_id} ({filename})")
             else:
                 # Si no está en el diccionario, usar un valor por defecto
-                print(f"Advertencia: No se encontró duración para el estímulo de práctica {stim_id}. Asignando duración por defecto.")
-                df.loc[idx, 'duration'] = 30.0  # Duración por defecto
+                print(f"Advertencia: No se encontró duración para el estímulo de práctica {stim_id} ({filename}). Asignando duración por defecto.")
+                df.loc[idx, 'duration'] = 30.0  # Duración por defecto para práctica
     
     return df
 
@@ -1231,28 +1281,104 @@ def process_subject(subject, session=None, task=None, acq=None, run=None):
 
 def main():
     """Función principal"""
+    args = parse_args()
+    
     print("\n*** CREANDO ARCHIVOS EVENTS.TSV EN DERIVATIVES (SIN MODIFICAR RAW) ***\n")
     
-    # Procesar sujeto 16, tarea 02, condición a, run 003
-    # Para los archivos:
-    # - .data\sourcedata\xdf\sub-16\order_matrix_16_A_block2_VR.xlsx
-    # - .data\raw\sub-16\ses-vr\eeg\sub-16_ses-vr_task-02_acq-a_run-003_eeg.eeg
-    success = process_subject('16', 'vr', '04', 'a', '005')
+    # Definir la relación entre task y run
+    task_run_map = {
+        '01': '002',
+        '02': '003',
+        '03': '004',
+        '04': '005'
+    }
     
-    if success:
-        print("\nProcesamiento completado exitosamente:")
+    # Valores de adquisición disponibles
+    acq_values = ['a', 'b']
+    
+    # Lista de sujetos a procesar
+    subjects_to_process = args.subjects if args.subjects else ['16']
+    print(f"Sujetos a procesar: {subjects_to_process}")
+    
+    successful_runs = 0
+    failed_runs = 0
+    
+    for subject in subjects_to_process:
+        print(f"\n=== Procesando sujeto {subject} ===\n")
+        
+        # Si se especificó una tarea/run específica
+        if args.task and args.run:
+            run = args.run
+            task = args.task
+            acq_list = [args.acq] if args.acq else acq_values
+            
+            for acq in acq_list:
+                print(f"Procesando sub-{subject} task-{task} acq-{acq} run-{run}")
+                if process_subject(subject, args.session, task, acq, run):
+                    successful_runs += 1
+                else:
+                    failed_runs += 1
+        
+        # Si se debe procesar todas las runs
+        elif args.all_runs or (not args.task and not args.run):
+            for task, run in task_run_map.items():
+                acq_list = [args.acq] if args.acq else acq_values
+                
+                for acq in acq_list:
+                    print(f"Procesando sub-{subject} task-{task} acq-{acq} run-{run}")
+                    if process_subject(subject, args.session, task, acq, run):
+                        successful_runs += 1
+                    else:
+                        failed_runs += 1
+        
+        # Si solo se especificó una tarea
+        elif args.task:
+            task = args.task
+            run = task_run_map.get(task, f"00{int(task)+1}")
+            acq_list = [args.acq] if args.acq else acq_values
+            
+            for acq in acq_list:
+                print(f"Procesando sub-{subject} task-{task} acq-{acq} run-{run}")
+                if process_subject(subject, args.session, task, acq, run):
+                    successful_runs += 1
+                else:
+                    failed_runs += 1
+        
+        # Si solo se especificó un run
+        elif args.run:
+            run = args.run
+            # Deducir la tarea a partir del run
+            task = None
+            for t, r in task_run_map.items():
+                if r == run:
+                    task = t
+                    break
+            
+            if task:
+                acq_list = [args.acq] if args.acq else acq_values
+                
+                for acq in acq_list:
+                    print(f"Procesando sub-{subject} task-{task} acq-{acq} run-{run}")
+                    if process_subject(subject, args.session, task, acq, run):
+                        successful_runs += 1
+                    else:
+                        failed_runs += 1
+            else:
+                print(f"No se pudo deducir la tarea para el run {run}")
+                failed_runs += 1
+    
+    print("\n=== Resumen de procesamiento ===")
+    print(f"Runs procesadas exitosamente: {successful_runs}")
+    print(f"Runs con errores: {failed_runs}")
+    
+    if successful_runs > 0:
+        print("\nProcesamiento completado:")
         deriv_path = repo_root / 'data' / 'derivatives' / 'events'
         print(f"Los archivos events.tsv y events.json se han creado en: {deriv_path}")
         print("\nValidando la estructura BIDS:")
         print("Para validar, ejecuta en la terminal: bids-validator data/derivatives/events")
     else:
         print("\nEl procesamiento falló. Revisa los mensajes de error para más detalles.")
-    
-    # Para procesar todos los archivos del sujeto 16 (comentado por ahora)
-    # Nota: Cada task tiene un run específico siguiendo el patrón: task-XX -> run-0XX+1
-    # for task, run in [('01', '002'), ('02', '003'), ('03', '004'), ('04', '005')]:
-    #     for acq in ['a', 'b']:
-    #         process_subject('16', 'vr', task, acq, run)
 
 
 def create_stimulus_catalog():
@@ -1264,11 +1390,35 @@ def create_stimulus_catalog():
     dict
         Diccionario con la información de cada estímulo
     """
-    # Duración de los videos afectivos
-    affective_durations = {
-        "001": 103, "002": 229, "003": 94, "004": 60, "005": 81, "006": 162, "007": 161,
-        "008": 77, "009": 154, "010": 173, "011": 103, "012": 61, "013": 216, "014": 116
-    }
+    # Cargar las duraciones desde el archivo CSV
+    video_durations_path = repo_root / "data" / "raw" / "stimuli" / "video_durations.csv"
+    
+    # Diccionario para almacenar las duraciones
+    durations_dict = {}
+    
+    if video_durations_path.exists():
+        print(f"Cargando duraciones de videos para el catálogo desde {video_durations_path}")
+        video_durations_df = pd.read_csv(video_durations_path)
+        
+        # Crear un diccionario de duraciones {filename: duration}
+        durations_dict = dict(zip(video_durations_df['filename'], video_durations_df['duration']))
+        
+        print(f"Se cargaron {len(durations_dict)} duraciones de videos para el catálogo")
+    else:
+        print(f"¡ADVERTENCIA! No se encontró el archivo de duraciones: {video_durations_path}")
+        print("Se utilizarán valores predeterminados para el catálogo de estímulos")
+        
+        # Valores predeterminados
+        durations_dict = {
+            "1.mp4": 103, "2.mp4": 229, "3.mp4": 94, "4.mp4": 60, "5.mp4": 81, 
+            "9.mp4": 154, "10.mp4": 173, "11.mp4": 103, "12.mp4": 61, "13.mp4": 216, "14.mp4": 116,
+            "901.mp4": 104, "902.mp4": 93,
+            "991.mp4": 32, "992.mp4": 40, "993.mp4": 31, "994.mp4": 29,
+            "fixation_cross.mp4": 300,
+            "green_intensity_video_1.mp4": 60, "green_intensity_video_3.mp4": 60,
+            "green_intensity_video_7.mp4": 60, "green_intensity_video_9.mp4": 60,
+            "green_intensity_video_12.mp4": 60
+        }
     
     # Crear el catálogo completo de estímulos
     catalog = {}
@@ -1276,55 +1426,72 @@ def create_stimulus_catalog():
     # Videos afectivos (001-014)
     for i in range(1, 15):
         stim_id = f"{i:03d}"
+        filename = f"{i}.mp4"
+        
+        # Obtener la duración del diccionario o usar un valor predeterminado
+        duration = durations_dict.get(filename, 100.0)
+        
         catalog[f"video/{stim_id}"] = {
             "trial_type": "video",
             "stim_id": int(stim_id),
             "condition": "affective",
-            "duration": affective_durations[stim_id],
-            "stim_file": f"stimuli/{i}.mp4"  # Usar el número simple como nombre de archivo
+            "duration": duration,
+            "stim_file": f"stimuli/{filename}"  # Usar el número simple como nombre de archivo
         }
     
     # Videos de luminancia (101, 103, 107, 109, 112)
     luminance_ids = [101, 103, 107, 109, 112]
     for stim_id in luminance_ids:
         orig_id = stim_id - 100
+        filename = f"green_intensity_video_{orig_id}.mp4"
+        
+        # Obtener la duración del diccionario o usar un valor predeterminado
+        duration = durations_dict.get(filename, 60.0)
+        
         catalog[f"video_luminance/{stim_id}"] = {
             "trial_type": "video_luminance",
             "stim_id": stim_id,
             "condition": "luminance",
-            "duration": 60.0,
-            "stim_file": f"stimuli/green_intensity_video_{orig_id}.mp4"  # Usar el nombre original
+            "duration": duration,
+            "stim_file": f"stimuli/{filename}"  # Usar el nombre original
         }
     
     # Fijación (500)
+    filename = "fixation_cross.mp4"
+    duration = durations_dict.get(filename, 300.0)
+    
     catalog["fixation"] = {
         "trial_type": "fixation",
         "stim_id": 500,
         "condition": "baseline",
-        "duration": 300.0,
-        "stim_file": "stimuli/fixation_cross.mp4"  # Añadir extensión mp4
+        "duration": duration,
+        "stim_file": f"stimuli/{filename}"
     }
     
     # Calma (901-902)
-    calm_durations = {"901": 104, "902": 93}
     for stim_id in ["901", "902"]:
+        filename = f"{stim_id}.mp4"
+        duration = durations_dict.get(filename, 100.0)
+        
         catalog[f"calm/{stim_id}"] = {
             "trial_type": "calm",
             "stim_id": int(stim_id),
             "condition": "calm",
-            "duration": calm_durations[stim_id],
-            "stim_file": f"stimuli/{stim_id}.mp4"  # Usar el ID como nombre de archivo con extensión mp4
+            "duration": duration,
+            "stim_file": f"stimuli/{filename}"
         }
     
     # Práctica (991-994)
-    practice_durations = {"991": 32, "992": 40, "993": 31, "994": 29}
     for stim_id in ["991", "992", "993", "994"]:
+        filename = f"{stim_id}.mp4"
+        duration = durations_dict.get(filename, 30.0)
+        
         catalog[f"practice/{stim_id}"] = {
             "trial_type": "practice",
             "stim_id": int(stim_id),
             "condition": "practice",
-            "duration": practice_durations[stim_id],
-            "stim_file": f"stimuli/{stim_id}.mp4"  # Usar el ID como nombre de archivo con extensión mp4
+            "duration": duration,
+            "stim_file": f"stimuli/{filename}"
         }
     
     return catalog
