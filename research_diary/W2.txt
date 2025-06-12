@@ -1,0 +1,39 @@
+### ✅ **Lunes 26/05 y Martes 27/05**
+
+**Tarea:** Desarrollo de script de conversión XDF a BIDS
+
+- [x] Crear script de prueba `test_read_xdf.py` para un participante
+  - Implementar conversión de archivo XDF a formato BIDS
+  - Manejar datos de EEG y joystick
+  - Generar archivos de metadatos BIDS
+  - Guardar en estructura BIDS compliant
+
+---
+
+### 📅 **Miércoles 28/05**
+
+**Tarea:** Limpiar y documentario cambios (45 min, max)
+
+- [x] Hacer limpieza del repositorio
+  - e.g. hay muchos archivos en tests que tal vez pueden volar, o revisar
+- [x] Pushear los cambios que hice hasta ahora
+
+---
+
+### 📅 **Jueves 29/05**
+
+- [x] Revisar y corregir errores del CI en GitHub
+  - Identificar y solucionar el problema que causó el fallo
+  - Verificar que todos los checks pasen correctamente
+  - Confirmar que el PR está listo para merge
+
+  ### 📅 **Viernes 30/05**
+
+**Tarea:** Completar desarrollo de script de conversión (2 hs, max) -> Hast alas 17 hs
+
+- [x] Revisar a fondo el script `test_read_xdf.py`
+  - Entender paso a paso el proceso de conversión
+  - Identificar y corregir posibles errores
+  - Documentar el flujo de trabajo
+
+
