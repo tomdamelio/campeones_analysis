@@ -1,0 +1,18 @@
+{
+    "TaskName": "03",
+    "Manufacturer": "Brain Products",
+    "PowerLineFrequency": "n/a",
+    "SamplingFrequency": 250.0,
+    "SoftwareFilters": "n/a",
+    "RecordingDuration": 1492.1,
+    "RecordingType": "continuous",
+    "EEGReference": "n/a",
+    "EEGGround": "n/a",
+    "EEGPlacementScheme": "based on the extended 10/20 system",
+    "EEGChannelCount": 31,
+    "EOGChannelCount": 2,
+    "ECGChannelCount": 1,
+    "EMGChannelCount": 0,
+    "MiscChannelCount": 7,
+    "TriggerChannelCount": 1
+}

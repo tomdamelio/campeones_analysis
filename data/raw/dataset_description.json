@@ -1,0 +1,13 @@
+{
+    "Name": "CAMPEONES: Continuous Annotation and Multimodal Processing of EmOtions in Naturalistic EnvironmentS",
+    "BIDSVersion": "1.8.0",
+    "DatasetType": "raw",
+    "License": "CC BY-4.0",
+    "Authors": [
+        "[Unspecified1]",
+        "[Unspecified2]"
+    ],
+    "EthicsApprovals": [
+        "Comit\u00e9 de \u00c9tica para la Investigaci\u00f3n Cient\u00edfica y Tecnol\u00f3gica de la Universidad Abierta Interamericana (CEICyT-UAI), Dictamen N\u00b0 0-1111, Aprobado: 08-04-2024"
+    ]
+}

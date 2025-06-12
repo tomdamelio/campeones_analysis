@@ -1,0 +1,159 @@
+{
+    "participant_id": {
+        "Description": "Unique participant identifier"
+    },
+    "species": {
+        "Description": "Binomial species name from NCBI Taxonomy; if omitted defaults to Homo sapiens"
+    },
+    "birth_date": {
+        "Description": "Date of birth of the participant",
+        "Units": "date"
+    },
+    "age": {
+        "Description": "Age of the participant at time of testing",
+        "Units": "years"
+    },
+    "sex": {
+        "Description": "Biological sex of the participant",
+        "Levels": {
+            "F": "female",
+            "M": "male"
+        }
+    },
+    "gender": {
+        "Description": "Self-identified gender",
+        "Levels": {
+            "M": "Male",
+            "F": "Female",
+            "X": "Non-binary",
+            "prefer_not_to_say": "Prefer not to say",
+            "other": "Other (specify)"
+        }
+    },
+    "education_level": {
+        "Description": "Highest completed education level",
+        "Levels": {
+            "primary_incomplete": "Primary incomplete",
+            "primary_complete": "Primary complete",
+            "secondary_incomplete": "Secondary incomplete",
+            "secondary_complete": "Secondary complete",
+            "tertiary_incomplete": "Tertiary/University incomplete",
+            "tertiary_complete": "Tertiary/University complete",
+            "postgraduate_incomplete": "Postgraduate/PhD incomplete",
+            "postgraduate_complete": "Postgraduate/PhD complete"
+        }
+    },
+    "university_career": {
+        "Description": "University degree or career being pursued (if applicable)",
+        "Levels": {
+            "psychology": "Psychology",
+            "physics": "Physics",
+            "other": "Other (specify)",
+            "n/a": "Not applicable"
+        }
+    },
+    "nationality": {
+        "Description": "Country of nationality (ISO-3166-1 alpha-2 code recommended)",
+        "Levels": {
+            "AR": "Argentine",
+            "other": "Other (specify)"
+        }
+    },
+    "ethnicity": {
+        "Description": "Self-reported ethnic origin (multiple selections allowed)",
+        "Levels": {
+            "white": "Caucasian or White",
+            "black": "African descent or Black",
+            "latino": "Hispanic or Latino",
+            "asian": "Asian",
+            "native": "Native American or Indigenous",
+            "pacific_islander": "Pacific Islander",
+            "middle_eastern": "Arab or Middle Eastern",
+            "other": "Other (specify)"
+        },
+        "Delimiter": ";"
+    },
+    "residence_location": {
+        "Description": "Participant's usual place of residence",
+        "Levels": {
+            "caba": "Autonomous City of Buenos Aires",
+            "pba": "Province of Buenos Aires",
+            "other": "Other (specify)"
+        }
+    },
+    "vr_experience_count": {
+        "Description": "Number of prior experiences using virtual reality devices",
+        "Units": "count"
+    },
+    "handedness": {
+        "Description": "Handedness of the participant",
+        "Levels": {
+            "left": "Left",
+            "right": "Right",
+            "ambidextrous": "Ambidextrous",
+            "n/a": "Not available"
+        }
+    },
+    "medical_conditions_current": {
+        "Description": "Current medical diagnoses or conditions (check all that apply)",
+        "Levels": {
+            "pregnancy": "Pregnancy (including suspicion or possibility)",
+            "cardiac_pressure": "Cardiac / Blood pressure",
+            "neurological": "Neurological (e.g., epilepsy)",
+            "other_specify": "Other (please specify)",
+            "none_of_the_above": "None of the above"
+        },
+        "Delimiter": ";"
+    },
+    "medical_conditions_past": {
+        "Description": "Past medical diagnoses or conditions (check all that apply)",
+        "Levels": {
+            "cardiac_pressure": "Cardiac / Blood pressure",
+            "neurological": "Neurological (e.g., epilepsy)",
+            "other_specify": "Other (please specify)",
+            "none_of_the_above": "None of the above"
+        },
+        "Delimiter": ";"
+    },
+    "psychological_diagnosis": {
+        "Description": "Current psychological diagnoses (as diagnosed by a professional)",
+        "Levels": {
+            "anxiety_disorders": "Anxiety or other anxiety disorders (e.g., specific phobias, panic disorder, etc.)",
+            "mood_disorders": "Depression or other mood disorders",
+            "bipolar_disorder": "Bipolar disorder",
+            "schizophrenia": "Schizophrenia",
+            "personality_disorders": "Personality disorders",
+            "other_specify": "Other (please specify)",
+            "none_of_the_above": "None of the above"
+        },
+        "Delimiter": ";"
+    },
+    "current_treatment": {
+        "Description": "Current ongoing treatment(s) (check all that apply): psychological, psychiatric, neurological, other medical, or none. Specify if 'other' or to add details.",
+        "Levels": {
+            "none": "No ongoing treatment",
+            "psychological": "Psychological treatment",
+            "psychiatric": "Psychiatric treatment",
+            "neurological": "Neurological treatment",
+            "other_medical": "Other medical treatment (not psychiatric or neurological)",
+            "other_specify": "Other (please specify)"
+        },
+        "Delimiter": ";"
+    },
+    "hand": {
+        "Description": "Handedness of the participant",
+        "Levels": {
+            "R": "right",
+            "L": "left",
+            "A": "ambidextrous"
+        }
+    },
+    "weight": {
+        "Description": "Body weight of the participant",
+        "Units": "kg"
+    },
+    "height": {
+        "Description": "Body height of the participant",
+        "Units": "m"
+    }
+}

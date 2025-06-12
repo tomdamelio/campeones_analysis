@@ -13,21 +13,20 @@ venv/
 .nox/
 
 # Data, results, and large files
-data/
-results/
-data/raw/stimuli/
 *.h5
-*.csv
 *.tsv
 *.edf
 *.fif
 *.set
 *.bdf
+*.xdf
 *.vhdr
 *.vmrk
 *.eeg
 *.mat
 *.mp4
+*.mp3
+*.wav
 
 # DVC cache and pointers
 !.dvc
@@ -47,7 +46,6 @@ dist/
 # OS files
 .DS_Store
 Thumbs.db
-/data
 
 # Ignore gdrive-sa.json
 gdrive-sa.json

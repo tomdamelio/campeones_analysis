@@ -1,0 +1,31 @@
+{
+    "Name": "CAMPEONES events",
+    "BIDSVersion": "1.8.0",
+    "DatasetType": "derivative",
+    "Authors": [
+        "D'Amelio, Tomás Ariel",
+        "Rodriguez Cuello, Jerónimo",
+        "Aboitiz, Julieta",
+        "Bruno, Nicolás Marcelo",
+        "Cavanna, Federico",
+        "de La Fuente, Laura Alethia",
+        "Müller, Stephanie Andrea",
+        "Pallavicini, Carla",
+        "Engemann, Denis-Alexander",
+        "Vidaurre, Diego",
+        "Tagliazucchi, Enzo"
+    ],
+    "GeneratedBy": [
+        {
+            "Name": "create_events_tsv.py",
+            "Version": "1.0.0",
+            "Description": "Script para crear archivos events.tsv a partir de planillas de órdenes"
+        }
+    ],
+    "SourceDatasets": [
+        {
+            "Path": "../../raw",
+            "Description": "Raw BIDS dataset"
+        }
+    ]
+}
