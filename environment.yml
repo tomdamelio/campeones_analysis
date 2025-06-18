@@ -12,7 +12,6 @@ dependencies:
   - pandas
   - numpy
   - seaborn
-  - dvc[gdrive]
   - autoreject
   - pyprep
   - mne-icalabel
@@ -22,3 +21,4 @@ dependencies:
   - pywavelets
   - mkdocs-material
   - openpyxl
+  - opencv

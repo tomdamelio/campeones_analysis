@@ -28,8 +28,8 @@ venv/
 *.mp3
 *.wav
 
-# DVC cache and pointers
-!.dvc
+# External data storage
+data/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
@@ -47,8 +47,7 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Ignore gdrive-sa.json
-gdrive-sa.json
+
 
 # Generated documentation files
 site/

@@ -1,5 +1,0 @@
-# Merged Events
-
-Este directorio contiene eventos fusionados a partir de eventos originales y anotaciones detectadas/editadas.
-Los eventos provienen de la fusión de los eventos de derivatives/events con las anotaciones generadas por detect_markers.py.
-Los eventos originales mantienen toda su metadata y estructura, pero con onsets y duraciones actualizados.

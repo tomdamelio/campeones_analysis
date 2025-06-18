@@ -27,6 +27,7 @@ dependencies = [
     "pyprep>=0.4.0",
     "mne-icalabel>=0.4.0",
     "gitpython>=3.1.0",
+    "opencv-python>=4.11.0",
 ]
 
 [project.optional-dependencies]

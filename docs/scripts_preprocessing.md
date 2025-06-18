@@ -45,12 +45,12 @@ python scripts/preprocessing/get_video_durations.py
 ### Entrada
 
 - Archivos de video en formato MP4
-  - Ubicación: `data/raw/stimuli/*.mp4`
+  - Ubicación: `stimuli/*.mp4`
 
 ### Salida
 
 - Archivo CSV con duraciones precisas de videos
-  - Ubicación: `data/raw/stimuli/video_durations.csv`
+  - Ubicación: `stimuli/video_durations.csv`
   - Columnas: 
     - `filename`: Nombre del archivo de video
     - `duration`: Duración en segundos con 3 decimales de precisión

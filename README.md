@@ -18,10 +18,10 @@ micromamba create -n campeones -f environment.yml
 micromamba activate campeones
 
 # Install development tools (optional, for development)
-pip install -e .[“dev”]
+pip install -e .[dev]
 
-# Extract data (if DVC and remote are configured)
-dvc pull -j 4
+# Note: Data files should be obtained separately and placed in the data/ directory
+# Contact the project maintainers for data access instructions
 ```
 
 ## XDF data processing
@@ -60,7 +60,6 @@ The processed files will be saved in BIDS format in:
 - BIDS compatibility (MNE-BIDS)
 - Machine learning (scikit-learn)
 - Reproducible environments (micromamba, conda-lock)
-- Data version control (DVC, remote Google Drive)
 - Documentation (MkDocs)
 
 ## Dependency management policy
@@ -71,40 +70,19 @@ The processed files will be saved in BIDS format in:
 - Document all dependency changes in `CHANGELOG.md` and in commit messages to ensure traceability.
 - If the dependency is a pure Python development tool or is only needed for development/automation, add it to `[project.optional-dependencies]` in `pyproject.toml`.
 
+## Data management
+
+### Getting the data
+
+Data files are stored externally and should be obtained separately from the project maintainers. Once obtained, place them in the `data/` directory following the BIDS structure.
+
+### Data structure
+
+The project expects data to be organized in BIDS format:
+- Raw data: `data/raw/`
+- Processed data: `data/derivatives/`
+- Source data: `data/sourcedata/`
+
 ## License
 
 MIT — see [LICENSE](LICENSE)
-
-## Using DVC for reproducible data
-
-### Recommended workflow
-
-1. **Manual backup:** Upload the original data to a Google Drive folder (for backup only, not for reproducibility).
-2. **Local download:** Download the data to your local machine in the `data/` folder.
-3. **Versioning with DVC:**
-   - Run `dvc add data/` to version the data.
-   - Do `git add data.dvc .gitignore` and commit the control files.
-4. **Set up the DVC remote:**
-   - Use a separate Google Drive folder as the DVC remote.
-   - Set up the remote with: `dvc remote add -d gdrive gdrive://<DVC-folder-ID>`
-   - Enable the service account:
-  
-```bash
-     dvc remote modify gdrive gdrive_use_service_account true
-     dvc remote modify gdrive gdrive_service_account_json_file_path gdrive-sa.json
-```
-
-   - Share the Drive folder with the service account email.
-  
-1. **Upload the versioned data:**
-   - Run `dvc push` to upload the data to the remote DVC.
-2. **Collaborators:**
-   - Clone the repository, configure the service account, and run `dvc pull` to get the data.
-
-### Best practices and warnings
-
-- **Never manually upload data to the Drive folder used as remote DVC.**
-- **Only version and sync data with DVC to ensure reproducibility.**
-- **Manual backup is optional and should not be used as the source of truth for reproducible analysis.**
-- **Ensure that `.gitignore` includes the data, but always commit the `.dvc` and `.gitignore` files.**
-- If you encounter authentication issues, check the service account settings and Drive folder permissions.

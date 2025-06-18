@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Script para obtener la duración precisa de los videos en data/raw/stimuli
+Script para obtener la duración precisa de los videos en ./stimuli
 y guardarla en un archivo CSV.
 """
 
@@ -26,10 +26,10 @@ sys.path.insert(0, str(repo_root))
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Obtiene la duración precisa de los videos en data/raw/stimuli"
+        description="Obtiene la duración precisa de los videos en stimuli"
     )
     parser.add_argument("--output", type=str, default=None,
-                        help="Ruta personalizada para guardar el CSV (por defecto: data/raw/stimuli/video_durations.csv)")
+                        help="Ruta personalizada para guardar el CSV (por defecto: stimuli/video_durations.csv)")
     
     return parser.parse_args()
 
@@ -78,7 +78,7 @@ def main():
     args = parse_args()
     
     # Definir rutas
-    stimuli_dir = repo_root / "data" / "raw" / "stimuli"
+    stimuli_dir = repo_root / "stimuli"
     
     if not stimuli_dir.exists():
         print(f"Error: El directorio {stimuli_dir} no existe.")
