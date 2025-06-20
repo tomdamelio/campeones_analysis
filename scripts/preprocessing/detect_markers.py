@@ -1318,8 +1318,8 @@ def visualize_signals_with_annotations(raw, annotations, apply_zscore=True):
         duration=540,
         start=0,
         show=True,
-        block=True,
-        decim=32  # Aplicar decimación para reducir la resolución
+        block=True#,
+        #decim=4  # Aplicar decimación para reducir la resolución
     )
     
     # Obtener las anotaciones actualizadas después de cerrar el visualizador
@@ -1437,8 +1437,8 @@ def compare_manual_and_auto_annotations(raw, manual_path, auto_path):
         duration=540,
         start=0,
         show=True,
-        block=True,
-        decim=32  # Aplicar decimación para reducir la resolución
+        block=True#,
+        #decim=4  # Aplicar decimación para reducir la resolución
     )
     
     print("\nVisualizador cerrado.")
