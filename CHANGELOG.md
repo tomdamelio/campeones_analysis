@@ -17,3 +17,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `mnelab` and `pywavelets` dependencies for XDF file reading and signal processing
 - Added `pytest-cov` for test coverage reporting
 - Added `openpyxl` dependency for reading Excel files with order matrices
+- Added `glhmm` dependency via pip for Gaussian-Linear Hidden Markov Models analysis
