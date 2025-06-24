@@ -286,15 +286,178 @@ duraciones y descripciones de dicho participante, sesion y bloque
 (empezando por la ultima linea hasta la primera linea).
 
 
-Viernes -> 
+Viernes -> empece a revisar  `detect_markers.py` para el S16 sesion 2
 
-- Correr `detect_markers.py` para todas las sesiones de los participantes 16 17 y 18.
-De este modo, con un approach semi-automatico, voy a tener los eventos de inicio y fin de cada epoca de cada estimulo.
+Sabado ->
+
+
+Ya arregle el problema que tenia con la creacion de eventos en create_events_tsv.py
+Ahora los eventos creados en `derivatives/events` tienen el orden marker_correctio.
+De este modo, ya corri `python scripts/preprocessing/detect_markers.py --subject 16 --session vr --task 02 --run 003 --acq a `
+Ya esta abierta la ventana interaciva de mne para afinar las anotaicones.
+Y ahora tengo que refinar las anotaciones para que coincidan con el inicio y fin de la marca
+Luego de corroborar que eso coincida, pasar al resto de las sesiones del participante 16.
+
+
+S16 task 01 session 02
+----------------------
+
+Recien corri `python scripts/preprocessing/detect_markers.py --subject 16 --session vr --task 01 --run 002 --acq a`
+
+El orden de los eventos deberia ser el siguiente, segun  aparece en el .tsx de events del participante (ver contenido de .tsv adjunto)
+
+No obstante, haciendo inspeccion visual de los eventos, veo que las duraciones no coinciden.
+Por lo tanto, los eventos que aparecen en el .tsv parece no ser el correcto
+
+Este es el orden que recontrui viendo las duraciones de los eventos reales en la data, segun los canales AUDIO/PHOTO (el onset no importante por ahora). Es decir, el orden que deberia haber estado tambien en el .tsv de events
+
+onset	duration	trial_type	stim_id	condition	stim_file
+0.0	300.0	fixation	500	baseline	stimuli/fixation_cross.mp4
+0.0	104.0	calm	901	calm	stimuli/901.mp4
+0.0	94.0	video	003	affective	stimuli/3.mp4
+0.0	61.028	video	012	affective	stimuli/12.mp4
+0.0	229.0	video	002	affective	stimuli/2.mp4
+0.0	60.0	video_luminance	112	luminance	stimuli/green_intensity_video_12.mp4
+
+Estoy revisando el .xslx de order_matrix correspondiente a ese participante y sesion y veo que el error se arrastra desde ahi. Ahi ya esta mal el orden.
+En concreto, lo que esta sucediendo es que los videos 002 y 003 estan invertidos.
+Segun el video, primero viene el video 002 y luego e video 003
+Sin embargo, segun el eeg primero vino el 003 y despues el 002.
+No entiendo por que sucede este error, pero voy a seguir adelante y ver si con el resto de los
+participantes se replica algo de esto.
+Esto no se replica en el resto de los participantes, pero es rarisimo.
+
+S16 task 04 session 05
+----------------------
+
+Por algun motivo no encuentro la relacion entre las duraciones que deberia tener cada trial con los
+eventos encontrados.
+Lo que voy a hacer ahora es:
+- Revisar el .xslx file de ese archivo y ver si hay queda mas claro que puede estar pasando
+  -> Aca no encontre nada, asi que tengo que revisar los videos! 
+- Ir a revisar los videos de ese participante, tanto de esta sesion como de la primera, para entender los videos
+  -> En los videos veo todo en orden. Seguro haya habido algun problema en el registro del participante.
+     Voy a chequear eso ahora
+- Si eso no lo resueve, ir a las anotacines .xlsx del participante, a ver si se menciona algo que haya
+sucedido durante la toma que explque esto.
+  -> Supuestamente en el de la serpiente se paro, pero las duraciones no me coinciden, asi que simplemente
+     voy a epochear segun los tiempos donde hay anotaciones y listo
+
+Lo que hice fue segmentear por donde tengo anotaciones.
+Los .tsv de merged_events tiene os onset y duraciones correctos, pero los eventos incorrectos.
+Voy a avanzar con otros participatnes y ver si asi entiendo qeu es lo que paso.
+
+
+* Voy a volver a revisar despues la sesion 1 y 4 del sujeto 16, A, cuanto tenga mas data del 
+resto de los participantes. La sesion 1 me parece que es como esta en el .tsv de merged_events,
+pero la sesion 4 simplemente recorte por donde hay anotaciones de joystick y los nombres de los
+eventos y sus duraciones no coinciden, asi que si o si hay que revisarlo despues*
+
+Sujeto 17
+---------
+Terminado y sin problemas!
+
+Sujeto 18
+---------
+Las sesiones 2 y 3 no tiene bien las marcas ni de audio ni de photo. Asi que las marcas fueron puestas
+a ojo, para que entre toda la anotacion afectiva.
+Pero estas sesiones debe excluirse si depues usamos la informacion del video, porque no son precisas.
+La ultima sesion (sesion 4, run 5) tiene las marcas correctas
+
+- Ahora voy a seguir procesando los sujetos 12, 13 y 14
+
+
+Sujeto 12
+---------
+- task 1 run 2
+el tercer estimulo deberia tener duracion de 154.0 segundos, segun lo que aparece en
+las anotaciones de `events`. Si embargo, veo una duracion entre marcas de 77.0 segundos,
+lo que me da la pauta de que en realidad estamos viendo el 4to estimulo de eventos.
+Es decir que en lugar de aparecer este estimulo:
+0.0	154.0	video	009	affective	stimuli/9.mp4
+aparece este estimulo:
+0.0	77.0	video	008	affective	stimuli/8.mp4
+Por el contrario, el estimulo que le sigue dura 154.0 segundos, lo que me da la pauta
+de que esta invertido tambien.
+Esto ya me habia pasado antes y no termino de entender por que para algunos participantes tenemos
+estimlos shuffleados.
+Despues puedo revisar yendo a los videos y a las anotaciones del participante en el excel.
+El orden que tuvo al final fue:
+onset	duration	trial_type	stim_id	condition	stim_file
+0.0	300.0	fixation	500	baseline	stimuli/fixation_cross.mp4
+0.0	104.0	calm	901	calm	stimuli/901.mp4
+0.0	77.0	video	008	affective	stimuli/8.mp4
+0.0	154.0	video	009	affective	stimuli/9.mp4
+0.0	60.027	video	004	affective	stimuli/4.mp4
+0.0	161.0	video	007	affective	stimuli/7.mp4
+0.0	60.0	video_luminance	103	luminance	stimuli/green_intensity_video_3.mp4
+
+=== Fusionando eventos originales con nuevas anotaciones ===
+
+¡ADVERTENCIA! Diferencia significativa en la duración del evento 3:
+  Original: 154.00s
+  Nueva: 77.01s
+¡ADVERTENCIA! Diferencia significativa en la duración del evento 4:
+  Original: 77.00s
+  Nueva: 154.02s
+¡ADVERTENCIA! Diferencia significativa en la duración del evento 5:
+  Original: 161.00s
+  Nueva: 60.04s
+¡ADVERTENCIA! Diferencia significativa en la duración del evento 6:
+  Original: 60.03s
+  Nueva: 161.02s
+
+En concreto, ahora los archivos generados en el .tsv del merged_events esta correcto.
+Lo que quedo incorrecto es el orden de `events`, posiblemente porque viene incorrecto del 
+`order_matrix`.
+Solucion parcial: ya revise el video presentado y coincide con los eventos guardados en
+`merged_events`
+
+- task 2 run 3
+onset	duration	trial_type	stim_id	condition	stim_file
+0.0	103.003	video	011	affective	stimuli/11.mp4
+0.0	81.014	video	005	affective	stimuli/5.mp4
+0.0	103.0	video	001	affective	stimuli/1.mp4
+0.0	173.0	video	010	affective	stimuli/10.mp4
+0.0	60.0	video_luminance	107	luminance	stimuli/green_intensity_video_7.mp4
+
+El primer estimulo es de 61 segundos, posiblemente estimulo 12.mp4
+El segundo estimulo es de 94 segundos, posiblemente estimulo 3.mp4
+El tercer estimulo es de 229 segundos, posibelemente estimulo 2.mp4
+El 4to estimulo (luminancia) es de 60 segundos
+
+Aparentemente el problema con esto los .xslx de order matrix no eran correctos (estaban generados 2 veces)
+Ya reemplace en mi carpeta de data para la sesion A los archivos con los order matrix correcto.
+El problema con esto es que no se si la sesion B va a estar incorrecto (o, lo que puede pasar
+tambien es que no tengamos reportes de arousal Y valenica para cada sujeto, si fue genrado dos veces)
+
+
+-----
+Termine el sujeto 14 tambien. Y voy a avanzar con los analisis para los sujetos 14, 16, 17 y 18 (unica sesion por ahora)
+Para el sujeto 14, el task 2 run 3 no se puede obtener las marcas, por algun motivo.
+
+-----
+Establecer que antes de cada toma se chequee que este correctamente guardados todos los .xslx
+asi como tambien todos los videos.
+Si eso no esta, agarrar los datos del participante anterior.
+
+
+
+Martes ->
+
+- [x] Revisar todas las señales (anoaciones, fisiologia, etc) del ultimo participnate que tomo Jero con la data de EDA
+      Anotar si hay cuestiones generales del experimento a modificar antes de continuar con la toma 
+      e.g. forma en que guardo los datos (nombre de los files de acuerdo a BIDS), forms del experimento incluyendo sexo, etc.
+
+Lo corri de este modo:
+`python scripts/sanity_check/test_check_physiology_manual.py --subject 16 --task 01 --run 003 --acq a
+`
+Asi note que la señal de EDA para este participante no esta bien.
+ECG y Respiracion esta bien.
 
 
 - [ ] Configurar Arete en la PC que me dieron
  https://nicobruno.notion.site/Documentation-COCUCO-6c010b140dfc4496a47ed94b5c6917d3?pvs=74
-
 
 - First Data Pipeline -> correr esto en Arete 
 (EEG Preprocessing, segun lo hacen para papers que usan meeglet, ver codigo de Denis. Ver paper de bomatter y Gaubert)
@@ -349,12 +512,9 @@ time series con morlet wavelets a partir de meeglet (o si eso es posible simplem
         8. Guardar epochs preprocesados y reporte HTML en `data/derivatives/`.
         9. Loggear todos los pasos y parámetros en JSON.
 
+Miercoles->
 
 - [ ] Primera implementacion de GLHMM, de acuerdo a lo que conversamos con Diego
-
-- [ ] Revisar todas las señales (anoaciones, fisiologia, etc) del ultimo participnate que tomo Jero con la data de EDA
-      Anotar si hay cuestiones generales del experimento a modificar antes de continuar con la toma 
-      e.g. forma en que guardo los datos (nombre de los files de acuerdo a BIDS), forms del experimento incluyendo sexo, etc.
 
 Queda para despues ->
 
