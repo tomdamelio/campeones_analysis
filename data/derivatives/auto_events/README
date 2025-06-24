@@ -1,8 +1,0 @@
-# Auto Events
-
-Este directorio contiene eventos detectados automáticamente en los canales AUDIO/PHOTO.
-Los eventos fueron detectados usando el script detect_markers.py.
-
-El proceso de detección busca marcadores audiovisuales (coincidencias entre picos de AUDIO y PHOTO)
-que corresponden a estímulos de silbato (whistle) y parpadeo visual (flicker) presentados simultáneamente
-en los videos del experimento.

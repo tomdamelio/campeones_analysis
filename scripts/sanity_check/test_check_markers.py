@@ -9,7 +9,7 @@ os.chdir(base_dir)
 
 
 # %%
-subjects = ["16"]
+subjects = ["18"]
 
 # Chequeo de audio para ver marcadores
 for subject in subjects:

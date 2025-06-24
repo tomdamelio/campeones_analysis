@@ -48,6 +48,59 @@ sys.path.insert(0, str(repo_root))
 from src.campeones_analysis.utils.bids_compliance import make_bids_basename
 
 
+def load_durations_dict():
+    """
+    Carga las duraciones de videos desde archivo CSV o valores predeterminados.
+    
+    Esta función centraliza la carga de duraciones para evitar duplicación de código.
+    Intenta cargar desde múltiples ubicaciones posibles.
+    
+    Returns
+    -------
+    dict
+        Diccionario con las duraciones {filename: duration}
+    """
+    # Intentar cargar desde diferentes ubicaciones posibles
+    possible_paths = [
+        repo_root / "data" / "raw" / "stimuli" / "video_durations.csv",
+        repo_root / "stimuli" / "video_durations.csv"
+    ]
+    
+    for video_durations_path in possible_paths:
+        if video_durations_path.exists():
+            print(f"Cargando duraciones de videos desde {video_durations_path}")
+            video_durations_df = pd.read_csv(video_durations_path)
+            
+            # Crear un diccionario de duraciones {filename: duration}
+            durations_dict = dict(zip(video_durations_df['filename'], video_durations_df['duration']))
+            
+            print(f"Se cargaron {len(durations_dict)} duraciones de videos")
+            return durations_dict
+    
+    # Si no se encuentra en ninguna ubicación, usar valores predeterminados
+    print(f"¡ADVERTENCIA! No se encontró el archivo de duraciones en ninguna ubicación:")
+    for path in possible_paths:
+        print(f"  - {path}")
+    print("Se utilizarán valores predeterminados para las duraciones")
+    
+    # Definir las duraciones para cada tipo de estímulo (valores predeterminados)
+    durations_dict = {
+        "1.mp4": 103.0, "2.mp4": 229.0, "3.mp4": 94.0, "4.mp4": 60.027,
+        "5.mp4": 81.014, "6.mp4": 162.029, "7.mp4": 161.0, "8.mp4": 77.0,
+        "9.mp4": 154.0, "10.mp4": 173.0, "11.mp4": 103.003,
+        "12.mp4": 61.028, "13.mp4": 216.016, "14.mp4": 116.016,
+        "901.mp4": 104.0, "902.mp4": 93.0,
+        "991.mp4": 32.027, "992.mp4": 40.033,
+        "993.mp4": 31.026, "994.mp4": 29.024,
+        "fixation_cross.mp4": 300,
+        "green_intensity_video_1.mp4": 60, "green_intensity_video_3.mp4": 60,
+        "green_intensity_video_7.mp4": 60, "green_intensity_video_9.mp4": 60,
+        "green_intensity_video_12.mp4": 60
+    }
+    
+    return durations_dict
+
+
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
@@ -235,10 +288,21 @@ def filter_relevant_rows(df):
     # Crear columna de tipo de evento basada en el nombre extraído
     df['event_type'] = df['extracted_filename'].map(lambda x: filename_to_event_type.get(x, None))
     
-    # Filtrar filas que tienen un tipo de evento asignado
+    # Filtrar filas que tienen un tipo de evento asignado, MANTENIENDO EL ORDEN ORIGINAL
+    # CRÍTICO: Guardar el índice original ANTES del filtrado
+    df = df.reset_index(drop=False)
+    df = df.rename(columns={'index': 'original_order'})
+    
+    # Ahora filtrar manteniendo la columna de orden original
     filtered_df = df[df['event_type'].notna()].copy()
     
-    print(f"Filas filtradas: {len(filtered_df)} de {len(df)}")
+    # Ordenar por el orden original para asegurar que se mantiene la secuencia
+    filtered_df = filtered_df.sort_values('original_order')
+    
+    # Eliminar la columna temporal de orden (pero después de ordenar)
+    filtered_df = filtered_df.drop('original_order', axis=1)
+    
+    print(f"Filas filtradas: {len(filtered_df)} de {len(df)} (orden original preservado)")
     
     # Si no hay filas relevantes, mostrar los nombres extraídos para depuración
     if len(filtered_df) == 0:
@@ -277,9 +341,17 @@ def filter_relevant_rows(df):
                     print(f"  Posible practice: {filename}")
                     df.loc[df['extracted_filename'] == filename, 'event_type'] = 'practice'
         
-        # Volver a filtrar después de la búsqueda flexible
+        # Volver a filtrar después de la búsqueda flexible, MANTENIENDO EL ORDEN ORIGINAL
         filtered_df = df[df['event_type'].notna()].copy()
-        print(f"Filas filtradas después de búsqueda flexible: {len(filtered_df)} de {len(df)}")
+        
+        # CRÍTICO: Mantener el orden original después de la búsqueda flexible
+        # (la columna 'original_order' ya existe desde arriba)
+        filtered_df = filtered_df.sort_values('original_order')
+        
+        # Eliminar la columna temporal de orden
+        filtered_df = filtered_df.drop('original_order', axis=1)
+        
+        print(f"Filas filtradas después de búsqueda flexible: {len(filtered_df)} de {len(df)} (orden original preservado)")
     
     # Añadir mapeo para stim_id basado en el nombre del archivo
     def map_to_stim_id(filename, event_type):
@@ -337,6 +409,15 @@ def filter_relevant_rows(df):
         count = filtered_df[filtered_df['event_type'] == event_type].shape[0]
         print(f"  {event_type}: {count} eventos")
     
+    # DEBUG: Mostrar el orden de los stim_ids para verificar
+    if 'stim_id' in filtered_df.columns:
+        stim_ids_order = filtered_df['stim_id'].tolist()
+        print(f"\nOrden de stim_ids detectado: {stim_ids_order}")
+        
+        # Mostrar también los nombres de archivos extraídos en orden
+        filenames_order = filtered_df['extracted_filename'].tolist()
+        print(f"Orden de archivos extraídos: {filenames_order}")
+    
     return filtered_df
 
 
@@ -360,32 +441,8 @@ def assign_durations(df, durations_dict=None):
     if 'duration' not in df.columns:
         df['duration'] = 0.0
     
-    # Cargar las duraciones desde el archivo CSV
-    video_durations_path = repo_root / "data" / "raw" / "stimuli" / "video_durations.csv"
-    
-    if video_durations_path.exists():
-        print(f"Cargando duraciones de videos desde {video_durations_path}")
-        video_durations_df = pd.read_csv(video_durations_path)
-        
-        # Crear un diccionario de duraciones {filename: duration}
-        durations_dict = dict(zip(video_durations_df['filename'], video_durations_df['duration']))
-        
-        print(f"Se cargaron {len(durations_dict)} duraciones de videos")
-    else:
-        print(f"¡ADVERTENCIA! No se encontró el archivo de duraciones: {video_durations_path}")
-        print("Se utilizarán valores predeterminados para las duraciones")
-        
-        # Definir las duraciones para cada tipo de estímulo (valores predeterminados)
-        durations_dict = {
-            "1.mp4": 103, "2.mp4": 229, "3.mp4": 94, "4.mp4": 60, "5.mp4": 81, 
-            "9.mp4": 154, "10.mp4": 173, "11.mp4": 103, "12.mp4": 61, "13.mp4": 216, "14.mp4": 116,
-            "901.mp4": 104, "902.mp4": 93,
-            "991.mp4": 32, "992.mp4": 40, "993.mp4": 31, "994.mp4": 29,
-            "fixation_cross.mp4": 300,
-            "green_intensity_video_1.mp4": 60, "green_intensity_video_3.mp4": 60,
-            "green_intensity_video_7.mp4": 60, "green_intensity_video_9.mp4": 60,
-            "green_intensity_video_12.mp4": 60
-        }
+    # Cargar las duraciones usando la función centralizada
+    durations_dict = load_durations_dict()
     
     # Verificar que tenemos las columnas necesarias
     if 'event_type' not in df.columns or 'stim_id' not in df.columns:
@@ -519,7 +576,7 @@ def create_annotations(df):
     return annot
 
 
-def export_to_bids(raw, annot, bids_path):
+def export_to_bids(raw, annot, bids_path, original_df=None):
     """
     Exporta los datos raw y las anotaciones a formato BIDS en derivatives.
     
@@ -531,6 +588,8 @@ def export_to_bids(raw, annot, bids_path):
         Objeto Annotations con las anotaciones
     bids_path : mne_bids.BIDSPath
         Ruta BIDS donde exportar los datos
+    original_df : pandas.DataFrame, optional
+        DataFrame original con el orden correcto de los eventos
         
     Returns
     -------
@@ -598,84 +657,147 @@ def export_to_bids(raw, annot, bids_path):
                 mapped_desc = "fixation"
         descriptions.append(mapped_desc)
     
-    # Crear el DataFrame de eventos con todos los campos requeridos
-    events_df = pd.DataFrame()
-    
-    # Columnas obligatorias
-    events_df['onset'] = annot.onset
-    events_df['duration'] = annot.duration
-    
-    # Extraer información del catálogo para cada descripción
-    trial_types = []
-    stim_ids = []
-    conditions = []
-    stim_files = []
-    
-    for desc in descriptions:
-        if desc in stimulus_catalog:
-            info = stimulus_catalog[desc]
-            trial_types.append(info["trial_type"])
-            stim_ids.append(info["stim_id"])
-            conditions.append(info["condition"])
-            stim_files.append(info["stim_file"])
-        else:
-            # Si la descripción no está en el catálogo, usamos valores por defecto
-            parts = desc.split('/')
-            if len(parts) > 1 and parts[0] in ["video", "video_luminance", "calm", "practice"]:
-                trial_types.append(parts[0])
-                try:
-                    stim_id = int(parts[1])
-                    stim_ids.append(stim_id)
-                    
-                    # Determinar el nombre de archivo basado en el tipo y el ID
-                    if parts[0] == "video":
-                        # Para videos, usar simplemente el número
-                        stim_file = f"stimuli/{stim_id % 100}.mp4"
-                    elif parts[0] == "video_luminance":
-                        # Para luminancia, usar el formato green_intensity_video_X
-                        orig_id = stim_id - 100
-                        stim_file = f"stimuli/green_intensity_video_{orig_id}.mp4"
-                    elif parts[0] == "calm":
-                        # Para calm, usar directamente el ID
-                        stim_file = f"stimuli/{stim_id}.mp4"
-                    elif parts[0] == "practice":
-                        # Para practice, usar directamente el ID
-                        stim_file = f"stimuli/{stim_id}.mp4"
-                    else:
-                        stim_file = f"stimuli/{stim_id}.mp4"
-                    
-                    stim_files.append(stim_file)
-                except ValueError:
-                    stim_ids.append(0)
-                    stim_files.append("stimuli/unknown.mp4")
-                
-                if parts[0] == "video":
-                    conditions.append("affective")
-                elif parts[0] == "video_luminance":
-                    conditions.append("luminance")
-                elif parts[0] == "calm":
-                    conditions.append("calm")
-                elif parts[0] == "practice":
-                    conditions.append("practice")
-                else:
-                    conditions.append("unknown")
+    # Si tenemos el DataFrame original, usarlo para preservar el orden
+    if original_df is not None:
+        print("DEBUG - Usando DataFrame original para preservar el orden")
+        
+        # Crear el DataFrame de eventos directamente del DataFrame original
+        events_df = pd.DataFrame()
+        events_df['onset'] = [0.0] * len(original_df)  # Todos los onsets en 0 inicialmente
+        events_df['duration'] = original_df['duration'].values
+        events_df['trial_type'] = original_df['event_type'].values
+        events_df['stim_id'] = original_df['stim_id'].values
+        
+        # Mapear conditions y stim_files basado en event_type y stim_id
+        conditions = []
+        stim_files = []
+        
+        for _, row in original_df.iterrows():
+            event_type = row['event_type']
+            stim_id = str(row['stim_id'])
+            
+            if event_type == 'video':
+                conditions.append('affective')
+                stim_files.append(f'stimuli/{int(stim_id)}.mp4')
+            elif event_type == 'video_luminance':
+                conditions.append('luminance')
+                orig_id = int(stim_id) - 100
+                stim_files.append(f'stimuli/green_intensity_video_{orig_id}.mp4')
+            elif event_type == 'fixation':
+                conditions.append('baseline')
+                stim_files.append('stimuli/fixation_cross.mp4')
+            elif event_type == 'calm':
+                conditions.append('calm')
+                stim_files.append(f'stimuli/{stim_id}.mp4')
+            elif event_type == 'practice':
+                conditions.append('practice')
+                stim_files.append(f'stimuli/{stim_id}.mp4')
             else:
-                if parts[0] == "fixation":
-                    trial_types.append("fixation")
-                    stim_ids.append(500)
-                    conditions.append("baseline")
-                    stim_files.append("stimuli/fixation_cross.mp4")
-                else:
-                    trial_types.append("unknown")
-                    stim_ids.append(0)
-                    conditions.append("unknown")
-                    stim_files.append("stimuli/unknown.mp4")
+                conditions.append('unknown')
+                stim_files.append('stimuli/unknown.mp4')
+        
+        events_df['condition'] = conditions
+        events_df['stim_file'] = stim_files
+        
+        print(f"DEBUG - DataFrame creado desde original:")
+        print(events_df[['trial_type', 'stim_id', 'duration']].to_string())
+        
+    else:
+        # Fallback al método anterior si no tenemos el DataFrame original
+        print("DEBUG - Usando método de anotaciones MNE (puede alterar el orden)")
+        
+        # DEBUG: Verificar el orden de las anotaciones antes de procesar
+        print(f"DEBUG - Orden de descripciones en anotaciones: {list(annot.description)}")
+        print(f"DEBUG - Orden de duraciones en anotaciones: {list(annot.duration)}")
+        
+        # Crear el DataFrame de eventos con todos los campos requeridos
+        events_df = pd.DataFrame()
+        
+        # Columnas obligatorias
+        events_df['onset'] = annot.onset
+        events_df['duration'] = annot.duration
+        
+        # Extraer información del catálogo para cada descripción
+        trial_types = []
+        stim_ids = []
+        conditions = []
+        stim_files = []
     
-    # Añadir columnas al DataFrame
-    events_df['trial_type'] = trial_types
-    events_df['stim_id'] = stim_ids
-    events_df['condition'] = conditions
-    events_df['stim_file'] = stim_files
+        for desc in descriptions:
+            if desc in stimulus_catalog:
+                info = stimulus_catalog[desc]
+                trial_types.append(info["trial_type"])
+                stim_ids.append(info["stim_id"])
+                conditions.append(info["condition"])
+                stim_files.append(info["stim_file"])
+            else:
+                # Si la descripción no está en el catálogo, usamos valores por defecto
+                parts = desc.split('/')
+                if len(parts) > 1 and parts[0] in ["video", "video_luminance", "calm", "practice"]:
+                    trial_types.append(parts[0])
+                    try:
+                        stim_id = int(parts[1])
+                        stim_ids.append(stim_id)
+                        
+                        # Determinar el nombre de archivo basado en el tipo y el ID
+                        if parts[0] == "video":
+                            # Para videos, usar simplemente el número
+                            stim_file = f"stimuli/{stim_id % 100}.mp4"
+                        elif parts[0] == "video_luminance":
+                            # Para luminancia, usar el formato green_intensity_video_X
+                            orig_id = stim_id - 100
+                            stim_file = f"stimuli/green_intensity_video_{orig_id}.mp4"
+                        elif parts[0] == "calm":
+                            # Para calm, usar directamente el ID
+                            stim_file = f"stimuli/{stim_id}.mp4"
+                        elif parts[0] == "practice":
+                            # Para practice, usar directamente el ID
+                            stim_file = f"stimuli/{stim_id}.mp4"
+                        else:
+                            stim_file = f"stimuli/{stim_id}.mp4"
+                        
+                        stim_files.append(stim_file)
+                    except ValueError:
+                        stim_ids.append(0)
+                        stim_files.append("stimuli/unknown.mp4")
+                    
+                    if parts[0] == "video":
+                        conditions.append("affective")
+                    elif parts[0] == "video_luminance":
+                        conditions.append("luminance")
+                    elif parts[0] == "calm":
+                        conditions.append("calm")
+                    elif parts[0] == "practice":
+                        conditions.append("practice")
+                    else:
+                        conditions.append("unknown")
+                else:
+                    if parts[0] == "fixation":
+                        trial_types.append("fixation")
+                        stim_ids.append(500)
+                        conditions.append("baseline")
+                        stim_files.append("stimuli/fixation_cross.mp4")
+                    else:
+                        trial_types.append("unknown")
+                        stim_ids.append(0)
+                        conditions.append("unknown")
+                        stim_files.append("stimuli/unknown.mp4")
+        
+        # DEBUG: Verificar el orden de las listas antes de añadir al DataFrame
+        print(f"DEBUG - Orden de trial_types: {trial_types}")
+        print(f"DEBUG - Orden de stim_ids: {stim_ids}")
+        print(f"DEBUG - Orden de conditions: {conditions}")
+        print(f"DEBUG - Orden de stim_files: {stim_files}")
+        
+        # Añadir columnas al DataFrame
+        events_df['trial_type'] = trial_types
+        events_df['stim_id'] = stim_ids
+        events_df['condition'] = conditions
+        events_df['stim_file'] = stim_files
+        
+        # DEBUG: Verificar el orden final del DataFrame
+        print(f"DEBUG - DataFrame final:")
+        print(events_df[['trial_type', 'stim_id', 'duration']].to_string())
     
     # Guardar events.tsv
     events_tsv_path = str(deriv_path.fpath)
@@ -1251,7 +1373,7 @@ def process_subject(subject, session=None, task=None, acq=None, run=None):
         return
     
     # 6. Exportar a derivatives sin modificar los archivos originales
-    events_df, event_id = export_to_bids(raw, annot, bids_path)
+    events_df, event_id = export_to_bids(raw, annot, bids_path, df_with_durations)
     
     print(f"Procesamiento completado para sub-{subject} ses-{session} task-{task} run-{run}")
     
@@ -1390,35 +1512,8 @@ def create_stimulus_catalog():
     dict
         Diccionario con la información de cada estímulo
     """
-    # Cargar las duraciones desde el archivo CSV
-    video_durations_path = repo_root / "data" / "raw" / "stimuli" / "video_durations.csv"
-    
-    # Diccionario para almacenar las duraciones
-    durations_dict = {}
-    
-    if video_durations_path.exists():
-        print(f"Cargando duraciones de videos para el catálogo desde {video_durations_path}")
-        video_durations_df = pd.read_csv(video_durations_path)
-        
-        # Crear un diccionario de duraciones {filename: duration}
-        durations_dict = dict(zip(video_durations_df['filename'], video_durations_df['duration']))
-        
-        print(f"Se cargaron {len(durations_dict)} duraciones de videos para el catálogo")
-    else:
-        print(f"¡ADVERTENCIA! No se encontró el archivo de duraciones: {video_durations_path}")
-        print("Se utilizarán valores predeterminados para el catálogo de estímulos")
-        
-        # Valores predeterminados
-        durations_dict = {
-            "1.mp4": 103, "2.mp4": 229, "3.mp4": 94, "4.mp4": 60, "5.mp4": 81, 
-            "9.mp4": 154, "10.mp4": 173, "11.mp4": 103, "12.mp4": 61, "13.mp4": 216, "14.mp4": 116,
-            "901.mp4": 104, "902.mp4": 93,
-            "991.mp4": 32, "992.mp4": 40, "993.mp4": 31, "994.mp4": 29,
-            "fixation_cross.mp4": 300,
-            "green_intensity_video_1.mp4": 60, "green_intensity_video_3.mp4": 60,
-            "green_intensity_video_7.mp4": 60, "green_intensity_video_9.mp4": 60,
-            "green_intensity_video_12.mp4": 60
-        }
+    # Cargar las duraciones usando la función centralizada
+    durations_dict = load_durations_dict()
     
     # Crear el catálogo completo de estímulos
     catalog = {}

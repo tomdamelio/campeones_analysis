@@ -6,18 +6,29 @@ Script para la Fase C del proceso de análisis:
 - Para PHOTO: Utiliza análisis de frecuencia para detectar parpadeos visuales de 2 Hz
 - Busca picos coincidentes entre ambos canales (marcadores audiovisuales)
 - Crea anotaciones a partir de los picos detectados, priorizando coincidencias
-- Guarda las anotaciones automáticas en derivatives/auto_events
 - Visualiza las señales con las anotaciones automáticas
-- Permite editar manualmente las anotaciones y guardarlas (habilitado por defecto)
+- Permite editar manualmente las anotaciones (habilitado por defecto)
+- Fusiona las anotaciones finales con los eventos originales y guarda en derivatives/merged_events
 
 Los marcadores audiovisuales son señales que aparecen simultáneamente en los videos
 del experimento: un sonido de silbato (whistle) de 500 Hz y un parpadeo visual (flicker) de 2 Hz.
+
+El marcador alrededor de cada vídeo experimental se compone de una pantalla negra silenciosa
+de 2 s, seguida de un parpadeo audiovisual de 1 s que alterna el blanco y el negro
+a 60 fps mientras suena un silbido de 500 Hz, y termina con otra pantalla
+negra silenciosa de 2 s. Esta estructura de 2 + 1 + 2 s se inserta tanto antes
+como después de cada clip de estímulo.
+
 La detección utiliza técnicas específicas para cada tipo de señal:
 - Para el canal AUDIO: detección basada en amplitud (por defecto) o filtrado en banda alrededor de 500 Hz
 - Para el canal PHOTO: filtrado en banda alrededor de 2 Hz + detección de envolvente
 
 Uso:
+    # Uso básico (solo crea merged_events):
     python detect_markers.py --subject 16 --session vr --task 02 --run 003 --acq a
+    
+    # Para guardar también archivos intermedios (opcional):
+    python detect_markers.py --subject 16 --session vr --task 02 --run 003 --acq a --save-auto-events --save-edited-events
 
 Parámetros importantes:
     --photo-distance: Distancia mínima entre picos en segundos (default: 25)
@@ -44,6 +55,8 @@ Parámetros importantes:
     --no-merge-events: No fusionar los eventos existentes con las nuevas anotaciones
     --merged-save-dir: Directorio dentro de derivatives donde guardar los eventos fusionados (default: merged_events)
     --merged-desc: Descripción para los eventos fusionados (default: merged)
+    --save-auto-events: Guardar también las anotaciones automáticas en auto_events (opcional)
+    --save-edited-events: Guardar también las anotaciones editadas en edited_events (opcional)
 """
 
 import os
@@ -140,6 +153,10 @@ def parse_args():
                         help="Directorio dentro de derivatives donde guardar los eventos fusionados (default: merged_events)")
     parser.add_argument("--merged-desc", type=str, default="merged",
                         help="Descripción para los eventos fusionados (default: merged)")
+    parser.add_argument("--save-auto-events", action="store_true",
+                        help="Guardar también las anotaciones automáticas en auto_events (opcional)")
+    parser.add_argument("--save-edited-events", action="store_true",
+                        help="Guardar también las anotaciones editadas en edited_events (opcional)")
     
     # Establecer valores predeterminados
     parser.set_defaults(use_amplitude_detection=True, enable_manual_edit=True, load_events=True, merge_events=True)
@@ -210,6 +227,7 @@ def load_raw_data(subject, session, task, run, acq=None):
 def apply_zscore_to_raw(raw):
     """
     Aplica z-score a los datos raw para normalizar las señales.
+    Maneja casos problemáticos como señales constantes, NaN o varianza cero.
     
     Parameters
     ----------
@@ -221,17 +239,63 @@ def apply_zscore_to_raw(raw):
     mne.io.Raw
         Objeto Raw con los datos normalizados
     """
+    import warnings
+    
     # Crear una copia del raw para no modificar el original
     raw_zscore = raw.copy()
     
     # Cargar los datos en memoria
     data = raw_zscore.get_data()
     
+    # Lista para almacenar canales problemáticos
+    problematic_channels = []
+    
     # Aplicar z-score a cada canal
     for i in range(data.shape[0]):
-        data[i] = stats.zscore(data[i], nan_policy='omit')
+        channel_name = raw.ch_names[i]
+        channel_data = data[i]
+        
+        # Verificar si hay NaN en el canal
+        if np.isnan(channel_data).any():
+            print(f"¡ADVERTENCIA! Canal {channel_name} contiene valores NaN. Usando nan_policy='omit'.")
+            problematic_channels.append(f"{channel_name} (NaN)")
+        
+        # Verificar si el canal es constante (varianza cero)
+        if np.var(channel_data) == 0:
+            print(f"¡ADVERTENCIA! Canal {channel_name} tiene varianza cero (señal constante). Manteniendo valores originales.")
+            problematic_channels.append(f"{channel_name} (varianza cero)")
+            # Mantener los valores originales para canales constantes
+            continue
+        
+        # Aplicar z-score con manejo de NaN
+        try:
+            zscore_data = stats.zscore(channel_data, nan_policy='omit')
+            
+            # Verificar si el resultado contiene NaN o infinitos
+            if np.isnan(zscore_data).any() or np.isinf(zscore_data).any():
+                print(f"¡ADVERTENCIA! Canal {channel_name} produjo NaN/Inf después del z-score. Manteniendo valores originales.")
+                problematic_channels.append(f"{channel_name} (NaN/Inf post-zscore)")
+                # Mantener los valores originales
+                continue
+            
+            # Si todo está bien, usar los datos z-scoreados
+            data[i] = zscore_data
+            
+        except Exception as e:
+            print(f"¡ERROR! No se pudo aplicar z-score al canal {channel_name}: {e}")
+            print(f"Manteniendo valores originales para el canal {channel_name}.")
+            problematic_channels.append(f"{channel_name} (error: {str(e)})")
+            # Mantener los valores originales
+            continue
     
-    # Crear un nuevo objeto Raw con los datos z-scoreados
+    # Mostrar resumen de canales problemáticos
+    if problematic_channels:
+        print(f"\nCanales con problemas en z-score ({len(problematic_channels)} de {data.shape[0]}):")
+        for ch in problematic_channels:
+            print(f"  - {ch}")
+        print("Estos canales mantuvieron sus valores originales.\n")
+    
+    # Crear un nuevo objeto Raw con los datos procesados
     info = raw.info
     raw_zscore = mne.io.RawArray(data, info)
     
@@ -1310,16 +1374,33 @@ def visualize_signals_with_annotations(raw, annotations, apply_zscore=True):
     print("5. Presiona 'j'/'k' para ajustar la escala vertical")
     print("6. Cierra la ventana para finalizar y guardar los cambios\n")
     
-    # Visualizar
+    # Visualizar con escalados explícitos para evitar problemas de división por cero
     print("Abriendo visualizador de MNE. Cierra la ventana para continuar.")
+    
+    # Definir escalados específicos para evitar problemas con canales misc
+    scalings = {}
+    for ch_name in raw_plot.ch_names:
+        ch_type = raw_plot.get_channel_types(picks=ch_name)[0]
+        if ch_type == 'misc':
+            # Para canales misc, usar un escalado fijo que funcione bien con datos z-scoreados
+            scalings[ch_type] = 2.0  # Escalado conservador para datos normalizados
+        elif ch_type == 'eeg':
+            scalings[ch_type] = 20e-6
+        elif ch_type == 'eog':
+            scalings[ch_type] = 150e-6
+        elif ch_type == 'ecg':
+            scalings[ch_type] = 5e-4
+        else:
+            # Para otros tipos, usar un escalado genérico
+            scalings[ch_type] = 1.0
+    
     fig = raw_plot.plot(
         title=f"Canales {', '.join(channels_to_pick)} con anotaciones automáticas",
-        scalings='auto',
+        scalings=scalings,
         duration=540,
         start=0,
         show=True,
-        block=True#,
-        #decim=4  # Aplicar decimación para reducir la resolución
+        block=True
     )
     
     # Obtener las anotaciones actualizadas después de cerrar el visualizador
@@ -1429,16 +1510,32 @@ def compare_manual_and_auto_annotations(raw, manual_path, auto_path):
     # Aplicar z-score
     raw_combined = apply_zscore_to_raw(raw_combined)
     
+    # Definir escalados específicos para evitar problemas con canales misc
+    scalings = {}
+    for ch_name in raw_combined.ch_names:
+        ch_type = raw_combined.get_channel_types(picks=ch_name)[0]
+        if ch_type == 'misc':
+            # Para canales misc, usar un escalado fijo que funcione bien con datos z-scoreados
+            scalings[ch_type] = 2.0  # Escalado conservador para datos normalizados
+        elif ch_type == 'eeg':
+            scalings[ch_type] = 20e-6
+        elif ch_type == 'eog':
+            scalings[ch_type] = 150e-6
+        elif ch_type == 'ecg':
+            scalings[ch_type] = 5e-4
+        else:
+            # Para otros tipos, usar un escalado genérico
+            scalings[ch_type] = 1.0
+    
     # Visualizar
     print("Abriendo visualizador de MNE con anotaciones manuales y automáticas. Cierra la ventana para continuar.")
     fig = raw_combined.plot(
         title=f"Comparación de anotaciones manuales y automáticas",
-        scalings='auto',
+        scalings=scalings,
         duration=540,
         start=0,
         show=True,
-        block=True#,
-        #decim=4  # Aplicar decimación para reducir la resolución
+        block=True
     )
     
     print("\nVisualizador cerrado.")
@@ -1707,9 +1804,9 @@ def load_events_file(subject, session, task, run, acq=None, events_dir="events",
     
     return events_df
 
-def display_events_in_reverse(events_df):
+def display_events_in_order(events_df):
     """
-    Muestra los eventos en orden inverso, línea por línea.
+    Muestra los eventos en su orden original, línea por línea.
     
     Parameters
     ----------
@@ -1720,15 +1817,15 @@ def display_events_in_reverse(events_df):
         print("No hay eventos para mostrar.")
         return
     
-    print("\n=== EVENTOS EN ORDEN INVERSO ===\n")
-    print("Mostrando eventos desde el último hasta el primero:\n")
+    print("\n=== EVENTOS EN ORDEN ORIGINAL ===\n")
+    print("Mostrando eventos en orden temporal:\n")
     
-    # Crear una copia invertida del DataFrame
-    reversed_df = events_df.iloc[::-1].reset_index(drop=True)
+    # Usar el DataFrame en su orden original
+    events_ordered = events_df.copy()
     
     # Mostrar cada fila
-    for idx, row in reversed_df.iterrows():
-        print(f"Evento #{len(events_df) - idx} (original #{idx}):")
+    for idx, row in events_ordered.iterrows():
+        print(f"Evento #{idx + 1}:")
         print(f"  Onset: {row.get('onset', 'N/A'):.2f} s")
         print(f"  Duración: {row.get('duration', 'N/A'):.2f} s")
         print(f"  Tipo: {row.get('trial_type', 'N/A')}")
@@ -1740,12 +1837,12 @@ def display_events_in_reverse(events_df):
         
         print("-" * 40)
     
-    print("\nFin de los eventos en orden inverso.")
+    print("\nFin de los eventos en orden original.")
 
 def merge_events_with_annotations(original_events_df, annotations, max_duration_diff=1.0):
     """
     Fusiona los eventos originales con las nuevas anotaciones, actualizando los onsets y duraciones.
-    Los eventos originales se asumen en orden inverso (último evento primero).
+    Los eventos originales se mantienen en su orden original.
     
     Parameters
     ----------
@@ -1772,38 +1869,38 @@ def merge_events_with_annotations(original_events_df, annotations, max_duration_
         print("¡ERROR! No hay anotaciones nuevas para fusionar.")
         return None
     
-    # Invertir el orden de los eventos originales
-    # De esta manera el primer evento en el DataFrame será el primer evento en el tiempo real
-    reversed_events_df = original_events_df.iloc[::-1].reset_index(drop=True)
+    # Mantener el orden original de los eventos (NO invertir)
+    # Los eventos ya están en el orden correcto temporal
+    events_df = original_events_df.copy().reset_index(drop=True)
     
     # Verificar que el número de eventos coincide
-    if len(reversed_events_df) != len(annotations):
-        print(f"¡ADVERTENCIA! El número de eventos originales ({len(reversed_events_df)}) no coincide con el número de anotaciones ({len(annotations)}).")
+    if len(events_df) != len(annotations):
+        print(f"¡ADVERTENCIA! El número de eventos originales ({len(events_df)}) no coincide con el número de anotaciones ({len(annotations)}).")
         print("La fusión puede generar resultados incorrectos.")
         
         # Si hay menos anotaciones que eventos, truncar eventos
-        if len(annotations) < len(reversed_events_df):
+        if len(annotations) < len(events_df):
             print(f"Truncando eventos originales para coincidir con el número de anotaciones ({len(annotations)}).")
-            reversed_events_df = reversed_events_df.iloc[:len(annotations)].copy()
+            events_df = events_df.iloc[:len(annotations)].copy()
         else:
             # Si hay más anotaciones que eventos, truncar anotaciones
-            print(f"Truncando anotaciones para coincidir con el número de eventos originales ({len(reversed_events_df)}).")
+            print(f"Truncando anotaciones para coincidir con el número de eventos originales ({len(events_df)}).")
             # Crear nuevas anotaciones con solo los primeros elementos
             annotations = mne.Annotations(
-                onset=annotations.onset[:len(reversed_events_df)],
-                duration=annotations.duration[:len(reversed_events_df)],
-                description=annotations.description[:len(reversed_events_df)]
+                onset=annotations.onset[:len(events_df)],
+                duration=annotations.duration[:len(events_df)],
+                description=annotations.description[:len(events_df)]
             )
     
-    # Crear una copia del DataFrame original para no modificarlo
-    merged_df = reversed_events_df.copy()
+    # Crear una copia del DataFrame para no modificar el original
+    merged_df = events_df.copy()
     
     # Actualizar onsets y duraciones
     merged_df['onset'] = annotations.onset
     merged_df['duration'] = annotations.duration
     
     # Verificar diferencias significativas en duración
-    for i, (orig_dur, new_dur) in enumerate(zip(reversed_events_df['duration'], merged_df['duration'])):
+    for i, (orig_dur, new_dur) in enumerate(zip(events_df['duration'], merged_df['duration'])):
         if abs(orig_dur - new_dur) > max_duration_diff:
             print(f"¡ADVERTENCIA! Diferencia significativa en la duración del evento {i+1}:")
             print(f"  Original: {orig_dur:.2f}s")
@@ -2005,8 +2102,8 @@ def main():
                 )
                 original_events_path = events_path.fpath
                 
-                # Mostrar eventos en orden inverso
-                display_events_in_reverse(original_events_df)
+                # Mostrar eventos en orden original
+                display_events_in_order(original_events_df)
             else:
                 print("No se pudieron cargar eventos originales. No se realizará la fusión.")
                 if args.merge_events:
@@ -2037,20 +2134,27 @@ def main():
         # Crear anotaciones a partir de los picos coincidentes
         annotations = create_annotations_from_coincident_peaks(coincident_peaks)
         
-        # Guardar anotaciones automáticas
-        auto_path = save_annotations_auto(
-            raw, annotations, bids_path, save_dir=args.save_dir,
-            audio_threshold=args.audio_threshold,
-            photo_threshold=args.photo_threshold,
-            photo_distance=args.photo_distance,
-            whistle_freq=args.whistle_freq,
-            whistle_bandwidth=args.whistle_bandwidth,
-            whistle_duration=args.whistle_duration,
-            flicker_freq=args.flicker_freq,
-            flicker_bandwidth=args.flicker_bandwidth,
-            flicker_duration=args.flicker_duration,
-            use_amplitude_detection=args.use_amplitude_detection
-        )
+        # Guardar anotaciones automáticas solo si se especifica
+        auto_path = None
+        if args.save_auto_events:
+            auto_path = save_annotations_auto(
+                raw, annotations, bids_path, save_dir=args.save_dir,
+                audio_threshold=args.audio_threshold,
+                photo_threshold=args.photo_threshold,
+                photo_distance=args.photo_distance,
+                whistle_freq=args.whistle_freq,
+                whistle_bandwidth=args.whistle_bandwidth,
+                whistle_duration=args.whistle_duration,
+                flicker_freq=args.flicker_freq,
+                flicker_bandwidth=args.flicker_bandwidth,
+                flicker_duration=args.flicker_duration,
+                use_amplitude_detection=args.use_amplitude_detection
+            )
+            print(f"Anotaciones automáticas guardadas en: {auto_path}")
+        else:
+            print("No se guardan anotaciones automáticas (usar --save-auto-events si se necesitan)")
+            # Crear una ruta temporal para compatibilidad con funciones que esperan auto_path
+            auto_path = f"temp_auto_events_{args.subject}_{args.session}_{args.task}_{args.run}.tsv"
         
         # Visualizar señales con anotaciones y permitir edición manual si está habilitada
         updated_annotations, has_changes = visualize_signals_with_annotations(
@@ -2060,8 +2164,8 @@ def main():
         # Variable para almacenar la ruta del archivo de anotaciones finales
         final_annotations_path = auto_path
         
-        # Si está habilitada la edición manual y hubo cambios, guardar las anotaciones editadas
-        if args.enable_manual_edit and has_changes:
+        # Si está habilitada la edición manual y hubo cambios, guardar las anotaciones editadas solo si se especifica
+        if args.enable_manual_edit and has_changes and args.save_edited_events:
             print("\n¡Se detectaron cambios en las anotaciones!")
             
             # Si se especificó --force-save, guardar sin preguntar
@@ -2075,7 +2179,7 @@ def main():
             else:
                 # Preguntar al usuario si desea guardar los cambios
                 while True:
-                    response = input("\n¿Deseas guardar las anotaciones editadas? (yes/no): ").strip().lower()
+                    response = input("\n¿Deseas guardar las anotaciones editadas en edited_events? (yes/no): ").strip().lower()
                     if response in ['yes', 'y', 'si', 's']:
                         edited_path = save_annotations_edited(
                             raw, updated_annotations, bids_path, auto_path,
@@ -2085,11 +2189,11 @@ def main():
                         final_annotations_path = edited_path
                         break
                     elif response in ['no', 'n']:
-                        print("\nLos cambios en las anotaciones NO han sido guardados.")
+                        print("\nLos cambios en las anotaciones NO han sido guardados en edited_events.")
                         break
                     else:
                         print("Por favor, responde 'yes' o 'no'.")
-        elif args.enable_manual_edit and not has_changes:
+        elif args.enable_manual_edit and not has_changes and args.save_edited_events:
             print("\nNo se detectaron cambios en las anotaciones.")
             
             # Preguntar si se quiere forzar el guardado aunque no haya cambios
@@ -2100,13 +2204,19 @@ def main():
                 )
                 print(f"\nAnotaciones guardadas sin cambios en: {edited_path}")
                 final_annotations_path = edited_path
-            elif input("\n¿Deseas guardar las anotaciones de todos modos? (yes/no): ").strip().lower() in ['yes', 'y', 'si', 's']:
+            elif input("\n¿Deseas guardar las anotaciones en edited_events de todos modos? (yes/no): ").strip().lower() in ['yes', 'y', 'si', 's']:
                 edited_path = save_annotations_edited(
                     raw, updated_annotations, bids_path, auto_path,
                     save_dir=args.manual_save_dir
                 )
                 print(f"\nAnotaciones guardadas sin cambios en: {edited_path}")
                 final_annotations_path = edited_path
+        elif args.enable_manual_edit and has_changes and not args.save_edited_events:
+            print("\n¡Se detectaron cambios en las anotaciones!")
+            print("Las anotaciones editadas se usarán para merged_events pero no se guardarán por separado.")
+            print("(Usar --save-edited-events si necesitas guardar también en edited_events)")
+        elif args.enable_manual_edit and not has_changes:
+            print("\nNo se detectaron cambios en las anotaciones.")
         
         # Si se solicitó fusionar los eventos, hacerlo ahora
         if args.merge_events and original_events_df is not None:

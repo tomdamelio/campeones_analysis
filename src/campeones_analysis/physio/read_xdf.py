@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
 
 
-def read_and_process_xdf(subject, session, task, run, acq="a", xdf_path=None, debug=False):
+def read_and_process_xdf(subject, session, task, run, acq="b", xdf_path=None, debug=False):
     """
     Read and process XDF files, converting them to BIDS format.
 
@@ -687,7 +687,8 @@ def read_and_process_xdf(subject, session, task, run, acq="a", xdf_path=None, de
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(
-        description="Process XDF files and convert to BIDS format"
+        description="Process XDF files and convert to BIDS format. "
+        "Automatically skips files that have already been processed unless --force is used."
     )
     parser.add_argument(
         "--subject", type=str, help="Process specific subject (e.g., '01')"
@@ -704,6 +705,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--continue-on-error", action="store_true", help="Continue processing other files if one fails"
     )
+    parser.add_argument(
+        "--force", action="store_true", help="Force reprocessing of files that already exist in BIDS format"
+    )
     args = parser.parse_args()
 
     # Configure logging level based on debug flag
@@ -716,6 +720,63 @@ if __name__ == "__main__":
     # Get project root
     project_root = Path(__file__).resolve().parents[3]
     data_folder = project_root / "data" / "sourcedata" / "xdf"
+    bids_root = project_root / "data" / "raw"
+
+    # Function to check if a file has already been processed
+    def is_already_processed(subject, session, task, run, acq):
+        """
+        Check if an XDF file has already been processed by looking for the corresponding BIDS files.
+        
+        Parameters
+        ----------
+        subject : str
+            Subject identifier
+        session : str  
+            Session identifier
+        task : str
+            Task identifier
+        run : str
+            Run identifier
+        acq : str
+            Acquisition identifier
+            
+        Returns
+        -------
+        bool
+            True if the file has already been processed, False otherwise
+        """
+        try:
+            # Create BIDSPath to check for existing files
+            bids_path = BIDSPath(
+                subject=subject,
+                session=session.lower(),  # Use lowercase for BIDS
+                task=task,
+                run=run,
+                acquisition=acq,
+                root=bids_root,
+                datatype="eeg",
+                extension=".vhdr",
+                check=False  # Don't check validity, just check existence
+            )
+            
+            # Check if the main files exist (.vhdr, .eeg, .vmrk)
+            vhdr_file = bids_path.fpath
+            eeg_file = vhdr_file.with_suffix('.eeg')
+            vmrk_file = vhdr_file.with_suffix('.vmrk')
+            
+            # All three files must exist for it to be considered processed
+            files_exist = vhdr_file.exists() and eeg_file.exists() and vmrk_file.exists()
+            
+            if files_exist:
+                logger.debug(f"BIDS files already exist for sub-{subject}_ses-{session}_task-{task}_run-{run}_acq-{acq}")
+                return True
+            else:
+                logger.debug(f"BIDS files do not exist for sub-{subject}_ses-{session}_task-{task}_run-{run}_acq-{acq}")
+                return False
+                
+        except Exception as e:
+            logger.debug(f"Error checking if file is already processed: {e}")
+            return False
 
     # Function to find all available subjects
     def find_subjects():
@@ -807,11 +868,15 @@ if __name__ == "__main__":
                 logger.info("TEST MODE: Processing only the first XDF file.")
 
             # Process each XDF file
+            processed_count = 0
+            skipped_count = 0
+            
             for xdf_file in xdf_files:
-                logger.info(f"\nProcessing file: {xdf_file.name}")
+                filename = xdf_file.name
+                logger.info(f"\nEvaluating file: {filename}")
+                
                 try:
                     # Extract parameters from filename
-                    filename = xdf_file.name
                     parts = filename.split("_")
                     
                     # Default values
@@ -828,11 +893,33 @@ if __name__ == "__main__":
                         elif part.startswith("day-"):
                             acq = part.replace("day-", "")
                     
+                    # Check if file has already been processed (unless force flag is used)
+                    if not args.force and is_already_processed(subject, session, task, run, acq):
+                        logger.info(f"⏭️  OMITIENDO: {filename} - Ya fue procesado")
+                        logger.info(f"   Los archivos BIDS correspondientes ya existen")
+                        logger.info(f"   Usa --force para reprocesar archivos existentes")
+                        skipped_count += 1
+                        continue
+                    
+                    # Process the file
+                    if args.force and is_already_processed(subject, session, task, run, acq):
+                        logger.info(f"🔄 REPROCESANDO: {filename} - Forzando reescritura")
+                    else:
+                        logger.info(f"🔄 PROCESANDO: {filename}")
+                    
                     raw = read_and_process_xdf(subject, session, task, run, acq, xdf_path=xdf_file, debug=args.debug)
-                    logger.info(f"Successfully processed {filename}")
+                    logger.info(f"✅ Successfully processed {filename}")
+                    processed_count += 1
+                    
                 except Exception as e:
-                    logger.error(f"Error processing {filename}: {e}")
+                    logger.error(f"❌ Error processing {filename}: {e}")
                     import traceback
                     traceback.print_exc()
                     if not args.continue_on_error:
                         sys.exit(1)
+            
+            # Summary for this session
+            logger.info(f"\n📊 RESUMEN SESIÓN {session}:")
+            logger.info(f"   Archivos procesados: {processed_count}")
+            logger.info(f"   Archivos omitidos: {skipped_count}")
+            logger.info(f"   Total archivos encontrados: {len(xdf_files)}")

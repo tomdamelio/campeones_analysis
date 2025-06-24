@@ -47,13 +47,13 @@ def parse_args():
                         help="Parámetro de adquisición (e.g., 'a')")
     parser.add_argument("--show-all-channels", action="store_true",
                         help="Mostrar todos los canales en vez de solo AUDIO/PHOTO/joystick_x")
-    parser.add_argument("--source-dir", type=str, default="aligned_events",
-                        help="Directorio dentro de derivatives donde buscar los eventos (default: aligned_events)")
+    parser.add_argument("--source_dir", type=str, default="merged_events",
+                        help="Directorio dentro de derivatives donde buscar los eventos. Opciones: merged_events, edited_events, auto_events, aligned_events, events_manual, events (default: merged_events)")
     
     return parser.parse_args()
 
 
-def load_data_and_annotations(subject, session, task, run, acq=None, source_dir="aligned_events"):
+def load_data_and_annotations(subject, session, task, run, acq=None, source_dir="merged_events"):
     """
     Carga los datos raw y las anotaciones guardadas.
     
@@ -107,7 +107,18 @@ def load_data_and_annotations(subject, session, task, run, acq=None, source_dir=
     
     print(f"Ruta de datos raw: {bids_path.fpath}")
     
-    # Crear BIDSPath para anotaciones
+    # Crear BIDSPath para anotaciones - ajustar descripción según el directorio
+    if source_dir == "merged_events":
+        description = 'merged'  # Para merged_events, usar desc-merged
+    elif source_dir == "aligned_events":
+        description = 'withann'  # Para aligned_events, usar desc-withann
+    elif source_dir == "edited_events":
+        description = 'edited'  # Para edited_events, usar desc-edited
+    elif source_dir == "auto_events":
+        description = 'autoann'  # Para auto_events, usar desc-autoann
+    else:
+        description = None  # Para events originales, sin descripción
+    
     annot_path = BIDSPath(
         subject=subject,
         session=session,
@@ -116,38 +127,33 @@ def load_data_and_annotations(subject, session, task, run, acq=None, source_dir=
         acquisition=acq,
         datatype='eeg',
         suffix='events',
-        description='withann',  # Buscamos las anotaciones con desc-withann
+        description=description,
         extension='.tsv',
         root=deriv_root,
         check=False
     )
     
-    # Si no existen anotaciones en aligned_events, buscamos en events_manual
+    # Si no existen anotaciones en el directorio especificado, buscar en otros directorios
     if not annot_path.fpath.exists():
         print(f"No se encontraron anotaciones en: {annot_path.fpath}")
-        print("Buscando anotaciones en events_manual...")
         
-        deriv_root = repo_root / 'data' / 'derivatives' / 'events_manual'
-        annot_path = BIDSPath(
-            subject=subject,
-            session=session,
-            task=task,
-            run=run,
-            acquisition=acq,
-            datatype='eeg',
-            suffix='events',
-            description='manual',
-            extension='.tsv',
-            root=deriv_root,
-            check=False
-        )
+        # Lista de directorios y descripciones a probar como fallback
+        fallback_options = [
+            ('edited_events', 'edited'),
+            ('auto_events', 'autoann'),
+            ('aligned_events', 'withann'),
+            ('events_manual', 'manual'),
+            ('events', None)  # events originales sin descripción
+        ]
         
-        # Si tampoco existen en events_manual, buscamos en events original
-        if not annot_path.fpath.exists():
-            print(f"No se encontraron anotaciones en: {annot_path.fpath}")
-            print("Buscando anotaciones originales...")
+        found = False
+        for fallback_dir, fallback_desc in fallback_options:
+            if fallback_dir == source_dir:
+                continue  # Saltar el directorio que ya probamos
+                
+            print(f"Buscando anotaciones en {fallback_dir}...")
             
-            deriv_root = repo_root / 'data' / 'derivatives' / 'events'
+            deriv_root = repo_root / 'data' / 'derivatives' / fallback_dir
             annot_path = BIDSPath(
                 subject=subject,
                 session=session,
@@ -156,10 +162,21 @@ def load_data_and_annotations(subject, session, task, run, acq=None, source_dir=
                 acquisition=acq,
                 datatype='eeg',
                 suffix='events',
+                description=fallback_desc,
                 extension='.tsv',
                 root=deriv_root,
                 check=False
             )
+            
+            if annot_path.fpath.exists():
+                print(f"¡Encontradas anotaciones en {fallback_dir}!")
+                found = True
+                break
+            else:
+                print(f"No se encontraron en: {annot_path.fpath}")
+        
+        if not found:
+            print("No se encontraron anotaciones en ningún directorio de derivados.")
     
     print(f"Ruta de anotaciones: {annot_path.fpath}")
     

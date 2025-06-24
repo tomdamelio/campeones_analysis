@@ -1,14 +1,26 @@
 #!/usr/bin/env python
 """
 Este script implementa la Fase B del proceso de análisis:
-- Carga los eventos generados en Fase A
+- Carga eventos desde cualquier directorio de derivatives (events, merged_events, aligned_events, etc.)
 - Visualiza canales AUDIO/PHOTO/joystick_x junto con anotaciones existentes
 - Aplica z-score a las señales para facilitar su visualización conjunta
-- Permite agregar anotaciones de forma manual
+- Permite agregar anotaciones de forma manual (modo interactivo)
+- Modo solo lectura para visualización sin modificaciones
 - Guarda las anotaciones alineadas en derivatives/aligned_events con metadatos BIDS
 
-Uso:
+Ejemplos de uso:
+
+    # Visualizar eventos desde derivatives/events (por defecto)
     python visualize_events.py --subject 16 --session vr --task 02 --run 003
+    
+    # Visualizar merged_events en modo solo lectura
+    python visualize_events.py --subject 16 --session vr --task 02 --run 003 --events-dir merged_events --events-desc merged --read-only
+    
+    # Visualizar eventos alineados previamente
+    python visualize_events.py --subject 16 --session vr --task 02 --run 003 --events-dir aligned_events --events-desc withann --read-only
+    
+    # Modo interactivo con guardado automático
+    python visualize_events.py --subject 16 --session vr --task 02 --run 003 --force-save
 """
 
 import os
@@ -58,11 +70,17 @@ def parse_args():
                         help="No aplicar z-score a las señales")
     parser.add_argument("--save-dir", type=str, default="aligned_events",
                         help="Directorio dentro de derivatives donde guardar los eventos (default: aligned_events)")
+    parser.add_argument("--events-dir", type=str, default="events",
+                        help="Directorio dentro de derivatives donde buscar los eventos (default: events)")
+    parser.add_argument("--events-desc", type=str, default=None,
+                        help="Descripción de los eventos a cargar (e.g., 'merged', 'withann')")
+    parser.add_argument("--read-only", action="store_true",
+                        help="Modo solo lectura: visualizar sin permitir modificaciones ni guardado")
     
     return parser.parse_args()
 
 
-def load_events_and_raw(subject, session, task, run, acq=None):
+def load_events_and_raw(subject, session, task, run, acq=None, events_dir="events", events_desc=None):
     """
     Carga los eventos y los datos raw originales.
     
@@ -78,6 +96,10 @@ def load_events_and_raw(subject, session, task, run, acq=None):
         ID del run
     acq : str, optional
         Parámetro de adquisición
+    events_dir : str, optional
+        Directorio dentro de derivatives donde buscar los eventos
+    events_desc : str, optional
+        Descripción de los eventos a cargar
     
     Returns
     -------
@@ -88,7 +110,7 @@ def load_events_and_raw(subject, session, task, run, acq=None):
     
     # Definir rutas
     bids_root = repo_root / 'data' / 'raw'
-    deriv_root = repo_root / 'data' / 'derivatives' / 'events'
+    deriv_root = repo_root / 'data' / 'derivatives' / events_dir
     
     # Asegurar formato correcto de parámetros
     if task and task.isdigit():
@@ -121,18 +143,52 @@ def load_events_and_raw(subject, session, task, run, acq=None):
         acquisition=acq,
         datatype='eeg',
         suffix='events',
+        description=events_desc,
         extension='.tsv',
         root=deriv_root,
         check=False
     )
     
-    print(f"Ruta de eventos: {events_path.fpath}")
+    print(f"Buscando eventos en: {events_path.fpath}")
     
-    # Verificar que los archivos existen
+    # Verificar que el archivo raw existe
     if not bids_path.fpath.exists():
         raise FileNotFoundError(f"Archivo raw no encontrado: {bids_path.fpath}")
+    
+    # Verificar que el archivo de eventos existe
     if not events_path.fpath.exists():
-        raise FileNotFoundError(f"Archivo de eventos no encontrado: {events_path.fpath}")
+        # Si no se encuentra con la descripción especificada, intentar sin descripción
+        if events_desc:
+            print(f"No se encontró archivo con descripción '{events_desc}', intentando sin descripción...")
+            alt_events_path = BIDSPath(
+                subject=subject,
+                session=session,
+                task=task,
+                run=run,
+                acquisition=acq,
+                datatype='eeg',
+                suffix='events',
+                extension='.tsv',
+                root=deriv_root,
+                check=False
+            )
+            if alt_events_path.fpath.exists():
+                events_path = alt_events_path
+                print(f"Archivo encontrado sin descripción: {events_path.fpath}")
+            else:
+                # Listar archivos disponibles
+                print(f"Archivos de eventos disponibles en {deriv_root}:")
+                pattern = f"sub-{subject}_ses-{session}_task-{task}_*_events.tsv"
+                for file in deriv_root.glob(pattern):
+                    print(f"  - {file.name}")
+                raise FileNotFoundError(f"Archivo de eventos no encontrado: {events_path.fpath}")
+        else:
+            # Listar archivos disponibles
+            print(f"Archivos de eventos disponibles en {deriv_root}:")
+            pattern = f"sub-{subject}_ses-{session}_task-{task}_*_events.tsv"
+            for file in deriv_root.glob(pattern):
+                print(f"  - {file.name}")
+            raise FileNotFoundError(f"Archivo de eventos no encontrado: {events_path.fpath}")
     
     # Cargar datos raw
     raw = read_raw_bids(bids_path, verbose=False)
@@ -140,7 +196,9 @@ def load_events_and_raw(subject, session, task, run, acq=None):
     
     # Cargar eventos
     events_df = pd.read_csv(events_path.fpath, sep='\t')
-    print(f"Eventos cargados: {len(events_df)} eventos")
+    print(f"Eventos cargados: {len(events_df)} eventos desde {events_dir}")
+    print(f"Columnas disponibles: {list(events_df.columns)}")
+    print("\nPrimeros eventos:")
     print(events_df.head())
     
     return raw, events_df, bids_path, events_path
@@ -149,6 +207,7 @@ def load_events_and_raw(subject, session, task, run, acq=None):
 def apply_zscore_to_raw(raw):
     """
     Aplica z-score a los datos raw para normalizar las señales.
+    Maneja casos problemáticos como señales constantes, NaN o varianza cero.
     
     Parameters
     ----------
@@ -160,17 +219,63 @@ def apply_zscore_to_raw(raw):
     mne.io.Raw
         Objeto Raw con los datos normalizados
     """
+    import warnings
+    
     # Crear una copia del raw para no modificar el original
     raw_zscore = raw.copy()
     
     # Cargar los datos en memoria
     data = raw_zscore.get_data()
     
+    # Lista para almacenar canales problemáticos
+    problematic_channels = []
+    
     # Aplicar z-score a cada canal
     for i in range(data.shape[0]):
-        data[i] = stats.zscore(data[i], nan_policy='omit')
+        channel_name = raw.ch_names[i]
+        channel_data = data[i]
+        
+        # Verificar si hay NaN en el canal
+        if np.isnan(channel_data).any():
+            print(f"¡ADVERTENCIA! Canal {channel_name} contiene valores NaN. Usando nan_policy='omit'.")
+            problematic_channels.append(f"{channel_name} (NaN)")
+        
+        # Verificar si el canal es constante (varianza cero)
+        if np.var(channel_data) == 0:
+            print(f"¡ADVERTENCIA! Canal {channel_name} tiene varianza cero (señal constante). Manteniendo valores originales.")
+            problematic_channels.append(f"{channel_name} (varianza cero)")
+            # Mantener los valores originales para canales constantes
+            continue
+        
+        # Aplicar z-score con manejo de NaN
+        try:
+            zscore_data = stats.zscore(channel_data, nan_policy='omit')
+            
+            # Verificar si el resultado contiene NaN o infinitos
+            if np.isnan(zscore_data).any() or np.isinf(zscore_data).any():
+                print(f"¡ADVERTENCIA! Canal {channel_name} produjo NaN/Inf después del z-score. Manteniendo valores originales.")
+                problematic_channels.append(f"{channel_name} (NaN/Inf post-zscore)")
+                # Mantener los valores originales
+                continue
+            
+            # Si todo está bien, usar los datos z-scoreados
+            data[i] = zscore_data
+            
+        except Exception as e:
+            print(f"¡ERROR! No se pudo aplicar z-score al canal {channel_name}: {e}")
+            print(f"Manteniendo valores originales para el canal {channel_name}.")
+            problematic_channels.append(f"{channel_name} (error: {str(e)})")
+            # Mantener los valores originales
+            continue
     
-    # Crear un nuevo objeto Raw con los datos z-scoreados
+    # Mostrar resumen de canales problemáticos
+    if problematic_channels:
+        print(f"\nCanales con problemas en z-score ({len(problematic_channels)} de {data.shape[0]}):")
+        for ch in problematic_channels:
+            print(f"  - {ch}")
+        print("Estos canales mantuvieron sus valores originales.\n")
+    
+    # Crear un nuevo objeto Raw con los datos procesados
     info = raw.info
     raw_zscore = mne.io.RawArray(data, info)
     
@@ -180,10 +285,10 @@ def apply_zscore_to_raw(raw):
     return raw_zscore
 
 
-def visualize_channels_with_annotations(raw, events_df, apply_zscore=True):
+def visualize_channels_with_annotations(raw, events_df, apply_zscore=True, read_only=False):
     """
     Visualiza los canales AUDIO, PHOTO y joystick_x junto con las anotaciones.
-    Permite agregar anotaciones de forma manual.
+    Permite agregar anotaciones de forma manual si no está en modo solo lectura.
     
     Parameters
     ----------
@@ -193,13 +298,16 @@ def visualize_channels_with_annotations(raw, events_df, apply_zscore=True):
         DataFrame con los eventos
     apply_zscore : bool, optional
         Si es True, aplica z-score a las señales para normalizarlas
+    read_only : bool, optional
+        Si es True, modo solo lectura sin permitir modificaciones
         
     Returns
     -------
     tuple
         (updated_annotations, has_changes) con las anotaciones actualizadas y un flag que indica si hubo cambios
     """
-    print("\n=== Visualizando canales AUDIO/PHOTO/joystick_x y anotaciones ===\n")
+    mode_str = "SOLO LECTURA" if read_only else "INTERACTIVO"
+    print(f"\n=== Visualizando canales AUDIO/PHOTO/joystick_x y anotaciones - MODO {mode_str} ===\n")
     
     # Verificar que los canales existen
     available_channels = raw.ch_names
@@ -251,29 +359,72 @@ def visualize_channels_with_annotations(raw, events_df, apply_zscore=True):
         raw_plot = apply_zscore_to_raw(raw_plot)
         print("Z-score aplicado. Las señales están ahora en unidades de desviación estándar.")
     
-    # Instrucciones para el usuario
-    print("\n--- INSTRUCCIONES PARA AÑADIR ANOTACIONES MANUALMENTE ---")
-    print("1. Presiona 'a' y arrastra para seleccionar una región")
-    print("2. Ingresa un nombre para la anotación en la ventana emergente")
-    print("   - Para videos, usa 'video'")
-    print("   - Para luminancia, usa 'luminance'")
-    print("   - Para otros eventos, usa nombres descriptivos")
-    print("3. Para eliminar una anotación: Haz clic derecho sobre ella")
-    print("4. Para ajustar los límites: Arrastra los bordes de una anotación")
-    print("5. Presiona 'j'/'k' para ajustar la escala vertical")
-    print("6. Cierra la ventana para finalizar y guardar los cambios\n")
+    # Mostrar información de los eventos
+    print(f"\nEventos cargados: {len(events_df)}")
+    if 'stim_id' in events_df.columns:
+        print("Tipos de estímulos encontrados:")
+        for trial_type in events_df['trial_type'].unique():
+            subset = events_df[events_df['trial_type'] == trial_type]
+            if 'stim_id' in subset.columns:
+                stim_ids = subset['stim_id'].unique()
+                print(f"  - {trial_type}: {len(subset)} eventos (IDs: {sorted(stim_ids)})")
+            else:
+                print(f"  - {trial_type}: {len(subset)} eventos")
     
+    # Instrucciones para el usuario
+    if read_only:
+        print("\n--- MODO SOLO LECTURA ---")
+        print("Visualización sin posibilidad de modificación.")
+        print("1. Usa las teclas de navegación para explorar los datos")
+        print("2. Presiona 'j'/'k' para ajustar la escala vertical")
+        print("3. Usa las flechas o barra espaciadora para navegar en el tiempo")
+        print("4. Cierra la ventana para finalizar\n")
+    else:
+        print("\n--- MODO INTERACTIVO ---")
+        print("1. Presiona 'a' y arrastra para seleccionar una región")
+        print("2. Ingresa un nombre para la anotación en la ventana emergente")
+        print("   - Para videos, usa 'video'")
+        print("   - Para luminancia, usa 'luminance'")
+        print("   - Para otros eventos, usa nombres descriptivos")
+        print("3. Para eliminar una anotación: Haz clic derecho sobre ella")
+        print("4. Para ajustar los límites: Arrastra los bordes de una anotación")
+        print("5. Presiona 'j'/'k' para ajustar la escala vertical")
+        print("6. Cierra la ventana para finalizar y guardar los cambios\n")
+    
+    # Definir escalados específicos para evitar problemas con canales misc
+    scalings = {}
+    for ch_name in raw_plot.ch_names:
+        ch_type = raw_plot.get_channel_types(picks=ch_name)[0]
+        if ch_type == 'misc':
+            # Para canales misc, usar un escalado fijo que funcione bien con datos z-scoreados
+            scalings[ch_type] = 2.0  # Escalado conservador para datos normalizados
+        elif ch_type == 'eeg':
+            scalings[ch_type] = 20e-6
+        elif ch_type == 'eog':
+            scalings[ch_type] = 150e-6
+        elif ch_type == 'ecg':
+            scalings[ch_type] = 5e-4
+        else:
+            # Para otros tipos, usar un escalado genérico
+            scalings[ch_type] = 1.0
+
     # Visualizar
+    title_suffix = " (SOLO LECTURA)" if read_only else ""
     print("Abriendo visualizador de MNE. Cierra la ventana para continuar.")
     fig = raw_plot.plot(
-        title=f"Canales {', '.join(channels_to_pick)} con anotaciones",
-        scalings='auto',
+        title=f"Canales {', '.join(channels_to_pick)} con anotaciones{title_suffix}",
+        scalings=scalings,
         duration=180,
         start=0,
         show=True,
         block=True,
         decim=32  # Aplicar decimación para reducir la resolución
     )
+    
+    # En modo solo lectura, no hay cambios
+    if read_only:
+        print("\nVisualizador cerrado (modo solo lectura).")
+        return original_annotations, False
     
     # Obtener las anotaciones actualizadas después de cerrar el visualizador
     updated_annotations = raw_plot.annotations
@@ -469,30 +620,54 @@ def main():
     try:
         # Cargar datos
         raw, events_df, bids_path, events_path = load_events_and_raw(
-            args.subject, args.session, args.task, args.run, args.acq
+            args.subject, args.session, args.task, args.run, args.acq, args.events_dir, args.events_desc
         )
         
         # Visualizar canales con anotaciones y obtener anotaciones actualizadas
         updated_annotations, has_changes = visualize_channels_with_annotations(
-            raw, events_df, apply_zscore=not args.no_zscore
+            raw, events_df, apply_zscore=not args.no_zscore, read_only=args.read_only
         )
         
-        # Verificar si las anotaciones han cambiado
-        if has_changes:
-            print("\n¡Se detectaron cambios en las anotaciones!")
-            
-            # Si se especificó --force-save, guardar sin preguntar
-            if args.force_save:
-                saved_path = save_annotations_aligned(
-                    updated_annotations, events_path,
-                    args.subject, args.session, args.task, args.run, args.acq,
-                    save_dir=args.save_dir
-                )
-                print(f"\nAnotaciones guardadas exitosamente en: {saved_path}")
+        # En modo solo lectura, no procesar guardado
+        if args.read_only:
+            print("\n=== Visualización completada (modo solo lectura) ===")
+            print("\nNo se realizaron modificaciones en modo solo lectura.")
+        else:
+            # Verificar si las anotaciones han cambiado
+            if has_changes:
+                print("\n¡Se detectaron cambios en las anotaciones!")
+                
+                # Si se especificó --force-save, guardar sin preguntar
+                if args.force_save:
+                    saved_path = save_annotations_aligned(
+                        updated_annotations, events_path,
+                        args.subject, args.session, args.task, args.run, args.acq,
+                        save_dir=args.save_dir
+                    )
+                    print(f"\nAnotaciones guardadas exitosamente en: {saved_path}")
+                else:
+                    # Preguntar al usuario si desea guardar los cambios
+                    while True:
+                        response = input("\n¿Deseas guardar las anotaciones actualizadas? (yes/no): ").strip().lower()
+                        if response in ['yes', 'y', 'si', 's']:
+                            saved_path = save_annotations_aligned(
+                                updated_annotations, events_path,
+                                args.subject, args.session, args.task, args.run, args.acq,
+                                save_dir=args.save_dir
+                            )
+                            print(f"\nAnotaciones guardadas exitosamente en: {saved_path}")
+                            break
+                        elif response in ['no', 'n']:
+                            print("\nLos cambios en las anotaciones NO han sido guardados.")
+                            break
+                        else:
+                            print("Por favor, responde 'yes' o 'no'.")
             else:
-                # Preguntar al usuario si desea guardar los cambios
-                while True:
-                    response = input("\n¿Deseas guardar las anotaciones actualizadas? (yes/no): ").strip().lower()
+                print("\nNo se detectaron cambios en las anotaciones.")
+                
+                # Preguntar si se quiere forzar el guardado aunque no haya cambios
+                if not args.force_save:
+                    response = input("\n¿Deseas guardar las anotaciones de todos modos? (yes/no): ").strip().lower()
                     if response in ['yes', 'y', 'si', 's']:
                         saved_path = save_annotations_aligned(
                             updated_annotations, events_path,
@@ -500,38 +675,19 @@ def main():
                             save_dir=args.save_dir
                         )
                         print(f"\nAnotaciones guardadas exitosamente en: {saved_path}")
-                        break
-                    elif response in ['no', 'n']:
-                        print("\nLos cambios en las anotaciones NO han sido guardados.")
-                        break
-                    else:
-                        print("Por favor, responde 'yes' o 'no'.")
-        else:
-            print("\nNo se detectaron cambios en las anotaciones.")
-            
-            # Preguntar si se quiere forzar el guardado aunque no haya cambios
-            if not args.force_save:
-                response = input("\n¿Deseas guardar las anotaciones de todos modos? (yes/no): ").strip().lower()
-                if response in ['yes', 'y', 'si', 's']:
+                elif args.force_save:
                     saved_path = save_annotations_aligned(
                         updated_annotations, events_path,
                         args.subject, args.session, args.task, args.run, args.acq,
                         save_dir=args.save_dir
                     )
                     print(f"\nAnotaciones guardadas exitosamente en: {saved_path}")
-            elif args.force_save:
-                saved_path = save_annotations_aligned(
-                    updated_annotations, events_path,
-                    args.subject, args.session, args.task, args.run, args.acq,
-                    save_dir=args.save_dir
-                )
-                print(f"\nAnotaciones guardadas exitosamente en: {saved_path}")
-        
-        print("\n=== Proceso completado exitosamente ===")
-        print("\nPróximos pasos:")
-        print("1. Revisar las anotaciones guardadas si se realizaron cambios")
-        print("2. Ejecutar scripts posteriores para análisis basados en estas anotaciones")
-        print("3. Validar la estructura BIDS con 'bids-validator data/derivatives/aligned_events'")
+            
+            print("\n=== Proceso completado exitosamente ===")
+            print("\nPróximos pasos:")
+            print("1. Revisar las anotaciones guardadas si se realizaron cambios")
+            print("2. Ejecutar scripts posteriores para análisis basados en estas anotaciones")
+            print("3. Validar la estructura BIDS con 'bids-validator data/derivatives/aligned_events'")
         
     except Exception as e:
         print(f"\nERROR: {e}")
