@@ -456,19 +456,29 @@ Asi note que la señal de EDA para este participante no esta bien.
 ECG y Respiracion esta bien.
 
 
-- [ ] Configurar Arete en la PC que me dieron
+- [x] Configurar Arete en la PC que me dieron
  https://nicobruno.notion.site/Documentation-COCUCO-6c010b140dfc4496a47ed94b5c6917d3?pvs=74
 
-- First Data Pipeline -> correr esto en Arete 
-(EEG Preprocessing, segun lo hacen para papers que usan meeglet, ver codigo de Denis. Ver paper de bomatter y Gaubert)
-    - [ ] Cargar pipeline EEG en un sujeto
-        - Verificar funcionamiento básico sin errores
-        - Anotar requerimientos de ajustes
+- First Data Pipeline -> correr esto local
+
+SEGUIR DESDE ACA ->
+- Sacar notas de preprocesamiento del paper de protocolo de GLHMM
+
+
+- En base al script de nico de preprocesamiento, armar un script para preprocesar un paerticipante, sesion y tarea (i.e. un archivo de dato)
+
+
     - [ ] Crear un script reproducible de preprocesamiento EEG para un participante:
         1. Leer datos BIDS de un sujeto/sesión/tarea.
         2. Filtrar (bandpass) y notch.
         3. Detección automática y visual de canales ruidosos.
         4. Segmentar en epochs según eventos.
+        5. Rechazo automático y manual de epochs (AutoReject).
+        6. ICA + clasificación automática de componentes (ICLabel).
+        7. Interpolación de canales malos y rereferencia.
+        8. Guardar epochs preprocesados y reporte HTML en `data/derivatives/`.
+        9. Loggear todos los pasos y parámetros en JSON.
+
 
 ##  🅴 Fase E Epoching
 * Antes de empezar con esto, revisar los papers de Denis de meeglet a ver como necesito la data
@@ -505,18 +515,26 @@ time series con morlet wavelets a partir de meeglet (o si eso es posible simplem
   dvc add derivatives/epochs
   git commit -m "Add epochs derivation"
 
+Miercoles
+---------
 
-        5. Rechazo automático y manual de epochs (AutoReject).
-        6. ICA + clasificación automática de componentes (ICLabel).
-        7. Interpolación de canales malos y rereferencia.
-        8. Guardar epochs preprocesados y reporte HTML en `data/derivatives/`.
-        9. Loggear todos los pasos y parámetros en JSON.
+- [ ] Preprocesar ahora solo sujeto 17, que no tuvo problemas en ningna sesion
 
-Miercoles->
+
+- [ ] Procesar sujeto 16 condicion B
+
 
 - [ ] Primera implementacion de GLHMM, de acuerdo a lo que conversamos con Diego
 
+
+
+
+
+
+
 Queda para despues ->
+
+- Preprocesar el EEG de todos los paticipantes hoy (14,17,18).
 
 - Estrucutrar los datos de las encuestas (por ahora guardados simplemente en `sourcedata` como 3 csvs separados)
     - [ ] Poblar el archivo `participants.tsv` con la informacion de los participantes.
@@ -524,3 +542,6 @@ Queda para despues ->
           Pero deberia utuluzadar la data de las encuestas para poder extraer esa informacion
     - [ ] Agregar el resto de la informacion (e.g. escalas) como `phenotype` o similar,
           segun recoemndado por BIDS para estructurar encuestas, etc.
+
+
+- Bajar la data en Arete
