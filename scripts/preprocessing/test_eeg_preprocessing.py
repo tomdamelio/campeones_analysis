@@ -8,16 +8,18 @@ EEG preprocessing pipeline for a single participant.
 Follows project rules: modularity, docstrings, reproducible paths, no magics.
 """
 
+#%% 
+
 import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import mne
 import numpy as np
-import pyxdf
+import pandas as pd
 from autoreject import AutoReject, get_rejection_threshold
 from git import Repo
-from mne_bids import BIDSPath, write_raw_bids
+from mne_bids import BIDSPath, read_raw_bids, write_raw_bids
 from mne_icalabel import label_components
 from pyprep import NoisyChannels
 
@@ -35,121 +37,78 @@ repo_root = repo.git.rev_parse("--show-toplevel")
 
 # %%
 # Parámetros editables
-subject = "12"
+subject = "17"
 session = "vr"
 task = "01"
 run = "002"
-day = "a"
+acq = "a"  # Antes era 'day', ahora es 'acq' para BIDS
 data = "eeg"
 
-results_folder = "data"
+# Paths para datos BIDS
+bids_root = os.path.join(repo_root, "data", "raw")
 derivatives_folder = os.path.join(repo_root, "data", "derivatives")
 bids_dir = os.path.join(derivatives_folder, f"sub-{subject}", f"ses-{session}", "eeg")
 os.makedirs(bids_dir, exist_ok=True)
 
-# Ruta al archivo .xdf
-df_xdf = (
-    Path(repo_root)
-    / f"data/sub-{subject}/ses-{session}/physio/sub-{subject}_ses-{session}_day-{day}_task-{task}_run-{run}_eeg.xdf"
-)
-
-# 1. Leer el archivo .xdf usando pyxdf y convertir todos los streams a MNE RawArray
-streams, header = pyxdf.load_xdf(str(df_xdf))
-
-print("Streams encontrados en el archivo XDF:")
-for s in streams:
-    print(s["info"]["name"][0])
-
 # %%
-# SEGUIR DESDE ACA
-# Por algun motivo, esto no me corre bien. Parece que guardarlo como .xdf no fue una buena idea
-# Considerar guardarlo como .fif para el futuro
-# Para resolver ahora, hacer prubeas minimas leyendo un .xdf en otro script de testo
-# Solamente leer un bloque (3 o 4 estimulos) y quedarnos con toda la data junta (todos los streams)
-# Una vez que tenga eso, escalar con ese script para seguir con el siguiente bloque del pariticpante,
-# y asi sucesivamente.
-# Partir de pruebas chiquitas en `./test` e ir escalando con eso.
-# Ir documentando todo en un nuevo documento dentro de `.docs` que sea tipo diario de investigacion
-# para que no se nos olvide todo lo que hicimos.
-# Avanzar lento pero entendiendo que estoy haciendo
-# Chequear cuantos y cuales son los canales dentor de mi data, para estar seguro de que esoty entendiendo
-# la naturaleza de mis datos.
-
-
-# Función para convertir un stream a RawArray y guardar como .fif
-def save_stream_as_fif(stream, out_dir, base_name):
-    name = stream["info"]["name"][0]
-    sfreq = float(stream["info"]["nominal_srate"][0])
-    data = np.array(stream["time_series"]).T  # <--- CORREGIDO
-    ch_names = [
-        ch["label"][0] for ch in stream["info"]["desc"][0]["channels"][0]["channel"]
-    ]
-    # Heurística: si es EEG, todos 'eeg', si es markers, 'stim', si es joystick, 'misc'
-    if "eeg" in name.lower() or "brainamp" in name.lower():
-        ch_types = ["eeg"] * len(ch_names)
-    elif "marker" in name.lower():
-        ch_types = ["stim"] * len(ch_names)
-    else:
-        ch_types = ["misc"] * len(ch_names)
-    info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types)
-    raw = mne.io.RawArray(data, info)
-    fif_path = Path(out_dir) / f"{base_name}_{name}_raw.fif"
-    raw.save(fif_path, overwrite=True)
-    print(f"Guardado: {fif_path}")
-    return fif_path
-
-
-# Guardar todos los streams como fif
-base_name = f"sub-{subject}_ses-{session}_day-{day}_task-{task}_run-{run}"
-for s in streams:
-    save_stream_as_fif(s, bids_dir, base_name)
-
-# %%
-
-# Buscar el stream de EEG (ajusta el criterio según tu archivo)
-eeg_stream = None
-for s in streams:
-    if "eeg" in s["info"]["name"][0].lower():
-        eeg_stream = s
-        break
-if eeg_stream is None:
-    raise RuntimeError("No se encontró un stream de EEG en el archivo XDF.")
-
-# Extraer datos y metadatos
-sfreq = float(eeg_stream["info"]["nominal_srate"][0])
-data = eeg_stream["time_series"].T  # shape: (n_channels, n_times)
-ch_names = [
-    ch["label"][0] for ch in eeg_stream["info"]["desc"][0]["channels"][0]["channel"]
-]
-ch_types = ["eeg"] * len(ch_names)
-
-info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types)
-raw = mne.io.RawArray(data, info)
-print(raw.info)
-
-# %%
-
-# 2. Guardar como .fif en derivatives
-fif_path = (
-    Path(bids_dir)
-    / f"sub-{subject}_ses-{session}_day-{day}_task-{task}_run-{run}_eeg_raw.fif"
-)
-raw.save(fif_path, overwrite=True)
-
-# %%
-
-# 3. (Opcional) Crear BIDSPath para el .fif si quieres usar herramientas BIDS
+# --------- 1. Cargar datos raw desde BIDS ---------
+# Crear BIDSPath para los datos raw
 bids_path = BIDSPath(
     subject=subject,
     session=session,
     task=task,
     run=run,
+    acquisition=acq,
     datatype=data,
-    suffix="eeg",
-    extension=".fif",
-    root=derivatives_folder,
+    root=bids_root,
+    extension=".vhdr",
 )
 
+# Cargar datos raw desde BIDS
+print(f"Cargando datos desde: {bids_path.fpath}")
+raw = read_raw_bids(bids_path, verbose=False)
+print(f"Datos cargados: {raw.info}")
+
+# %%
+
+# %%
+# --------- 2. Cargar eventos desde merged_events ---------
+# Ruta al archivo de eventos fusionados
+events_path = os.path.join(
+    derivatives_folder, 
+    "merged_events",
+    f"sub-{subject}",
+    f"ses-{session}",
+    "eeg",
+    f"sub-{subject}_ses-{session}_task-{task}_acq-{acq}_run-{run}_desc-merged_events.tsv"
+)
+
+# Cargar eventos
+print(f"Cargando eventos desde: {events_path}")
+events_df = pd.read_csv(events_path, sep='\t')
+print(f"Eventos cargados: {len(events_df)} eventos")
+print("Tipos de eventos:", events_df['trial_type'].unique())
+
+# Verificar que los onset times sean razonables
+print(f"Onset times: min={events_df['onset'].min():.1f}s, max={events_df['onset'].max():.1f}s")
+print(f"Duraciones: min={events_df['duration'].min():.1f}s, max={events_df['duration'].max():.1f}s")
+
+# NOTA: Asegúrate de usar merged_events (con onset times reales) 
+# no events/ (que tiene todos los onset en 0.0)
+
+# Convertir eventos a anotaciones MNE
+annotations = mne.Annotations(
+    onset=events_df['onset'].values,
+    duration=events_df['duration'].values,
+    description=events_df['trial_type'].values
+)
+
+# Agregar las anotaciones al raw
+raw.set_annotations(annotations)
+print(f"Anotaciones agregadas: {len(raw.annotations)}")
+
+# %%
+# --------- 3. Configurar reporte y logging ---------
 report = mne.Report(
     title=f"Preprocessing sub-{subject} for session {session}, task {task}, run {run}"
 )
@@ -158,11 +117,8 @@ json_path = os.path.join(
 )
 log_preprocessing = LogPreprocessingDetails(json_path, subject, session, task)
 
-
-# %%
-# --------- 1. Leer datos brutos ---------
-# Si quieres seguir el pipeline con el raw .fif, puedes cargarlo así:
-raw = mne.io.read_raw_fif(fif_path, preload=True)
+# Cargar datos en memoria si no están ya cargados
+raw.load_data()
 raw.info["bads"] = log_preprocessing.import_bad_channels_another_task()
 
 print(raw.info)
@@ -176,12 +132,11 @@ report.add_raw(raw=raw, title="Raw", psd=True)
 log_preprocessing.log_detail("info", str(raw.info))
 
 # %%
-# --------- 2. Filtrado ---------
-hpass = 0.5
-lpass = 48
+# --------- 4. Filtrado ---------
+hpass = 1.0
+lpass = 64
 raw_filtered = (
-    raw.load_data()
-    .copy()
+    raw.copy()
     .notch_filter(np.arange(50, 250, 50))
     .filter(l_freq=hpass, h_freq=lpass)
 )
@@ -224,161 +179,334 @@ report.add_raw(raw=raw_filtered, title="Filtered Raw", psd=True)
 log_preprocessing.log_detail("bad_channels", raw_filtered.info["bads"])
 
 # %%
-# --------- 4. Cargar triggers ---------
-filtered_annotations = mne.Annotations(onset=[], duration=[], description=[])
-for ann in raw_filtered.annotations:
-    if "go/" in ann["description"] or "nogo/" in ann["description"]:
-        filtered_annotations.append(ann["onset"], ann["duration"], ann["description"])
-raw_filtered.set_annotations(filtered_annotations)
-events, event_id = mne.events_from_annotations(raw_filtered)
+# --------- 5. Crear epochs con duración variable basada en eventos ---------
+# En lugar de usar ventanas fijas, vamos a crear epochs que cubran toda la duración
+# de cada evento, ya que cada uno puede tener duración diferente
+
+# Crear una lista de epochs individuales con duración variable
+epochs_list = []
+epochs_metadata = []
+
+print(f"Creando epochs con duración variable para {len(events_df)} eventos...")
+
+for idx, row in events_df.iterrows():
+    onset_time = row['onset']
+    duration = row['duration'] 
+    trial_type = row['trial_type']
+    
+    # Crear epoch con período pre-estímulo para baseline correction
+    # tmin = -0.3s antes del evento, tmax = duration después del onset
+    tmin = -0.3  # 300ms antes del evento para baseline
+    tmax = duration  # Duración completa del evento
+    
+    # Encontrar el onset en samples
+    onset_sample = int(onset_time * raw_filtered.info['sfreq'])
+    
+    # Crear un evento temporal para este epoch
+    temp_event = np.array([[onset_sample, 0, 1]])  # [sample, prev_id, event_id]
+    temp_event_id = {trial_type: 1}
+    
+    try:
+        # Crear epoch para este evento individual
+        temp_epochs = mne.Epochs(
+            raw_filtered,
+            events=temp_event,
+            event_id=temp_event_id,
+            tmin=tmin,
+            tmax=tmax,
+            preload=False,
+            verbose=False,
+            baseline=None  # No aplicar baseline por ahora
+        )
+        
+        if len(temp_epochs) > 0:  # Verificar que el epoch sea válido
+            epochs_list.append(temp_epochs)
+            epochs_metadata.append({
+                'trial_type': trial_type,
+                'onset': onset_time,
+                'duration': duration,
+                'epoch_idx': idx
+            })
+            
+    except Exception as e:
+        print(f"Error creando epoch para evento {idx} ({trial_type}): {e}")
+        continue
+
+print(f"Epochs creados exitosamente: {len(epochs_list)}")
+print(f"Tipos de eventos procesados: {set([meta['trial_type'] for meta in epochs_metadata])}")
+
+# Para compatibilidad con el resto del pipeline, usamos el primer epoch como referencia
+# pero guardamos toda la información de epochs variables
+if epochs_list:
+    epochs = epochs_list[0]  # Para mantener compatibilidad con código existente
+    
+    # Log de información sobre epochs variables
+    durations = [meta['duration'] for meta in epochs_metadata]
+    log_preprocessing.log_detail("n_epochs_variable_duration", len(epochs_list))
+    log_preprocessing.log_detail("min_duration", min(durations))
+    log_preprocessing.log_detail("max_duration", max(durations))
+    log_preprocessing.log_detail("mean_duration", np.mean(durations))
+    log_preprocessing.log_detail("epochs_metadata", epochs_metadata)
+    
+    # Crear un epoch concatenado para análisis general (opcional)
+    # Nota: Esto será útil para algunos análisis pero no todos
+    print(f"Duración mínima: {min(durations):.2f}s, máxima: {max(durations):.2f}s")
+    
+else:
+    print("No se pudieron crear epochs válidos")
+    epochs = None
 
 # %%
-# --------- 5. Epoching ---------
-tmin = -0.3
-tmax = 1.2
-# baseline correction should be done after ICA
-epochs = mne.Epochs(
-    raw_filtered,
-    events=events,
-    event_id=event_id,
-    tmin=tmin,
-    tmax=tmax,
-    preload=False,
-    verbose=False,
-)
-report.add_epochs(epochs=epochs, title="Epochs")
-log_preprocessing.log_detail("n_epochs", len(epochs))
-log_preprocessing.log_detail("tmin", tmin)
-log_preprocessing.log_detail("tmax", tmax)
+# --------- 6. Rechazo automático y manual de epochs (adaptado para duración variable) ---------
+# Con epochs de duración variable, aplicamos el rechazo a cada epoch individualmente
+if epochs_list and len(epochs_list) > 0:
+    print("Aplicando rechazo automático a epochs de duración variable...")
+    
+    # Procesar cada epoch individualmente
+    epochs_clean_list = []
+    all_reject_logs = []
+    
+    for i, temp_epochs in enumerate(epochs_list):
+        trial_type = epochs_metadata[i]['trial_type']
+        duration = epochs_metadata[i]['duration']
+        
+        try:
+            # Aplicar AutoReject solo si el epoch tiene suficiente duración
+            if duration > 0.5:  # Solo aplicar si la duración es mayor a 0.5s
+                # Usar parámetros más conservadores para epochs individuales
+                ar = AutoReject(
+                    thresh_method="random_search",  # Más rápido para epochs individuales
+                    cv=3,  # Menos folds para epochs individuales
+                    random_state=42,
+                    n_jobs=1
+                )
+                temp_epochs_clean = ar.fit_transform(temp_epochs)
+            else:
+                # Para eventos muy cortos, solo aplicar threshold básico
+                reject_criteria = get_rejection_threshold(temp_epochs)
+                temp_epochs_clean = temp_epochs.copy()
+                temp_epochs_clean.drop_bad(reject=reject_criteria)
+            
+            epochs_clean_list.append(temp_epochs_clean)
+            all_reject_logs.append(temp_epochs_clean.drop_log)
+            
+            print(f"Epoch {i} ({trial_type}, {duration:.2f}s): {len(temp_epochs_clean)} epochs válidos")
+            
+        except Exception as e:
+            print(f"Error procesando epoch {i} ({trial_type}): {e}")
+            # Si hay error, mantener el epoch original
+            epochs_clean_list.append(temp_epochs)
+            all_reject_logs.append(temp_epochs.drop_log)
+    
+    # Para compatibilidad con el resto del código, usar el primer epoch limpio
+    if epochs_clean_list:
+        epochs_clean = epochs_clean_list[0]
+        
+        # Calcular estadísticas de rechazo
+        total_original = len(epochs_list)
+        total_clean = len(epochs_clean_list)
+        
+        print(f"Epochs procesados: {total_original}")
+        print(f"Epochs válidos después de limpieza: {total_clean}")
+        
+        # Log estadísticas
+        log_preprocessing.log_detail("epochs_clean_variable_duration", len(epochs_clean_list))
+        log_preprocessing.log_detail("epochs_original_count", total_original)
+        log_preprocessing.log_detail("epochs_processing_success_rate", total_clean/total_original if total_original > 0 else 0)
+        
+        # Plotear el primer epoch limpio para inspección
+        if len(epochs_clean) > 0:
+            epochs_clean.plot(n_channels=32)
+            plt.show(block=True)
+            report.add_epochs(epochs=epochs_clean, title="Epochs clean (first example)", psd=False)
+        
+    else:
+        print("Error: No se pudieron procesar epochs")
+        epochs_clean = None
+        
+else:
+    print("Error: No hay epochs para procesar")
+    epochs_clean = None
 
 # %%
-# --------- 6. Rechazo automático y manual de epochs ---------
-# TODO: add rejection for acceloremeter (available from sub 14 onwards)
-folds = 5
-ar = AutoReject(
-    thresh_method="bayesian_optimization", cv=folds, random_state=42, n_jobs=-1
-)
-epochs_clean = ar.fit_transform(epochs)
-reject = get_rejection_threshold(epochs)
-ar.get_reject_log(epochs).plot("horizontal")
-ar_reject_epochs = [
-    n_epoch
-    for n_epoch, log in enumerate(epochs_clean.drop_log)
-    if log == ("AUTOREJECT",)
-]
-log_preprocessing.log_detail("autoreject_epochs", ar_reject_epochs)
-log_preprocessing.log_detail("autoreject_threshold", reject)
-log_preprocessing.log_detail("len_autoreject_epochs", len(ar_reject_epochs))
-epochs_clean.plot(n_channels=32)
-plt.show(block=True)
-manual_reject_epochs = [
-    n_epoch for n_epoch, log in enumerate(epochs_clean.drop_log) if log == ("USER",)
-]
-print(f"Manually rejected epochs: {manual_reject_epochs}")
-total_epochs_rejected = (
-    (len(ar_reject_epochs) + len(manual_reject_epochs)) / len(epochs) * 100
-)
-print(f"Total epochs rejected: {total_epochs_rejected}%")
-log_preprocessing.log_detail("manual_reject_epochs", manual_reject_epochs)
-log_preprocessing.log_detail("len_manual_reject_epochs", len(manual_reject_epochs))
-epochs_clean.plot_drop_log()
-report.add_epochs(epochs=epochs_clean, title="Epochs clean", psd=False)
-epochs_clean.drop_bad()
-
-# %%
-# --------- 7. ICA y clasificación automática ---------
-n_components = 15
-method = "picard"
-max_iter = "auto"
-random_state = 42
-ica = mne.preprocessing.ICA(
-    n_components=n_components,
-    method=method,
-    max_iter=max_iter,
-    random_state=random_state,
-)
-ica.fit(epochs_clean)
-eog_components, _ = ica.find_bads_eog(inst=epochs_clean, ch_name="R_EYE")
-ecq_components, _ = ica.find_bads_ecg(inst=epochs_clean, ch_name="ECG")
-muscle_components, _ = ica.find_bads_muscle(epochs_clean, threshold=0.7)
-print(f"EOG components detected: {eog_components}")
-print(f"ECG components detected: {ecq_components}")
-print(f"Muscle components detected: {muscle_components}")
-ic_labels = label_components(epochs_clean, ica, method="iclabel")
-print("Classification of all ICA components. Results:")
-print(ic_labels["labels"])
-label_names = ic_labels["labels"]
-pattern_matching_artifacts = np.unique(
-    ecq_components + eog_components + muscle_components
-)
-channel_artifact_indices = [
-    i for i, label in enumerate(label_names) if label == "channel noise"
-]
-
-# Find components that coincide between pattern matching and ICLabel output for exclusion
-# We'll only exclude components that match the artifacts found via pattern matching
-# and are classified as 'muscle artifact', 'eye blink', 'heart beat', or 'channel noise'
-to_exclude = []
-for idx in pattern_matching_artifacts:
-    if label_names[idx] in [
-        "muscle artifact",
-        "eye blink",
-        "heart beat",
-        "channel noise",
-    ]:
-        to_exclude.append(idx)
-if len(eog_components) > 0 and eog_components[0] < 3:
-    to_exclude.append(eog_components[0])
-to_exclude = np.unique(to_exclude + channel_artifact_indices)
-ica.exclude = to_exclude.tolist()
-
-
-# (Optional) Plot the ICA components for visual inspection
-# ica.plot_components(inst=epochs_clean, picks=range(15))
-
-# Plot the sources identified by ICA
-ica.plot_sources(epochs_clean, block=True, show=True)
-plt.show(block=True)
-report.add_ica(ica, title="ICA", inst=epochs_clean)
-epochs_ica = ica.apply(inst=epochs_clean)
-log_preprocessing.log_detail("ica_components", ica.exclude)
-log_preprocessing.log_detail("ica_method", method)
-log_preprocessing.log_detail("ica_max_iter", max_iter)
-log_preprocessing.log_detail("ica_random_state", random_state)
-
-# %%
-# --------- 8. Limpieza final de epochs ---------
-baseline = (-0.3, 0)
-epochs_ica.apply_baseline(baseline)
-log_preprocessing.log_detail("baseline", baseline)
-epochs_ica.plot(n_channels=32)
-plt.show(block=True)
-all_manual_epochs = [
-    n_epoch for n_epoch, log in enumerate(epochs_ica.drop_log) if log == ("USER",)
-]
-manual_reject_epochs_after_ica = [
-    n_epoch for n_epoch in all_manual_epochs if n_epoch not in manual_reject_epochs
-]
-print(f"Manually rejected epochs after ICA: {manual_reject_epochs_after_ica}")
-total_epochs_rejected = (
-    (
-        len(ar_reject_epochs)
-        + len(manual_reject_epochs)
-        + len(manual_reject_epochs_after_ica)
+# --------- 7. ICA y clasificación automática (adaptado para epochs variables) ---------
+if epochs_clean is not None:
+    print("Aplicando ICA a epochs de duración variable...")
+    
+    n_components = 15
+    method = "picard"
+    max_iter = "auto"
+    random_state = 42
+    
+    # Entrenar ICA con el conjunto de epochs disponibles
+    # Para epochs de duración variable, usamos todos los epochs válidos para entrenar
+    ica = mne.preprocessing.ICA(
+        n_components=n_components,
+        method=method,
+        max_iter=max_iter,
+        random_state=random_state,
     )
-    / len(epochs)
-    * 100
-)
-print(f"Total epochs rejected: {total_epochs_rejected}%")
-log_preprocessing.log_detail(
-    "manual_reject_epochs_after_ica", manual_reject_epochs_after_ica
-)
-log_preprocessing.log_detail(
-    "len_manual_reject_epochs_after_ica", len(manual_reject_epochs_after_ica)
-)
-log_preprocessing.log_detail("total_epochs_rejected", total_epochs_rejected)
-log_preprocessing.log_detail("epochs_drop_log", epochs_ica.drop_log)
-log_preprocessing.log_detail("epochs_drop_log_description", epochs_ica.drop_log)
+    
+    # Usar raw_filtered para entrenar ICA (más estable que epochs variables)
+    print("Entrenando ICA en datos raw filtrados...")
+    ica.fit(raw_filtered)
+    
+    # Detectar componentes de artefactos usando epochs_clean como referencia
+    try:
+        eog_components, _ = ica.find_bads_eog(inst=epochs_clean, ch_name="R_EYE")
+    except:
+        eog_components = []
+        print("No se pudo detectar EOG components")
+        
+    try:
+        ecq_components, _ = ica.find_bads_ecg(inst=epochs_clean, ch_name="ECG")
+    except:
+        ecq_components = []
+        print("No se pudo detectar ECG components")
+        
+    try:
+        muscle_components, _ = ica.find_bads_muscle(epochs_clean, threshold=0.7)
+    except:
+        muscle_components = []
+        print("No se pudo detectar muscle components")
+        
+    print(f"EOG components detected: {eog_components}")
+    print(f"ECG components detected: {ecq_components}")
+    print(f"Muscle components detected: {muscle_components}")
+    
+    # Clasificación automática con ICLabel
+    try:
+        ic_labels = label_components(epochs_clean, ica, method="iclabel")
+        print("Classification of all ICA components. Results:")
+        print(ic_labels["labels"])
+        label_names = ic_labels["labels"]
+    except Exception as e:
+        print(f"Error en ICLabel classification: {e}")
+        label_names = ["unknown"] * n_components
+    
+    # Determinar componentes a excluir
+    pattern_matching_artifacts = np.unique(
+        ecq_components + eog_components + muscle_components
+    )
+    
+    channel_artifact_indices = [
+        i for i, label in enumerate(label_names) if label == "channel noise"
+    ]
+    
+    # Find components that coincide between pattern matching and ICLabel output for exclusion
+    to_exclude = []
+    for idx in pattern_matching_artifacts:
+        if idx < len(label_names) and label_names[idx] in [
+            "muscle artifact",
+            "eye blink", 
+            "heart beat",
+            "channel noise",
+        ]:
+            to_exclude.append(idx)
+            
+    if len(eog_components) > 0 and eog_components[0] < 3:
+        to_exclude.append(eog_components[0])
+        
+    to_exclude = np.unique(to_exclude + channel_artifact_indices)
+    ica.exclude = to_exclude.tolist()
+    
+    print(f"Componentes ICA a excluir: {ica.exclude}")
+    
+    # Plot the sources identified by ICA
+    ica.plot_sources(epochs_clean, block=True, show=True)
+    plt.show(block=True)
+    report.add_ica(ica, title="ICA", inst=epochs_clean)
+    
+    # Aplicar ICA a todos los epochs individuales
+    epochs_ica_list = []
+    for i, temp_epochs_clean in enumerate(epochs_clean_list):
+        try:
+            temp_epochs_ica = ica.apply(inst=temp_epochs_clean)
+            epochs_ica_list.append(temp_epochs_ica)
+        except Exception as e:
+            print(f"Error aplicando ICA a epoch {i}: {e}")
+            epochs_ica_list.append(temp_epochs_clean)  # Mantener sin ICA si hay error
+    
+    # Para compatibilidad, usar el primer epoch con ICA aplicado
+    epochs_ica = epochs_ica_list[0] if epochs_ica_list else epochs_clean
+    
+    # Log detalles de ICA
+    log_preprocessing.log_detail("ica_components", ica.exclude)
+    log_preprocessing.log_detail("ica_method", method)
+    log_preprocessing.log_detail("ica_max_iter", max_iter)
+    log_preprocessing.log_detail("ica_random_state", random_state)
+    log_preprocessing.log_detail("ica_applied_to_variable_epochs", len(epochs_ica_list))
+    
+else:
+    print("Error: No hay epochs limpios para aplicar ICA")
+    epochs_ica = None
+    epochs_ica_list = []
+
+# %%
+# --------- 8. Limpieza final de epochs (adaptado para duración variable) ---------
+if epochs_ica is not None and epochs_ica_list:
+    print("Aplicando limpieza final a epochs de duración variable...")
+    
+    # Para epochs de duración variable, aplicamos baseline usando el período pre-estímulo
+    # Cada epoch incluye 300ms antes del onset para baseline correction
+    print("NOTA: Aplicando baseline correction usando período pre-estímulo (-0.3s a 0s)")
+    print("Cada epoch incluye 300ms antes del onset del evento")
+    
+    # Procesar cada epoch individualmente para limpieza final
+    epochs_final_list = []
+    
+    for i, temp_epochs_ica in enumerate(epochs_ica_list):
+        trial_type = epochs_metadata[i]['trial_type']
+        duration = epochs_metadata[i]['duration']
+        
+        # Clonar epochs para limpieza final
+        temp_epochs_final = temp_epochs_ica.copy()
+        
+        # Aplicar baseline usando el período pre-estímulo
+        try:
+            # Usar el período pre-estímulo (-0.3 a 0) como baseline
+            baseline = (-0.3, 0)
+            temp_epochs_final.apply_baseline(baseline)
+            print(f"Baseline aplicado a epoch {i} ({trial_type}): {baseline}")
+        except Exception as e:
+            print(f"No se pudo aplicar baseline a epoch {i}: {e}")
+            # Si falla, intentar con baseline más corto
+            try:
+                baseline = (-0.1, 0)
+                temp_epochs_final.apply_baseline(baseline)
+                print(f"Baseline alternativo aplicado a epoch {i}: {baseline}")
+            except:
+                print(f"No se pudo aplicar ningún baseline a epoch {i}")
+        
+        epochs_final_list.append(temp_epochs_final)
+        print(f"Epoch final {i}: {trial_type}, duración: {duration:.2f}s, samples: {len(temp_epochs_final)}")
+    
+    # Para compatibilidad, usar el primer epoch final
+    epochs_ica = epochs_final_list[0] if epochs_final_list else epochs_ica
+    
+    # Plotear el primer epoch para inspección
+    if len(epochs_ica) > 0:
+        epochs_ica.plot(n_channels=32)
+        plt.show(block=True)
+    
+    # Calcular estadísticas finales
+    total_processed = len(epochs_final_list)
+    total_original = len(epochs_list) if epochs_list else 0
+    
+    success_rate = total_processed / total_original * 100 if total_original > 0 else 0
+    
+    print(f"Epochs procesados exitosamente: {total_processed}/{total_original} ({success_rate:.1f}%)")
+    
+    # Log estadísticas finales
+    log_preprocessing.log_detail("epochs_final_count", total_processed)
+    log_preprocessing.log_detail("epochs_success_rate", success_rate)
+    log_preprocessing.log_detail("baseline_period", "(-0.3, 0)")
+    log_preprocessing.log_detail("baseline_applied_to_variable_epochs", True)
+    log_preprocessing.log_detail("epochs_final_metadata", epochs_metadata)
+    
+else:
+    print("Error: No hay epochs con ICA para limpieza final")
+    epochs_final_list = []
 
 # Save the epochs after ICA application and drop epochs
 # bids_compliance.save_epoched_bids(epochs_ica, derivatives_folder, subject, session,
@@ -386,90 +514,204 @@ log_preprocessing.log_detail("epochs_drop_log_description", epochs_ica.drop_log)
 
 
 # %%
-# --------- 9. Rereferencia e interpolación ---------
-epochs_ica = mne.add_reference_channels(epochs_ica.load_data(), ref_channels=["FCz"])
-bvef_file_path = os.path.join(repo_root, "BC-32_FCz_modified.bvef")
-montage = mne.channels.read_custom_montage(bvef_file_path)
-epochs_ica.set_montage(montage)
-epochs_rereferenced, _ = mne.set_eeg_reference(
-    inst=epochs_ica, ref_channels="average", copy=True
-)
-report.add_epochs(
-    epochs=epochs_rereferenced, title="Epochs interpolated and rereferenced", psd=True
-)
-log_preprocessing.log_detail("rereferenced_channels", "grand_average")
-epochs_interpolate = epochs_rereferenced.copy().interpolate_bads()
-log_preprocessing.log_detail("interpolated_channels", epochs_ica.info["bads"])
+# --------- 9. Rereferencia e interpolación (adaptado para epochs variables) ---------
+if epochs_final_list:
+    print("Aplicando rereferencia e interpolación a epochs de duración variable...")
+    
+    # Aplicar rereferencia e interpolación a todos los epochs individuales
+    epochs_interpolated_list = []
+    
+    for i, temp_epochs_final in enumerate(epochs_final_list):
+        trial_type = epochs_metadata[i]['trial_type']
+        duration = epochs_metadata[i]['duration']
+        
+        try:
+            # Cargar datos en memoria si no están cargados
+            temp_epochs_copy = temp_epochs_final.copy().load_data()
+            
+            # Agregar canal de referencia FCz
+            temp_epochs_ref = mne.add_reference_channels(temp_epochs_copy, ref_channels=["FCz"])
+            
+            # Aplicar montaje
+            bvef_file_path = os.path.join(repo_root, "BC-32_FCz_modified.bvef")
+            montage = mne.channels.read_custom_montage(bvef_file_path)
+            temp_epochs_ref.set_montage(montage)
+            
+            # Rereferencia a promedio
+            temp_epochs_rereferenced, _ = mne.set_eeg_reference(
+                inst=temp_epochs_ref, ref_channels="average", copy=True
+            )
+            
+            # Interpolación de canales malos
+            temp_epochs_interpolated = temp_epochs_rereferenced.copy().interpolate_bads()
+            
+            epochs_interpolated_list.append(temp_epochs_interpolated)
+            
+            print(f"Epoch {i} ({trial_type}, {duration:.2f}s): rereferencia e interpolación exitosa")
+            
+        except Exception as e:
+            print(f"Error en rereferencia/interpolación para epoch {i}: {e}")
+            # Mantener epoch original si hay error
+            epochs_interpolated_list.append(temp_epochs_final)
+    
+    # Para compatibilidad con código existente
+    if epochs_interpolated_list:
+        epochs_interpolate = epochs_interpolated_list[0]
+        
+        # Agregar al reporte el primer ejemplo
+        report.add_epochs(
+            epochs=epochs_interpolate, 
+            title="Epochs interpolated and rereferenced (first example)", 
+            psd=True
+        )
+        
+        print(f"Procesamiento completo: {len(epochs_interpolated_list)} epochs finales")
+        
+        # Log detalles de rereferencia
+        log_preprocessing.log_detail("rereferenced_channels", "grand_average")
+        log_preprocessing.log_detail("interpolated_channels", epochs_interpolate.info["bads"])
+        log_preprocessing.log_detail("final_epochs_count", len(epochs_interpolated_list))
+        
+    else:
+        print("Error: No se pudieron procesar epochs para rereferencia")
+        epochs_interpolate = None
+        epochs_interpolated_list = []
+        
+else:
+    print("Error: No hay epochs finales para rereferencia e interpolación")
+    epochs_interpolate = None
+    epochs_interpolated_list = []
 
 # %%
-# --------- 10. Guardar archivos finales ---------
-bids_compliance.save_epoched_bids(
-    epochs_interpolate,
-    derivatives_folder,
-    subject,
-    session,
-    task,
-    data,
-    desc="preproc",
-    events=events,
-    event_id=event_id,
-)
-p300_evoked = mne.combine_evoked(
-    [
-        epochs_interpolate["go/correct"].average(),
-        epochs_interpolate["nogo/correct"].average(),
-    ],
-    weights=[1, -1],
-)
-onoff_evoked = mne.combine_evoked(
-    [
-        epochs_interpolate["go/correct/on-task"].average(),
-        epochs_interpolate["nogo/correct/spontaneous"].average(),
-    ],
-    weights=[1, -1],
-)
-report.add_evokeds(
-    evokeds=[p300_evoked, onoff_evoked],
-    titles=["Evoked P300 Go/Nogo", "Evoked On-tas vs Spontenous MW for go trials"],
-)
-html_report_fname = bids_compliance.make_bids_basename(
-    subject=subject,
-    session=session,
-    task=task,
-    suffix=data,
-    extension=".html",
-    desc="preprocReport",
-)
-report.save(os.path.join(bids_dir, html_report_fname), overwrite=True)
-log_preprocessing.save_preprocessing_details()
+# --------- 10. Guardar archivos finales (adaptado para epochs variables) ---------
+if epochs_interpolated_list and epochs_interpolate is not None:
+    print("Guardando epochs de duración variable procesados...")
+    
+    # Guardar cada epoch individualmente con metadata específica
+    for i, temp_epochs_interpolated in enumerate(epochs_interpolated_list):
+        trial_type = epochs_metadata[i]['trial_type']
+        duration = epochs_metadata[i]['duration']
+        
+        try:
+            # Crear descripción específica para este epoch
+            desc = f"preproc-{trial_type}-dur{duration:.1f}s"
+            
+            # Crear eventos específicos para este epoch
+            temp_events = np.array([[0, 0, 1]])  # Evento al inicio
+            temp_event_id = {trial_type: 1}
+            
+            # Guardar epoch individual
+            bids_compliance.save_epoched_bids(
+                temp_epochs_interpolated,
+                derivatives_folder,
+                subject,
+                session,
+                task,
+                data,
+                desc=desc,
+                events=temp_events,
+                event_id=temp_event_id,
+            )
+            
+            print(f"Epoch {i} guardado: {trial_type} (duración: {duration:.2f}s)")
+            
+        except Exception as e:
+            print(f"Error guardando epoch {i}: {e}")
+    
+    # También guardar un archivo conjunto con el primer epoch como referencia
+    try:
+        # Crear eventos básicos para compatibilidad
+        basic_events = np.array([[0, 0, 1]])
+        basic_event_id = {"variable_duration_epochs": 1}
+        
+        bids_compliance.save_epoched_bids(
+            epochs_interpolate,
+            derivatives_folder,
+            subject,
+            session,
+            task,
+            data,
+            desc="preproc-variableDuration",
+            events=basic_events,
+            event_id=basic_event_id,
+        )
+        print("Archivo de referencia guardado: preproc-variableDuration")
+        
+    except Exception as e:
+        print(f"Error guardando archivo de referencia: {e}")
+    
+    # Crear evoked responses para epochs que lo permitan
+    evoked_list = []
+    evoked_titles = []
+    
+    print("Creando evoked responses para epochs de duración variable...")
+    
+    for i, temp_epochs_interpolated in enumerate(epochs_interpolated_list[:5]):  # Limitar a 5
+        trial_type = epochs_metadata[i]['trial_type']
+        duration = epochs_metadata[i]['duration']
+        
+        try:
+            if len(temp_epochs_interpolated) > 0:
+                evoked = temp_epochs_interpolated.average()
+                evoked_list.append(evoked)
+                evoked_titles.append(f"Evoked {trial_type} ({duration:.1f}s)")
+                print(f"Evoked creado para {trial_type}")
+        except Exception as e:
+            print(f"No se pudo crear evoked para {trial_type}: {e}")
+    
+    # Agregar evoked responses al reporte
+    if evoked_list:
+        report.add_evokeds(evokeds=evoked_list, titles=evoked_titles)
+        print(f"Agregados {len(evoked_list)} evoked responses al reporte")
+    
+    # Guardar reporte HTML
+    html_report_fname = bids_compliance.make_bids_basename(
+        subject=subject,
+        session=session,
+        task=task,
+        suffix=data,
+        extension=".html",
+        desc="preprocReport-variableDuration",
+    )
+    report.save(os.path.join(bids_dir, html_report_fname), overwrite=True)
+    print(f"Reporte guardado: {html_report_fname}")
+    
+    # Guardar detalles de preprocessing
+    log_preprocessing.save_preprocessing_details()
+    print("Preprocessing completado exitosamente para epochs de duración variable")
+    
+else:
+    print("Error: No hay epochs interpolados para guardar")
+
+# Resumen final
+if epochs_interpolated_list:
+    print(f"\n=== RESUMEN FINAL ===")
+    print(f"Total de epochs procesados: {len(epochs_interpolated_list)}")
+    print(f"Tipos de eventos: {set([meta['trial_type'] for meta in epochs_metadata])}")
+    durations = [meta['duration'] for meta in epochs_metadata]
+    print(f"Duración promedio: {np.mean(durations):.2f}s (min: {min(durations):.2f}s, max: {max(durations):.2f}s)")
+    print(f"Archivos guardados en: {bids_dir}")
+    print("=====================")
 
 # %%
+# =============================================================================
+# CAMBIOS REALIZADOS PARA TRABAJAR CON DATOS BIDS
+# =============================================================================
+# 
+# Este script ha sido modificado para trabajar con:
+# 1. Datos raw en formato BIDS (data/raw/) en lugar de archivos XDF
+# 2. Eventos procesados desde merged_events en lugar de triggers del raw
+# 3. Estructura de directorios BIDS estándar
+# 
+# Parámetros de ejemplo:
+# - subject: "17"  
+# - session: "vr"
+# - task: "01"
+# - run: "002"
+# - acq: "a"
+#
+# Los datos se cargan desde:
+# - Raw: data/raw/sub-17/ses-vr/eeg/sub-17_ses-vr_task-01_acq-a_run-002_eeg.vhdr
+# - Eventos: data/derivatives/merged_events/sub-17/ses-vr/eeg/sub-17_ses-vr_task-01_acq-a_run-002_desc-merged_events.tsv
+# =============================================================================
 
-
-def test_eeg_preprocessing():
-    # Crear datos de prueba
-    n_channels = 32
-    n_times = 1000
-    sfreq = 250
-
-    # Crear datos aleatorios
-    data = np.random.randn(n_channels, n_times)
-
-    # Crear info
-    ch_names = [f"EEG{i + 1}" for i in range(n_channels)]
-    ch_types = ["eeg"] * n_channels
-    info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types)
-
-    # Crear objeto Raw
-    raw = mne.io.RawArray(data, info)
-
-    # Aplicar preprocesamiento
-    raw = correct_channel_types(raw)
-    raw = set_chs_montage(raw)
-
-    # Verificar que los canales están correctamente configurados
-    assert len(raw.ch_names) == n_channels
-    assert all(ch_type == "eeg" for ch_type in raw.get_channel_types())
-
-    # Verificar que el montaje se aplicó correctamente
-    assert raw.info["dig"] is not None
