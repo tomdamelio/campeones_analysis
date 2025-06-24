@@ -4,6 +4,12 @@ EEG preprocessing pipeline for a single participant.
 - Modular, reproducible, and BIDS-compliant.
 - Designed for interactive and script-based execution (VSCode/Jupyter #%% blocks).
 - All steps are logged and outputs are saved in data/derivatives/.
+- Configured for Windows with TkAgg backend for stable plot display.
+
+NOTA PARA WINDOWS:
+- Los plots se configuran para mantenerse abiertos y requerir confirmación del usuario
+- Usa TkAgg backend que es más estable en Windows que Qt
+- Presiona Enter en la terminal después de revisar cada plot para continuar
 
 Follows project rules: modularity, docstrings, reproducible paths, no magics.
 """
@@ -13,7 +19,6 @@ Follows project rules: modularity, docstrings, reproducible paths, no magics.
 import os
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import mne
 import numpy as np
 import pandas as pd
@@ -25,12 +30,21 @@ from pyprep import NoisyChannels
 
 from campeones_analysis.utils import bids_compliance
 from campeones_analysis.utils.log_preprocessing import LogPreprocessingDetails
-from campeones_analysis.utils.preprocessing_helpers import (
-    correct_channel_types,
-    set_chs_montage,
-)
+#from campeones_analysis.utils.preprocessing_helpers import (
+#    correct_channel_types,
+#    set_chs_montage,
+#
+
+# Configurar matplotlib para Windows con backend interactivo
+import matplotlib
+matplotlib.use('TkAgg')  # Backend que funciona bien en Windows
+import matplotlib.pyplot as plt
+plt.ion()  # Activar modo interactivo
 
 # %%
+
+# FALTA SETEAR EL MONTAGE EN ALGUN MOEMENTO Y CORREGIR CHANNEL TYPES.
+
 # --------- Configuración de sujeto y paths ---------
 repo = Repo(os.getcwd(), search_parent_directories=True)
 repo_root = repo.git.rev_parse("--show-toplevel")
@@ -69,7 +83,6 @@ print(f"Cargando datos desde: {bids_path.fpath}")
 raw = read_raw_bids(bids_path, verbose=False)
 print(f"Datos cargados: {raw.info}")
 
-# %%
 
 # %%
 # --------- 2. Cargar eventos desde merged_events ---------
@@ -137,7 +150,7 @@ hpass = 1.0
 lpass = 64
 raw_filtered = (
     raw.copy()
-    .notch_filter(np.arange(50, 250, 50))
+    .notch_filter(np.arange(50, 100, 50))
     .filter(l_freq=hpass, h_freq=lpass)
 )
 
@@ -165,21 +178,29 @@ log_preprocessing.log_detail("lpass_filter", lpass)
 log_preprocessing.log_detail("filter_type", "bandpass")
 
 # %%
-# --------- 3. Inspección visual y automática de canales ---------
-raw_filtered.compute_psd().plot()
+# --------- 5. Inspección visual y automática de canales ---------
+print("Generando plot de PSD...")
+psd_fig = raw_filtered.compute_psd().plot(show=False)
+plt.show(block=False)
+
+print("Detectando canales ruidosos...")
 nd = NoisyChannels(raw_filtered, do_detrend=False, random_state=42)
 nd.find_all_bads(ransac=True, channel_wise=True)
 bads = nd.get_bads()
 print(f"Bad channels detected: {bads}")
 if bads:
     raw_filtered.info["bads"] = bads
-raw_filtered.plot(n_channels=32)
-plt.show(block=True)
+
+print("Generando plot interactivo de raw data...")
+print("NOTA: Cierra la ventana del plot para continuar con el procesamiento")
+raw_plot = raw_filtered.plot(n_channels=32, show=False)
+raw_plot.show()
+input("Presiona Enter después de revisar el plot para continuar...")
 report.add_raw(raw=raw_filtered, title="Filtered Raw", psd=True)
 log_preprocessing.log_detail("bad_channels", raw_filtered.info["bads"])
 
 # %%
-# --------- 5. Crear epochs con duración variable basada en eventos ---------
+# --------- 6. Crear epochs con duración variable basada en eventos ---------
 # En lugar de usar ventanas fijas, vamos a crear epochs que cubran toda la duración
 # de cada evento, ya que cada uno puede tener duración diferente
 
@@ -190,9 +211,9 @@ epochs_metadata = []
 print(f"Creando epochs con duración variable para {len(events_df)} eventos...")
 
 for idx, row in events_df.iterrows():
-    onset_time = row['onset']
-    duration = row['duration'] 
-    trial_type = row['trial_type']
+    onset_time = float(row['onset'])
+    duration = float(row['duration'])
+    trial_type = str(row['trial_type'])
     
     # Crear epoch con período pre-estímulo para baseline correction
     # tmin = -0.3s antes del evento, tmax = duration después del onset
@@ -214,12 +235,12 @@ for idx, row in events_df.iterrows():
             event_id=temp_event_id,
             tmin=tmin,
             tmax=tmax,
-            preload=False,
+            preload=True,  # Cargar en memoria para poder verificar longitud
             verbose=False,
             baseline=None  # No aplicar baseline por ahora
         )
         
-        if len(temp_epochs) > 0:  # Verificar que el epoch sea válido
+        if len(temp_epochs.events) > 0:  # Verificar que el epoch sea válido usando events
             epochs_list.append(temp_epochs)
             epochs_metadata.append({
                 'trial_type': trial_type,
@@ -257,7 +278,7 @@ else:
     epochs = None
 
 # %%
-# --------- 6. Rechazo automático y manual de epochs (adaptado para duración variable) ---------
+# --------- 7. Rechazo automático y manual de epochs (adaptado para duración variable) ---------
 # Con epochs de duración variable, aplicamos el rechazo a cada epoch individualmente
 if epochs_list and len(epochs_list) > 0:
     print("Aplicando rechazo automático a epochs de duración variable...")
@@ -288,7 +309,11 @@ if epochs_list and len(epochs_list) > 0:
                 temp_epochs_clean.drop_bad(reject=reject_criteria)
             
             epochs_clean_list.append(temp_epochs_clean)
-            all_reject_logs.append(temp_epochs_clean.drop_log)
+            # Log de rechazo para epochs individuales
+            if hasattr(temp_epochs_clean, 'drop_log') and temp_epochs_clean.drop_log is not None:
+                all_reject_logs.append(temp_epochs_clean.drop_log)
+            else:
+                all_reject_logs.append([])
             
             print(f"Epoch {i} ({trial_type}, {duration:.2f}s): {len(temp_epochs_clean)} epochs válidos")
             
@@ -296,7 +321,8 @@ if epochs_list and len(epochs_list) > 0:
             print(f"Error procesando epoch {i} ({trial_type}): {e}")
             # Si hay error, mantener el epoch original
             epochs_clean_list.append(temp_epochs)
-            all_reject_logs.append(temp_epochs.drop_log)
+            # Agregar drop_log vacío para el epoch con error
+            all_reject_logs.append([])
     
     # Para compatibilidad con el resto del código, usar el primer epoch limpio
     if epochs_clean_list:
@@ -316,8 +342,11 @@ if epochs_list and len(epochs_list) > 0:
         
         # Plotear el primer epoch limpio para inspección
         if len(epochs_clean) > 0:
-            epochs_clean.plot(n_channels=32)
-            plt.show(block=True)
+            print("Generando plot de epochs limpios...")
+            print("NOTA: Cierra la ventana del plot para continuar")
+            epochs_plot = epochs_clean.plot(n_channels=32, show=False)
+            epochs_plot.show()
+            input("Presiona Enter después de revisar los epochs para continuar...")
             report.add_epochs(epochs=epochs_clean, title="Epochs clean (first example)", psd=False)
         
     else:
@@ -329,7 +358,7 @@ else:
     epochs_clean = None
 
 # %%
-# --------- 7. ICA y clasificación automática (adaptado para epochs variables) ---------
+# --------- 8. ICA y clasificación automática (adaptado para epochs variables) ---------
 if epochs_clean is not None:
     print("Aplicando ICA a epochs de duración variable...")
     
@@ -413,8 +442,11 @@ if epochs_clean is not None:
     print(f"Componentes ICA a excluir: {ica.exclude}")
     
     # Plot the sources identified by ICA
-    ica.plot_sources(epochs_clean, block=True, show=True)
-    plt.show(block=True)
+    print("Generando plot de componentes ICA...")
+    print("NOTA: Revisar los componentes y cerrar la ventana para continuar")
+    ica_plot = ica.plot_sources(epochs_clean, show=False)
+    ica_plot.show()
+    input("Presiona Enter después de revisar los componentes ICA para continuar...")
     report.add_ica(ica, title="ICA", inst=epochs_clean)
     
     # Aplicar ICA a todos los epochs individuales
@@ -443,7 +475,7 @@ else:
     epochs_ica_list = []
 
 # %%
-# --------- 8. Limpieza final de epochs (adaptado para duración variable) ---------
+# --------- 9. Limpieza final de epochs (adaptado para duración variable) ---------
 if epochs_ica is not None and epochs_ica_list:
     print("Aplicando limpieza final a epochs de duración variable...")
     
@@ -486,8 +518,11 @@ if epochs_ica is not None and epochs_ica_list:
     
     # Plotear el primer epoch para inspección
     if len(epochs_ica) > 0:
-        epochs_ica.plot(n_channels=32)
-        plt.show(block=True)
+        print("Generando plot de epochs después de ICA...")
+        print("NOTA: Cierra la ventana del plot para continuar")
+        epochs_ica_plot = epochs_ica.plot(n_channels=32, show=False)
+        epochs_ica_plot.show()
+        input("Presiona Enter después de revisar los epochs post-ICA para continuar...")
     
     # Calcular estadísticas finales
     total_processed = len(epochs_final_list)
@@ -514,7 +549,7 @@ else:
 
 
 # %%
-# --------- 9. Rereferencia e interpolación (adaptado para epochs variables) ---------
+# --------- 10. Rereferencia e interpolación (adaptado para epochs variables) ---------
 if epochs_final_list:
     print("Aplicando rereferencia e interpolación a epochs de duración variable...")
     
@@ -583,7 +618,7 @@ else:
     epochs_interpolated_list = []
 
 # %%
-# --------- 10. Guardar archivos finales (adaptado para epochs variables) ---------
+# --------- 11. Guardar archivos finales (adaptado para epochs variables) ---------
 if epochs_interpolated_list and epochs_interpolate is not None:
     print("Guardando epochs de duración variable procesados...")
     
