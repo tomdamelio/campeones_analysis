@@ -1,0 +1,6 @@
+onset	duration	trial_type	stim_id	condition	stim_file
+169.4608211480044	81.03510831895193	video	5	affective	stimuli/5.mp4
+432.8718510294929	103.01249547330627	video	1	affective	stimuli/1.mp4
+718.260095376396	103.011737648078	video	11	affective	stimuli/11.mp4
+1003.6521168121792	173.0119167906255	video	10	affective	stimuli/10.mp4
+1365.4439712080293	60.01606047194855	video_luminance	107	luminance	stimuli/green_intensity_video_7.mp4

@@ -1,0 +1,7 @@
+onset	duration	trial_type	stim_id	condition	stim_file
+40.89204026335212	300.011965674004	fixation	500	baseline	stimuli/fixation_cross.mp4
+365.9359542149169	104.00793893935281	calm	901	calm	stimuli/901.mp4
+516.6920621015021	94.01178238398086	video	3	affective	stimuli/3.mp4
+744.0160197656811	61.04760414330167	video	12	affective	stimuli/12.mp4
+938.3917619439296	229.00392338757774	video	2	affective	stimuli/2.mp4
+1304.9446228801742	60.01914642553288	video_luminance	112	luminance	stimuli/green_intensity_video_12.mp4

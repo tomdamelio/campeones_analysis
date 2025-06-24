@@ -1,0 +1,12 @@
+{
+    "ProcessingMethod": {
+        "Description": "Fusi\u00f3n de eventos originales con anotaciones detectadas autom\u00e1ticamente y editadas manualmente",
+        "OriginalEventsSource": "C:\\Users\\tdamelio\\Desktop\\campeones_analysis\\data\\derivatives\\events\\sub-17\\ses-vr\\eeg\\sub-17_ses-vr_task-3_acq-a_run-004_events.tsv",
+        "MergeDate": "2025-06-22T19:00:31"
+    },
+    "GeneratedBy": {
+        "Name": "detect_markers.py",
+        "Version": "1.5",
+        "Description": "Fusi\u00f3n de eventos originales con anotaciones detectadas/editadas"
+    }
+}

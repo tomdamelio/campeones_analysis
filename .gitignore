@@ -14,7 +14,6 @@ venv/
 
 # Data, results, and large files
 *.h5
-*.tsv
 *.edf
 *.fif
 *.set
@@ -28,8 +27,10 @@ venv/
 *.mp3
 *.wav
 
-# External data storage
-data/
+# External data storage - ignore most things in data/
+data/*
+# But include derivatives directory and specific file types within it
+!data/derivatives/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/

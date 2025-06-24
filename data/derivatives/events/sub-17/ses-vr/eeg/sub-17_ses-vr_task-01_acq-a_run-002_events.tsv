@@ -1,0 +1,7 @@
+onset	duration	trial_type	stim_id	condition	stim_file
+0.0	300.0	fixation	500	baseline	stimuli/fixation_cross.mp4
+0.0	104.0	calm	901	calm	stimuli/901.mp4
+0.0	116.016	video	014	affective	stimuli/14.mp4
+0.0	216.016	video	013	affective	stimuli/13.mp4
+0.0	162.029	video	006	affective	stimuli/6.mp4
+0.0	60.0	video_luminance	109	luminance	stimuli/green_intensity_video_9.mp4

@@ -1,0 +1,24 @@
+{
+    "Name": "merged_events",
+    "BIDSVersion": "1.8.0",
+    "DatasetType": "derivative",
+    "Authors": [
+        "D'Amelio, Tom\u00e1s Ariel",
+        "COCUCO"
+    ],
+    "GeneratedBy": [
+        {
+            "Name": "detect_markers.py",
+            "Version": "1.5",
+            "Description": "Fusi\u00f3n de eventos originales con anotaciones detectadas/editadas"
+        }
+    ],
+    "SourceDatasets": [
+        {
+            "URL": "file:///../../raw"
+        },
+        {
+            "URL": "file:///../events"
+        }
+    ]
+}
