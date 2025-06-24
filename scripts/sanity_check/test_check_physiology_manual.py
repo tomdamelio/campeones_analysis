@@ -49,9 +49,12 @@ def process_physiology_data(bids_path):
     if 'GSR' in available_channels:
         try:
             print("\nProcesando señal EDA/GSR...")
-            signals_eda, info_eda = nk.eda_process(df["GSR"], sampling_rate=raw.info["sfreq"])
+            # Invertir la señal EDA (multiplicar por -1) debido a polaridad invertida
+            gsr_signal = -df["GSR"]
+            print("⚠️  Señal EDA invertida (multiplicada por -1) debido a polaridad invertida")
+            signals_eda, info_eda = nk.eda_process(gsr_signal, sampling_rate=raw.info["sfreq"])
             plt.figure(figsize=(12, 6))
-            plt.title("Análisis de EDA/GSR")
+            plt.title("Análisis de EDA/GSR (Señal Invertida)")
             nk.eda_plot(signals_eda, info=info_eda)
             plt.tight_layout()
             plt.show()
@@ -62,7 +65,9 @@ def process_physiology_data(bids_path):
     if 'ECG' in available_channels:
         try:
             print("\nProcesando señal ECG...")
-            ecg = df["ECG"]
+            # Invertir la señal EDA (multiplicar por -1) debido a polaridad invertida
+            ecg = -df["ECG"]
+            #print("⚠️  Señal ECG invertida (multiplicada por -1) debido a polaridad invertida")
             signals_ecg, info_ecg = nk.ecg_process(ecg, sampling_rate=raw.info["sfreq"])
             plt.figure(figsize=(12, 8))
             plt.title("Análisis de ECG")
