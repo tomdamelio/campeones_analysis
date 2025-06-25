@@ -519,21 +519,45 @@ Miercoles
 ---------
 
 - [ ] Chequear la data del participante 16 cond B (ya tengo los datos en  `./data/sourcedata/xdf)
-      - Lo primeero que tengo qeu hacer es hacer read_xdf
-      - Insepccionar con `test_check_physiology_manual`
-      - Despues detect_markers
-      
-- [ ] Preprocesar ahora solo sujeto 16 cond B (si algo de esto no funciono bien, ir al sujeto 17 que tiene toda la data bien, que ya empece a preprocesar)
+      - [x] Lo primeero que tengo qeu hacer es hacer read_xdf. Listo!
+      - [x] Insepccionar con `test_check_physiology_manual`
+      - [x] Correr `create_events_tsv` para estas tasks de este sujeto 16
+      - [x] Despues detect_markers
+
+      Todos los bloques de la sesion b del participante 16 tiene las marcas de audio/photo bien SALVO el
+      prmer bloque. Este bloque tiene una duracion menor de la esperada, y las marcas no coinciden con
+      los tiempos de `events`.
+
+      SEGUIR DESDE ACA ->
+      - Revisar en xochipili si no quedo algun archivo de eeg borrador,
+        como supo pasar alguna otra vez. Ahora no lo encuentro, asi que simplemente voy a 
+        empezar con las otras tasks y saltear esta.
+      - Si no aparece, voy a proceder descartando el task 1 de sujeto 16 (b).
+
+Jueves ->
+
+- [ ] Hablar con Diego para reunirnos mañana
+
+- [ ] Chequear la data del participante 14 cond b
+      - [ ] Descargarlos y llevarlos a  `./data/sourcedata/xdf
+      - [ ] Lo primeero que tengo qeu hacer es hacer read_xdf. 
+      - [ ] Insepccionar con `test_check_physiology_manual`
+      - [ ] Correr `create_events_tsv` para estas tasks de este sujeto 16
+      - [ ] Despues detect_markers
+
+- [ ] Preprocesar ahora solo sujeto 14 cond B (si algo de esto no funciono bien, ir al 16 cond B e toda la data bien, que ya empece a preprocesar)
       - Si me trabo habla con nico
-      
+
 - [ ] Primera implementacion de GLHMM, de acuerdo a lo que conversamos con Diego
 
 
+Viernes ->
+
+- Preprocesar el EEG de todos los paticipantes hoy (14, 16, 17,18).
+- Correr los analisis con todos esos paraticipantes
 
 
 Queda para despues ->
-
-- Preprocesar el EEG de todos los paticipantes hoy (14,17,18).
 
 - Estrucutrar los datos de las encuestas (por ahora guardados simplemente en `sourcedata` como 3 csvs separados)
     - [ ] Poblar el archivo `participants.tsv` con la informacion de los participantes.
