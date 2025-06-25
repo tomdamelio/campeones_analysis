@@ -29,6 +29,9 @@ Uso:
     
     # Para guardar también archivos intermedios (opcional):
     python detect_markers.py --subject 16 --session vr --task 02 --run 003 --acq a --save-auto-events --save-edited-events
+    
+    # Personalizar duración mínima para filtrar anotaciones cortas:
+    python detect_markers.py --subject 16 --session vr --task 02 --run 003 --acq a --min-annotation-duration 15.0
 
 Parámetros importantes:
     --photo-distance: Distancia mínima entre picos en segundos (default: 25)
@@ -57,6 +60,13 @@ Parámetros importantes:
     --merged-desc: Descripción para los eventos fusionados (default: merged)
     --save-auto-events: Guardar también las anotaciones automáticas en auto_events (opcional)
     --save-edited-events: Guardar también las anotaciones editadas en edited_events (opcional)
+    --min-annotation-duration: Duración mínima en segundos para filtrar anotaciones cuando no coinciden las cantidades (default: 20.0)
+
+FLUJO MEJORADO PARA DISCREPANCIAS:
+    1. Si no coinciden las cantidades de eventos originales vs anotaciones
+    2. Se filtran automáticamente anotaciones menores a --min-annotation-duration segundos
+    3. Si aún no coinciden después del filtrado, se abre una segunda sesión de edición manual
+    4. Si persisten las discrepancias, se pregunta al usuario si desea continuar sin fusionar
 """
 
 import os
@@ -157,6 +167,8 @@ def parse_args():
                         help="Guardar también las anotaciones automáticas en auto_events (opcional)")
     parser.add_argument("--save-edited-events", action="store_true",
                         help="Guardar también las anotaciones editadas en edited_events (opcional)")
+    parser.add_argument("--min-annotation-duration", type=float, default=20.0,
+                        help="Duración mínima en segundos para filtrar anotaciones cuando no coinciden las cantidades (default: 20.0)")
     
     # Establecer valores predeterminados
     parser.set_defaults(use_amplitude_detection=True, enable_manual_edit=True, load_events=True, merge_events=True)
@@ -1839,10 +1851,65 @@ def display_events_in_order(events_df):
     
     print("\nFin de los eventos en orden original.")
 
-def merge_events_with_annotations(original_events_df, annotations, max_duration_diff=1.0):
+def filter_short_annotations(annotations, min_duration=20.0):
+    """
+    Filtra anotaciones que son menores a una duración mínima especificada.
+    
+    Parameters
+    ----------
+    annotations : mne.Annotations
+        Anotaciones originales
+    min_duration : float, optional
+        Duración mínima en segundos (default: 20.0)
+        
+    Returns
+    -------
+    mne.Annotations
+        Anotaciones filtradas
+    """
+    print(f"\n=== Filtrando anotaciones menores a {min_duration} segundos ===\n")
+    
+    if annotations is None or len(annotations) == 0:
+        print("No hay anotaciones para filtrar.")
+        return annotations
+    
+    # Identificar anotaciones que cumplen con la duración mínima
+    valid_mask = annotations.duration >= min_duration
+    
+    # Mostrar estadísticas
+    total_annotations = len(annotations)
+    short_annotations = (~valid_mask).sum()
+    valid_annotations = valid_mask.sum()
+    
+    print(f"Anotaciones totales: {total_annotations}")
+    print(f"Anotaciones menores a {min_duration}s: {short_annotations}")
+    print(f"Anotaciones válidas (>= {min_duration}s): {valid_annotations}")
+    
+    if short_annotations > 0:
+        print(f"\nAnotaciones que serán eliminadas:")
+        for i, (onset, duration, desc) in enumerate(zip(annotations.onset, annotations.duration, annotations.description)):
+            if not valid_mask[i]:
+                print(f"  - {desc} en {onset:.2f}s (duración: {duration:.2f}s)")
+    
+    # Crear nuevas anotaciones solo con las válidas
+    if valid_annotations > 0:
+        filtered_annotations = mne.Annotations(
+            onset=annotations.onset[valid_mask],
+            duration=annotations.duration[valid_mask],
+            description=annotations.description[valid_mask]
+        )
+        print(f"\nAnotaciones después del filtrado: {len(filtered_annotations)}")
+        return filtered_annotations
+    else:
+        print(f"\n¡ADVERTENCIA! No quedaron anotaciones después del filtrado.")
+        return mne.Annotations([], [], [])
+
+
+def merge_events_with_annotations(original_events_df, annotations, max_duration_diff=1.0, min_annotation_duration=20.0):
     """
     Fusiona los eventos originales con las nuevas anotaciones, actualizando los onsets y duraciones.
     Los eventos originales se mantienen en su orden original.
+    Si no coinciden las cantidades, intenta filtrar anotaciones cortas.
     
     Parameters
     ----------
@@ -1852,22 +1919,27 @@ def merge_events_with_annotations(original_events_df, annotations, max_duration_
         Anotaciones generadas o editadas manualmente
     max_duration_diff : float, optional
         Diferencia máxima permitida en duraciones para generar un warning
+    min_annotation_duration : float, optional
+        Duración mínima para filtrar anotaciones cuando no coinciden las cantidades
         
     Returns
     -------
-    pd.DataFrame
-        DataFrame con los eventos fusionados
+    tuple
+        (merged_df, filtered_annotations, needs_manual_edit)
+        - merged_df: DataFrame con los eventos fusionados o None si no se pudo fusionar
+        - filtered_annotations: Anotaciones después del filtrado (si se aplicó)
+        - needs_manual_edit: True si se necesita edición manual adicional
     """
     print("\n=== Fusionando eventos originales con nuevas anotaciones ===\n")
     
     # Verificar que hay eventos para fusionar
     if original_events_df is None or len(original_events_df) == 0:
         print("¡ERROR! No hay eventos originales para fusionar.")
-        return None
+        return None, annotations, False
     
     if annotations is None or len(annotations) == 0:
         print("¡ERROR! No hay anotaciones nuevas para fusionar.")
-        return None
+        return None, annotations, False
     
     # Mantener el orden original de los eventos (NO invertir)
     # Los eventos ya están en el orden correcto temporal
@@ -1876,22 +1948,24 @@ def merge_events_with_annotations(original_events_df, annotations, max_duration_
     # Verificar que el número de eventos coincide
     if len(events_df) != len(annotations):
         print(f"¡ADVERTENCIA! El número de eventos originales ({len(events_df)}) no coincide con el número de anotaciones ({len(annotations)}).")
-        print("La fusión puede generar resultados incorrectos.")
         
-        # Si hay menos anotaciones que eventos, truncar eventos
-        if len(annotations) < len(events_df):
-            print(f"Truncando eventos originales para coincidir con el número de anotaciones ({len(annotations)}).")
-            events_df = events_df.iloc[:len(annotations)].copy()
+        # Intentar filtrar anotaciones cortas
+        print(f"Intentando filtrar anotaciones menores a {min_annotation_duration} segundos...")
+        filtered_annotations = filter_short_annotations(annotations, min_annotation_duration)
+        
+        # Verificar si ahora coinciden después del filtrado
+        if len(events_df) == len(filtered_annotations):
+            print(f"✅ ¡Excelente! Después del filtrado, las cantidades coinciden ({len(events_df)} eventos = {len(filtered_annotations)} anotaciones)")
+            annotations = filtered_annotations
         else:
-            # Si hay más anotaciones que eventos, truncar anotaciones
-            print(f"Truncando anotaciones para coincidir con el número de eventos originales ({len(events_df)}).")
-            # Crear nuevas anotaciones con solo los primeros elementos
-            annotations = mne.Annotations(
-                onset=annotations.onset[:len(events_df)],
-                duration=annotations.duration[:len(events_df)],
-                description=annotations.description[:len(events_df)]
-            )
+            print(f"❌ Después del filtrado aún no coinciden: {len(events_df)} eventos vs {len(filtered_annotations)} anotaciones")
+            print("Se requerirá edición manual adicional.")
+            return None, filtered_annotations, True
+    else:
+        print(f"✅ Las cantidades coinciden: {len(events_df)} eventos = {len(annotations)} anotaciones")
+        filtered_annotations = annotations
     
+    # Si llegamos aquí, las cantidades coinciden - proceder con la fusión
     # Crear una copia del DataFrame para no modificar el original
     merged_df = events_df.copy()
     
@@ -1912,7 +1986,7 @@ def merge_events_with_annotations(original_events_df, annotations, max_duration_
     print(f"  Eventos fusionados: {len(merged_df)}")
     print(f"  Columnas preservadas: {', '.join(merged_df.columns)}")
     
-    return merged_df
+    return merged_df, filtered_annotations, False
 
 def save_merged_events(merged_df, bids_path, original_events_path, merged_save_dir="merged_events", merged_desc="merged"):
     """
@@ -2223,11 +2297,62 @@ def main():
             # Determinar qué anotaciones usar para la fusión
             annotations_to_merge = updated_annotations if has_changes else annotations
             
-            # Fusionar eventos originales con las nuevas anotaciones
-            merged_df = merge_events_with_annotations(
-                original_events_df, annotations_to_merge
+            # Intentar fusionar eventos originales con las nuevas anotaciones
+            merged_df, filtered_annotations, needs_manual_edit = merge_events_with_annotations(
+                original_events_df, annotations_to_merge, min_annotation_duration=args.min_annotation_duration
             )
             
+            # Si se necesita edición manual adicional, abrir el visualizador otra vez
+            if needs_manual_edit and args.enable_manual_edit:
+                print("\n🔄 Se requiere edición manual adicional debido a discrepancias en las cantidades")
+                print("Abriendo visualizador con las anotaciones filtradas para edición manual...")
+                
+                # Visualizar con las anotaciones filtradas
+                second_updated_annotations, second_has_changes = visualize_signals_with_annotations(
+                    raw, filtered_annotations, apply_zscore=not args.no_zscore
+                )
+                
+                # Intentar fusionar nuevamente con las anotaciones editadas manualmente
+                print("\n🔄 Intentando fusión después de la segunda edición manual...")
+                merged_df, final_annotations, still_needs_edit = merge_events_with_annotations(
+                    original_events_df, second_updated_annotations, min_annotation_duration=args.min_annotation_duration
+                )
+                
+                if still_needs_edit:
+                    print("\n❌ Aún hay discrepancias después de la segunda edición manual.")
+                    print("Detalles de la discrepancia:")
+                    print(f"  - Eventos originales: {len(original_events_df)}")
+                    print(f"  - Anotaciones finales: {len(final_annotations)}")
+                    print("Por favor, verifica manualmente la correspondencia entre eventos y anotaciones.")
+                    
+                    # Preguntar al usuario qué hacer
+                    while True:
+                        response = input("\n¿Deseas continuar sin fusionar eventos? (yes/no): ").strip().lower()
+                        if response in ['yes', 'y', 'si', 's']:
+                            print("Continuando sin generar merged_events...")
+                            merged_df = None
+                            break
+                        elif response in ['no', 'n']:
+                            print("Proceso cancelado. Por favor, revisa los eventos y anotaciones manualmente.")
+                            return 1
+                        else:
+                            print("Por favor, responde 'yes' o 'no'.")
+                else:
+                    print("✅ ¡Excelente! La fusión fue exitosa después de la segunda edición manual.")
+                    
+                    # Opcionalmente guardar las anotaciones de la segunda edición
+                    if second_has_changes and args.save_edited_events:
+                        print("Guardando anotaciones de la segunda edición manual...")
+                        try:
+                            second_edited_path = save_annotations_edited(
+                                raw, second_updated_annotations, bids_path, auto_path if auto_path else "temp_auto",
+                                save_dir=f"{args.manual_save_dir}_second"
+                            )
+                            print(f"Anotaciones de segunda edición guardadas en: {second_edited_path}")
+                        except Exception as e:
+                            print(f"Error guardando segunda edición: {e}")
+            
+            # Guardar eventos fusionados si se pudo realizar la fusión
             if merged_df is not None:
                 # Guardar eventos fusionados
                 merged_path = save_merged_events(
@@ -2241,7 +2366,7 @@ def main():
                 else:
                     print("\nError al guardar los eventos fusionados.")
             else:
-                print("\nError en la fusión de eventos. No se guardaron eventos fusionados.")
+                print("\nNo se generaron eventos fusionados debido a discrepancias irresueltas.")
         
         # Comparar con anotaciones manuales solo si se especifica el flag
         if args.compare_manual_auto:
@@ -2271,7 +2396,18 @@ def main():
                 print(f"\nError al intentar comparar anotaciones manuales y automáticas: {e}")
         
         print("\n=== Proceso completado exitosamente ===")
-        print("\nPróximos pasos:")
+        print(f"\nRESUMEN DEL PROCESAMIENTO:")
+        print(f"  - Anotaciones automáticas creadas: {len(annotations) if annotations else 0}")
+        print(f"  - Edición manual realizada: {'Sí' if has_changes else 'No'}")
+        if args.merge_events and original_events_df is not None:
+            print(f"  - Eventos originales: {len(original_events_df)}")
+            if merged_df is not None:
+                print(f"  - Eventos fusionados generados: {len(merged_df)}")
+                print(f"  - Filtrado automático aplicado: {'Sí' if args.min_annotation_duration != 20.0 else 'Estándar (20s)'}")
+            else:
+                print(f"  - Eventos fusionados: No generados (discrepancias irresueltas)")
+        
+        print("\nPRÓXIMOS PASOS:")
         print("1. Revisar las anotaciones automáticas generadas")
         if not args.compare_manual_auto:
             print("2. Usar --compare-manual-auto para comparar con anotaciones manuales")
@@ -2280,7 +2416,11 @@ def main():
         else:
             print("3. Si deshabilitaste la edición manual, puedes usar --no-manual-edit")
         if args.merge_events:
-            print(f"4. Validar la estructura BIDS con 'bids-validator data/derivatives/{args.merged_save_dir}'")
+            if merged_df is not None:
+                print(f"4. Validar la estructura BIDS con 'bids-validator data/derivatives/{args.merged_save_dir}'")
+            else:
+                print(f"4. Revisar manualmente las discrepancias entre eventos y anotaciones")
+                print(f"5. Considerar ajustar --min-annotation-duration (actual: {args.min_annotation_duration}s)")
         else:
             print(f"4. Validar la estructura BIDS con 'bids-validator data/derivatives/{args.save_dir}'")
         
