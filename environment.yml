@@ -22,6 +22,8 @@ dependencies:
   - mkdocs-material
   - openpyxl
   - opencv
+  - ipympl
+  - ipywidgets
   - pip
   - pip:
     - glhmm
