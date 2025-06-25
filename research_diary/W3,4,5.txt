@@ -518,16 +518,15 @@ time series con morlet wavelets a partir de meeglet (o si eso es posible simplem
 Miercoles
 ---------
 
-- [ ] Preprocesar ahora solo sujeto 17, que no tuvo problemas en ningna sesion
-
-
-- [ ] Procesar sujeto 16 condicion B
-
-
+- [ ] Chequear la data del participante 16 cond B (ya tengo los datos en  `./data/sourcedata/xdf)
+      - Lo primeero que tengo qeu hacer es hacer read_xdf
+      - Insepccionar con `test_check_physiology_manual`
+      - Despues detect_markers
+      
+- [ ] Preprocesar ahora solo sujeto 16 cond B (si algo de esto no funciono bien, ir al sujeto 17 que tiene toda la data bien, que ya empece a preprocesar)
+      - Si me trabo habla con nico
+      
 - [ ] Primera implementacion de GLHMM, de acuerdo a lo que conversamos con Diego
-
-
-
 
 
 
