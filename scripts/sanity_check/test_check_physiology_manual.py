@@ -50,8 +50,8 @@ def process_physiology_data(bids_path):
         try:
             print("\nProcesando señal EDA/GSR...")
             # Invertir la señal EDA (multiplicar por -1) debido a polaridad invertida
-            gsr_signal = -df["GSR"]
-            print("⚠️  Señal EDA invertida (multiplicada por -1) debido a polaridad invertida")
+            gsr_signal = df["GSR"]
+            #print("⚠️  Señal EDA invertida (multiplicada por -1) debido a polaridad invertida")
             signals_eda, info_eda = nk.eda_process(gsr_signal, sampling_rate=raw.info["sfreq"])
             plt.figure(figsize=(12, 6))
             plt.title("Análisis de EDA/GSR (Señal Invertida)")
