@@ -536,25 +536,36 @@ Miercoles
 
 Jueves ->
 
-- [ ] Hablar con Diego para reunirnos mañana
+- [x] Chequear la data del participante 14 cond b
+      - [x] Descargarlos y llevarlos a  `./data/sourcedata/xdf
+      - [x] Lo primeero que tengo qeu hacer es hacer read_xdf. 
+      - [x] Insepccionar con `test_check_physiology_manual`
+            - La señal de EDA esta bien tal cual, no hace falta invertirla.
+            - La señal de ECG hay que invertirla.
+            La señal de EDA, ECG y resp esta perfecta, por primera vez.
+      - [x] Correr `create_events_tsv` para estas tasks de este sujeto 16
+      - [x] Despues detect_markers
 
-- [ ] Chequear la data del participante 14 cond b
-      - [ ] Descargarlos y llevarlos a  `./data/sourcedata/xdf
-      - [ ] Lo primeero que tengo qeu hacer es hacer read_xdf. 
-      - [ ] Insepccionar con `test_check_physiology_manual`
-      - [ ] Correr `create_events_tsv` para estas tasks de este sujeto 16
-      - [ ] Despues detect_markers
+- [x] Mejorar archivo de `preprocessing_eeg.py` en base a recomendaciones de MNE, estandares BIDS, etc.
 
-- [ ] Preprocesar ahora solo sujeto 14 cond B (si algo de esto no funciono bien, ir al 16 cond B e toda la data bien, que ya empece a preprocesar)
+
+- [x] Preprocesar ahora solo sujeto 14 cond B (si algo de esto no funciono bien, ir al 16 cond B e toda la data bien, que ya empece a preprocesar)
       - Si me trabo habla con nico
 
-- [ ] Primera implementacion de GLHMM, de acuerdo a lo que conversamos con Diego
+SEGUIR DESDE ACA ->
 
 
-Viernes ->
+Sabado ->
 
-- Preprocesar el EEG de todos los paticipantes hoy (14, 16, 17,18).
-- Correr los analisis con todos esos paraticipantes
+- [ ] Preprocesar los datos de todas las sesiones del sujeto 14.
+- [ ] Primera implementacion de GLHMM, de acuerdo a lo que conversamos con Diego (local) y explorar resultados
+      (ver audios de Diego para ver que debo hacer exactamente)
+- [ ] Implementar otros analisis exploratorios con estos datos
+
+
+Domingo
+- Preprocesar el EEG de todos los paticipantes hoy (16, 17,18).
+- Imeplemmentar TDE
 
 
 Queda para despues ->

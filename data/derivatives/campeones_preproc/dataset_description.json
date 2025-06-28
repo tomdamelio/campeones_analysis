@@ -1,0 +1,36 @@
+{
+    "Name": "CAMPEONES EEG Preprocessing Pipeline",
+    "BIDSVersion": "1.8.0",
+    "DatasetType": "derivative",
+    "License": "MIT",
+    "Authors": [
+        "[Unspecified1]",
+        "[Unspecified2]"
+    ],
+    "HowToAcknowledge": "Please cite the CAMPEONES project and this preprocessing pipeline.",
+    "ReferencesAndLinks": [
+        "https://mne.tools/stable/index.html",
+        "https://mne.tools/mne-bids/stable/index.html",
+        "https://bids-specification.readthedocs.io/en/stable/05-derivatives/01-introduction.html"
+    ],
+    "DatasetDOI": "doi:10.xxxx/xxxx",
+    "GeneratedBy": [
+        {
+            "Name": "campeones_preproc",
+            "Version": "1.0",
+            "Description": "CAMPEONES EEG preprocessing pipeline with variable duration epochs",
+            "CodeURL": "https://github.com/tomdamelio/campeones_analysis",
+            "Container": {
+                "Type": "micromamba",
+                "Tag": "campeones:latest"
+            }
+        }
+    ],
+    "SourceDatasets": [
+        {
+            "DOI": "doi:10.xxxx/xxxx",
+            "URL": "https://github.com/tomdamelio/campeones_analysis",
+            "Version": "1.0"
+        }
+    ]
+}

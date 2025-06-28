@@ -32,6 +32,12 @@ Uso:
     
     # Personalizar duración mínima para filtrar anotaciones cortas:
     python detect_markers.py --subject 16 --session vr --task 02 --run 003 --acq a --min-annotation-duration 15.0
+    
+    # Corregir un archivo ya procesado (modo corrección):
+    python detect_markers.py --subject 14 --session vr --task 01 --run 006 --acq b --correct-file
+    
+    # Corregir archivo de un directorio específico:
+    python detect_markers.py --subject 14 --session vr --task 01 --run 006 --acq b --correct-file --correct-file-dir merged_events --correct-file-desc merged
 
 Parámetros importantes:
     --photo-distance: Distancia mínima entre picos en segundos (default: 25)
@@ -61,12 +67,18 @@ Parámetros importantes:
     --save-auto-events: Guardar también las anotaciones automáticas en auto_events (opcional)
     --save-edited-events: Guardar también las anotaciones editadas en edited_events (opcional)
     --min-annotation-duration: Duración mínima en segundos para filtrar anotaciones cuando no coinciden las cantidades (default: 20.0)
+    --max-duration-diff: Diferencia máxima de duración en segundos antes de requerir corrección manual (default: 1.0)
+    --correct-file: Cargar un archivo ya procesado para corregir manualmente sus anotaciones
+    --correct-file-dir: Directorio dentro de derivatives donde buscar el archivo a corregir (default: merged_events)
+    --correct-file-desc: Descripción del archivo a corregir (default: merged)
 
 FLUJO MEJORADO PARA DISCREPANCIAS:
     1. Si no coinciden las cantidades de eventos originales vs anotaciones
-    2. Se filtran automáticamente anotaciones menores a --min-annotation-duration segundos
-    3. Si aún no coinciden después del filtrado, se abre una segunda sesión de edición manual
-    4. Si persisten las discrepancias, se pregunta al usuario si desea continuar sin fusionar
+       - Se filtran automáticamente anotaciones menores a --min-annotation-duration segundos
+       - Si aún no coinciden después del filtrado, se abre edición manual
+    2. Si hay diferencias significativas en duraciones (> --max-duration-diff segundos)
+       - Se abre automáticamente el visualizador para corrección manual
+    3. Si persisten las discrepancias después de la edición manual, se pregunta al usuario si desea continuar sin fusionar
 """
 
 import os
@@ -169,6 +181,14 @@ def parse_args():
                         help="Guardar también las anotaciones editadas en edited_events (opcional)")
     parser.add_argument("--min-annotation-duration", type=float, default=20.0,
                         help="Duración mínima en segundos para filtrar anotaciones cuando no coinciden las cantidades (default: 20.0)")
+    parser.add_argument("--max-duration-diff", type=float, default=1.0,
+                        help="Diferencia máxima de duración en segundos antes de requerir corrección manual (default: 1.0)")
+    parser.add_argument("--correct-file", action="store_true",
+                        help="Cargar un archivo de eventos ya procesado para corregir manualmente sus anotaciones")
+    parser.add_argument("--correct-file-dir", type=str, default="merged_events",
+                        help="Directorio dentro de derivatives donde buscar el archivo a corregir (default: merged_events)")
+    parser.add_argument("--correct-file-desc", type=str, default="merged",
+                        help="Descripción del archivo a corregir (default: merged)")
     
     # Establecer valores predeterminados
     parser.set_defaults(use_amplitude_detection=True, enable_manual_edit=True, load_events=True, merge_events=True)
@@ -317,7 +337,7 @@ def apply_zscore_to_raw(raw):
     return raw_zscore
 
 
-def detect_whistle_in_audio(raw, channel='AUDIO', target_freq=500, bandwidth=50, min_duration=0.05, threshold_factor=5, min_distance_sec=25, visualize_detection=False):
+def detect_whistle_in_audio(raw, channel='AUDIO', target_freq=500, bandwidth=50, min_duration=0.05, threshold_factor=5.0, min_distance_sec=25, visualize_detection=False):
     """
     Detecta silbidos (whistles) en el canal de audio usando filtrado en banda
     y detección de envolvente para encontrar tonos sinusoidales de frecuencia específica.
@@ -444,7 +464,7 @@ def detect_whistle_in_audio(raw, channel='AUDIO', target_freq=500, bandwidth=50,
         # Envolvente y picos
         plt.subplot(4, 1, 3)
         plt.plot(time, smoothed_envelope)
-        plt.axhline(y=threshold, color='r', linestyle='--', label='Umbral')
+        plt.axhline(y=float(threshold), color='r', linestyle='--', label='Umbral')
         plt.plot(peak_times, smoothed_envelope[peaks], 'ro', label='Picos detectados')
         plt.title('Envolvente suavizada con picos detectados')
         plt.xlabel('Tiempo (s)')
@@ -610,7 +630,7 @@ def detect_flicker_in_photo(raw, channel='PHOTO', flicker_freq=2, bandwidth=0.5,
         # Envolvente y picos
         plt.subplot(5, 1, 4)
         plt.plot(time, envelope)
-        plt.axhline(y=threshold, color='r', linestyle='--', label='Umbral')
+        plt.axhline(y=float(threshold), color='r', linestyle='--', label='Umbral')
         plt.plot(peak_times, envelope[peaks], 'ro', label='Picos detectados')
         plt.title('Envolvente con picos detectados')
         plt.xlabel('Tiempo (s)')
@@ -782,7 +802,7 @@ def detect_whistle_by_amplitude(raw, channel='AUDIO', window_size_sec=0.1, thres
         # Envolvente suavizada y picos
         plt.subplot(4, 1, 3)
         plt.plot(time, smoothed_amplitude)
-        plt.axhline(y=threshold, color='r', linestyle='--', label='Umbral')
+        plt.axhline(y=float(threshold), color='r', linestyle='--', label='Umbral')
         if len(peak_times) > 0:
             plt.plot(peak_times, smoothed_amplitude[peaks], 'ro', label='Picos detectados')
         plt.title('Envolvente suavizada con picos detectados')
@@ -1719,6 +1739,219 @@ def create_dataset_description_edited(edited_root):
         print(f"Archivo dataset_description.json creado en: {dataset_desc_path}")
 
 
+def load_events_file_for_correction(subject, session, task, run, acq=None, events_dir="merged_events", desc="merged"):
+    """
+    Carga un archivo de eventos ya procesado para corrección manual.
+    
+    Parameters
+    ----------
+    subject : str
+        ID del sujeto
+    session : str
+        ID de la sesión
+    task : str
+        ID de la tarea
+    run : str
+        ID del run
+    acq : str, optional
+        Parámetro de adquisición
+    events_dir : str, optional
+        Nombre del directorio dentro de derivatives donde buscar los eventos
+    desc : str, optional
+        Descripción de los eventos a cargar
+    
+    Returns
+    -------
+    tuple
+        (DataFrame con eventos, ruta del archivo) o (None, None) si no se encuentra
+    """
+    print(f"\n=== Cargando archivo para corrección: sub-{subject} ses-{session} task-{task} run-{run} ===\n")
+    
+    # Definir rutas
+    events_root = repo_root / 'data' / 'derivatives' / events_dir
+    
+    # Asegurar formato correcto de parámetros
+    if task and task.isdigit():
+        task = task.zfill(2)
+    if run and run.isdigit():
+        run = run.zfill(3)
+    if acq:
+        acq = acq.lower()
+    
+    # Crear BIDSPath para eventos
+    events_path = BIDSPath(
+        subject=subject,
+        session=session,
+        task=task,
+        run=run,
+        acquisition=acq,
+        datatype='eeg',
+        suffix='events',
+        description=desc,
+        extension='.tsv',
+        root=events_root,
+        check=False
+    )
+    
+    print(f"Buscando archivo para corregir en: {events_path.fpath}")
+    
+    # Verificar que el archivo existe
+    if not events_path.fpath.exists():
+        print(f"¡ERROR! Archivo para corrección no encontrado: {events_path.fpath}")
+        
+        # Listar archivos disponibles en el directorio
+        print(f"Archivos disponibles en {events_root}:")
+        pattern = f"sub-{subject}_ses-{session}_task-{task}_*_events.tsv"
+        available_files = list(events_root.glob(pattern))
+        
+        if available_files:
+            for file in available_files:
+                print(f"  - {file.name}")
+            print(f"\nIntenta especificar el archivo correcto con --correct-file-desc")
+        else:
+            print(f"  No se encontraron archivos con el patrón: {pattern}")
+        
+        return None, None
+    
+    # Cargar eventos
+    events_df = pd.read_csv(events_path.fpath, sep='\t')
+    print(f"Archivo cargado exitosamente: {len(events_df)} eventos")
+    
+    return events_df, str(events_path.fpath)
+
+
+def convert_events_to_annotations(events_df):
+    """
+    Convierte un DataFrame de eventos a un objeto mne.Annotations.
+    
+    Parameters
+    ----------
+    events_df : pd.DataFrame
+        DataFrame con los eventos
+    
+    Returns
+    -------
+    mne.Annotations
+        Objeto Annotations con los eventos convertidos
+    """
+    if events_df is None or len(events_df) == 0:
+        print("No hay eventos para convertir a anotaciones.")
+        return mne.Annotations([], [], [])
+    
+    # Extraer información básica
+    onsets = events_df['onset'].values
+    durations = events_df['duration'].values
+    
+    # Para las descripciones, usar trial_type si existe, sino usar una descripción genérica
+    if 'trial_type' in events_df.columns:
+        descriptions = events_df['trial_type'].values
+    else:
+        descriptions = ['corrected_event'] * len(events_df)
+    
+    # Crear anotaciones
+    annotations = mne.Annotations(
+        onset=onsets,
+        duration=durations,
+        description=descriptions
+    )
+    
+    print(f"Convertidos {len(annotations)} eventos a anotaciones para corrección manual")
+    
+    return annotations
+
+
+def save_corrected_events(corrected_df, original_file_path, bids_path):
+    """
+    Guarda los eventos corregidos manualmente sobrescribiendo el archivo original.
+    Crea un backup del archivo original antes de sobrescribirlo.
+    
+    Parameters
+    ----------
+    corrected_df : pd.DataFrame
+        DataFrame con los eventos corregidos
+    original_file_path : str
+        Ruta del archivo original que se corrigió
+    bids_path : mne_bids.BIDSPath
+        Ruta BIDS del archivo raw
+        
+    Returns
+    -------
+    str
+        Ruta del archivo guardado
+    """
+    if corrected_df is None or len(corrected_df) == 0:
+        print("No hay eventos corregidos para guardar.")
+        return None
+    
+    original_path = Path(original_file_path)
+    
+    # Crear backup del archivo original
+    backup_path = original_path.with_suffix('.tsv.backup')
+    if original_path.exists():
+        import shutil
+        shutil.copy2(original_path, backup_path)
+        print(f"📋 Backup creado: {backup_path}")
+    
+    # Guardar el DataFrame corregido sobrescribiendo el archivo original
+    corrected_df.to_csv(original_path, sep='\t', index=False)
+    
+    print(f"✅ Eventos corregidos guardados (sobrescribiendo): {original_path}")
+    
+    # Actualizar el archivo JSON asociado
+    json_path = original_path.with_suffix('.json')
+    
+    # Intentar cargar el JSON original si existe
+    original_json = {}
+    if json_path.exists():
+        try:
+            # Hacer backup del JSON también
+            backup_json_path = json_path.with_suffix('.json.backup')
+            import shutil
+            shutil.copy2(json_path, backup_json_path)
+            
+            with open(json_path, 'r') as f:
+                original_json = json.load(f)
+        except json.JSONDecodeError:
+            print(f"Error al leer el archivo JSON original: {json_path}")
+    
+    # Crear el contenido del JSON actualizado
+    json_content = original_json.copy()
+    
+    # Añadir información sobre la corrección al historial de procesamiento
+    if "ProcessingHistory" not in json_content:
+        json_content["ProcessingHistory"] = []
+    
+    correction_info = {
+        "Step": len(json_content["ProcessingHistory"]) + 1,
+        "Description": "Corrección manual de eventos usando ventana interactiva",
+        "Method": "Edición manual interactiva en MNE",
+        "CorrectionDate": pd.Timestamp.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        "BackupCreated": str(backup_path),
+        "Tool": "detect_markers.py --correct-file"
+    }
+    
+    json_content["ProcessingHistory"].append(correction_info)
+    
+    # Actualizar información del generador
+    json_content["GeneratedBy"] = {
+        "Name": "detect_markers.py",
+        "Version": "1.6",
+        "Description": "Eventos corregidos manualmente usando flag --correct-file"
+    }
+    
+    # Actualizar fecha de última modificación
+    json_content["LastModified"] = pd.Timestamp.now().strftime("%Y-%m-%dT%H:%M:%S")
+    
+    # Guardar el JSON actualizado
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(json_content, f, indent=4)
+    
+    print(f"📝 Metadatos actualizados: {json_path}")
+    
+    return str(original_path)
+
+
+
 def load_events_file(subject, session, task, run, acq=None, events_dir="events", desc=None):
     """
     Carga un archivo de eventos existente desde derivatives/events.
@@ -1905,7 +2138,7 @@ def filter_short_annotations(annotations, min_duration=20.0):
         return mne.Annotations([], [], [])
 
 
-def merge_events_with_annotations(original_events_df, annotations, max_duration_diff=1.0, min_annotation_duration=20.0):
+def merge_events_with_annotations(original_events_df, annotations, max_duration_diff=0.5, min_annotation_duration=20.0):
     """
     Fusiona los eventos originales con las nuevas anotaciones, actualizando los onsets y duraciones.
     Los eventos originales se mantienen en su orden original.
@@ -1974,19 +2207,32 @@ def merge_events_with_annotations(original_events_df, annotations, max_duration_
     merged_df['duration'] = annotations.duration
     
     # Verificar diferencias significativas en duración
+    duration_differences = []
     for i, (orig_dur, new_dur) in enumerate(zip(events_df['duration'], merged_df['duration'])):
         if abs(orig_dur - new_dur) > max_duration_diff:
+            duration_differences.append({
+                'event_index': i,
+                'event_number': i + 1,
+                'original_duration': orig_dur,
+                'new_duration': new_dur,
+                'difference': abs(orig_dur - new_dur)
+            })
             print(f"¡ADVERTENCIA! Diferencia significativa en la duración del evento {i+1}:")
             print(f"  Original: {orig_dur:.2f}s")
             print(f"  Nueva: {new_dur:.2f}s")
+    
+    # Determinar si se necesita edición manual por diferencias de duración
+    needs_duration_correction = len(duration_differences) > 0
     
     # Mostrar resumen de la fusión
     print("\nResumen de la fusión:")
     print(f"  Eventos originales: {len(original_events_df)}")
     print(f"  Eventos fusionados: {len(merged_df)}")
     print(f"  Columnas preservadas: {', '.join(merged_df.columns)}")
+    if needs_duration_correction:
+        print(f"  Eventos con diferencias significativas de duración: {len(duration_differences)}")
     
-    return merged_df, filtered_annotations, False
+    return merged_df, filtered_annotations, needs_duration_correction
 
 def save_merged_events(merged_df, bids_path, original_events_path, merged_save_dir="merged_events", merged_desc="merged"):
     """
@@ -2139,6 +2385,162 @@ def create_dataset_description_merged(merged_root):
         
         print(f"Archivo dataset_description.json creado en: {dataset_desc_path}")
 
+
+def correct_existing_file(raw, bids_path, args):
+    """
+    Función para corregir un archivo de eventos ya procesado.
+    
+    Parameters
+    ----------
+    raw : mne.io.Raw
+        Objeto Raw de MNE con los datos
+    bids_path : mne_bids.BIDSPath
+        Ruta BIDS del archivo raw
+    args : argparse.Namespace
+        Argumentos de línea de comandos
+        
+    Returns
+    -------
+    int
+        Código de salida (0 = éxito, 1 = error)
+    """
+    print("\n" + "="*60)
+    print("MODO CORRECCIÓN DE ARCHIVO EXISTENTE")
+    print("="*60)
+    
+    # Cargar el archivo de eventos para corrección
+    events_df, original_file_path = load_events_file_for_correction(
+        args.subject, args.session, args.task, args.run, args.acq,
+        events_dir=args.correct_file_dir, desc=args.correct_file_desc
+    )
+    
+    if events_df is None:
+        print("❌ No se pudo cargar el archivo para corrección.")
+        return 1
+    
+    # Mostrar información del archivo original
+    print(f"\n📁 Archivo cargado: {original_file_path}")
+    print(f"📊 Número de eventos: {len(events_df)}")
+    
+    # Mostrar resumen de los eventos
+    if 'trial_type' in events_df.columns:
+        print(f"📋 Tipos de eventos:")
+        type_counts = events_df['trial_type'].value_counts()
+        for event_type, count in type_counts.items():
+            print(f"   - {event_type}: {count}")
+    
+    # Mostrar estadísticas de duración
+    if 'duration' in events_df.columns:
+        print(f"⏱️  Duraciones:")
+        print(f"   - Promedio: {events_df['duration'].mean():.2f}s")
+        print(f"   - Mediana: {events_df['duration'].median():.2f}s")
+        print(f"   - Rango: {events_df['duration'].min():.2f}s - {events_df['duration'].max():.2f}s")
+    
+    # Mostrar eventos línea por línea
+    display_events_in_order(events_df)
+    
+    # Convertir eventos a anotaciones para edición
+    annotations = convert_events_to_annotations(events_df)
+    
+    if len(annotations) == 0:
+        print("❌ No se pudieron convertir los eventos a anotaciones.")
+        return 1
+    
+    # Visualizar y permitir edición manual
+    print(f"\n🔧 Abriendo ventana interactiva para corrección...")
+    print("📋 INSTRUCCIONES:")
+    print("   - Ajusta las duraciones arrastrando los bordes de las anotaciones")
+    print("   - Mueve las anotaciones arrastrando desde el centro")
+    print("   - Haz clic derecho para eliminar anotaciones")
+    print("   - Presiona 'a' y arrastra para crear nuevas anotaciones")
+    print("   - Cierra la ventana cuando termines de corregir")
+    
+    updated_annotations, has_changes = visualize_signals_with_annotations(
+        raw, annotations, apply_zscore=not args.no_zscore
+    )
+    
+    if not has_changes:
+        print("\n🤷 No se detectaron cambios en las anotaciones.")
+        
+        # Preguntar si quiere guardar de todos modos
+        if not args.force_save:
+            while True:
+                response = input("¿Deseas guardar el archivo sin cambios? (yes/no): ").strip().lower()
+                if response in ['yes', 'y', 'si', 's']:
+                    has_changes = True  # Forzar guardado
+                    break
+                elif response in ['no', 'n']:
+                    print("Proceso cancelado. No se guardaron cambios.")
+                    return 0
+                else:
+                    print("Por favor, responde 'yes' o 'no'.")
+        else:
+            has_changes = True  # Forzar guardado si --force-save está activo
+    
+    if has_changes:
+        # Convertir las anotaciones corregidas de vuelta a DataFrame
+        corrected_df = events_df.copy()
+        
+        # Actualizar onsets y duraciones
+        corrected_df['onset'] = updated_annotations.onset
+        corrected_df['duration'] = updated_annotations.duration
+        
+        # Si el número de anotaciones cambió, ajustar el DataFrame
+        if len(updated_annotations) != len(events_df):
+            print(f"\n⚠️  ADVERTENCIA: El número de eventos cambió!")
+            print(f"   Original: {len(events_df)} eventos")
+            print(f"   Corregido: {len(updated_annotations)} eventos")
+            
+            # Crear un nuevo DataFrame con la estructura correcta
+            corrected_df = pd.DataFrame({
+                'onset': updated_annotations.onset,
+                'duration': updated_annotations.duration,
+                'trial_type': updated_annotations.description
+            })
+            
+            # Añadir otras columnas del original si existen y el número coincide
+            if len(updated_annotations) == len(events_df):
+                for col in events_df.columns:
+                    if col not in ['onset', 'duration', 'trial_type']:
+                        corrected_df[col] = events_df[col].values
+            else:
+                print("   Se mantendrán solo las columnas básicas (onset, duration, trial_type)")
+        
+        # Mostrar resumen de cambios
+        print(f"\n📊 RESUMEN DE CAMBIOS:")
+        for i in range(min(len(events_df), len(corrected_df))):
+            if i < len(events_df) and i < len(corrected_df):
+                orig_onset = events_df.iloc[i]['onset']
+                orig_duration = events_df.iloc[i]['duration']
+                new_onset = corrected_df.iloc[i]['onset']
+                new_duration = corrected_df.iloc[i]['duration']
+                
+                if abs(orig_onset - new_onset) > 0.01 or abs(orig_duration - new_duration) > 0.01:
+                    print(f"   Evento {i+1}:")
+                    print(f"     Onset: {orig_onset:.2f}s → {new_onset:.2f}s (Δ{new_onset-orig_onset:+.2f}s)")
+                    print(f"     Duración: {orig_duration:.2f}s → {new_duration:.2f}s (Δ{new_duration-orig_duration:+.2f}s)")
+        
+        # Guardar eventos corregidos (sobrescribiendo el archivo original)
+        corrected_path = save_corrected_events(
+            corrected_df, original_file_path, bids_path
+        )
+        
+        if corrected_path:
+            print(f"\n✅ Eventos corregidos guardados exitosamente!")
+            print(f"📁 Archivo actualizado: {corrected_path}")
+            print(f"📋 Se creó backup del archivo original con extensión .backup")
+            print(f"\n📋 PRÓXIMOS PASOS:")
+            print(f"   1. Revisar el archivo actualizado: {corrected_path}")
+            print(f"   2. Validar que los cambios son correctos")
+            print(f"   3. Si hay problemas, puedes restaurar desde el backup (.tsv.backup)")
+        else:
+            print("❌ Error al guardar el archivo corregido.")
+            return 1
+    
+    print(f"\n🎉 Proceso de corrección completado exitosamente!")
+    return 0
+
+
 def main():
     """Función principal del script."""
     args = parse_args()
@@ -2148,6 +2550,10 @@ def main():
         raw, bids_path = load_raw_data(
             args.subject, args.session, args.task, args.run, args.acq
         )
+        
+        # Si se especificó --correct-file, ejecutar el modo de corrección
+        if args.correct_file:
+            return correct_existing_file(raw, bids_path, args)
         
         # Cargar eventos existentes si se solicita
         original_events_df = None
@@ -2299,30 +2705,49 @@ def main():
             
             # Intentar fusionar eventos originales con las nuevas anotaciones
             merged_df, filtered_annotations, needs_manual_edit = merge_events_with_annotations(
-                original_events_df, annotations_to_merge, min_annotation_duration=args.min_annotation_duration
+                original_events_df, annotations_to_merge, 
+                max_duration_diff=args.max_duration_diff, 
+                min_annotation_duration=args.min_annotation_duration
             )
             
             # Si se necesita edición manual adicional, abrir el visualizador otra vez
             if needs_manual_edit and args.enable_manual_edit:
-                print("\n🔄 Se requiere edición manual adicional debido a discrepancias en las cantidades")
-                print("Abriendo visualizador con las anotaciones filtradas para edición manual...")
+                # Determinar el tipo de problema detectado
+                if len(original_events_df) != len(annotations_to_merge):
+                    problem_type = "discrepancias en las cantidades"
+                    annotation_source = filtered_annotations
+                else:
+                    problem_type = "diferencias significativas en duraciones"
+                    annotation_source = annotations_to_merge
                 
-                # Visualizar con las anotaciones filtradas
+                print(f"\n🔄 Se requiere edición manual adicional debido a {problem_type}")
+                print("Abriendo visualizador para corrección manual...")
+                
+                # Visualizar con las anotaciones apropiadas
                 second_updated_annotations, second_has_changes = visualize_signals_with_annotations(
-                    raw, filtered_annotations, apply_zscore=not args.no_zscore
+                    raw, annotation_source, apply_zscore=not args.no_zscore
                 )
                 
                 # Intentar fusionar nuevamente con las anotaciones editadas manualmente
-                print("\n🔄 Intentando fusión después de la segunda edición manual...")
+                print("\n🔄 Intentando fusión después de la edición manual...")
                 merged_df, final_annotations, still_needs_edit = merge_events_with_annotations(
-                    original_events_df, second_updated_annotations, min_annotation_duration=args.min_annotation_duration
+                    original_events_df, second_updated_annotations, 
+                    max_duration_diff=args.max_duration_diff, 
+                    min_annotation_duration=args.min_annotation_duration
                 )
                 
                 if still_needs_edit:
-                    print("\n❌ Aún hay discrepancias después de la segunda edición manual.")
+                    print("\n❌ Aún hay discrepancias después de la edición manual.")
                     print("Detalles de la discrepancia:")
                     print(f"  - Eventos originales: {len(original_events_df)}")
                     print(f"  - Anotaciones finales: {len(final_annotations)}")
+                    
+                    # Si aún hay diferencias de duración, mostrar detalles
+                    if len(original_events_df) == len(second_updated_annotations):
+                        print("  - Verificar si persisten diferencias significativas en duraciones")
+                    else:
+                        print("  - Diferencias en cantidad de eventos vs anotaciones")
+                    
                     print("Por favor, verifica manualmente la correspondencia entre eventos y anotaciones.")
                     
                     # Preguntar al usuario qué hacer
@@ -2338,19 +2763,19 @@ def main():
                         else:
                             print("Por favor, responde 'yes' o 'no'.")
                 else:
-                    print("✅ ¡Excelente! La fusión fue exitosa después de la segunda edición manual.")
+                    print("✅ ¡Excelente! La fusión fue exitosa después de la edición manual.")
                     
                     # Opcionalmente guardar las anotaciones de la segunda edición
                     if second_has_changes and args.save_edited_events:
-                        print("Guardando anotaciones de la segunda edición manual...")
+                        print("Guardando anotaciones de la edición manual...")
                         try:
                             second_edited_path = save_annotations_edited(
                                 raw, second_updated_annotations, bids_path, auto_path if auto_path else "temp_auto",
-                                save_dir=f"{args.manual_save_dir}_second"
+                                save_dir=f"{args.manual_save_dir}_corrected"
                             )
-                            print(f"Anotaciones de segunda edición guardadas en: {second_edited_path}")
+                            print(f"Anotaciones corregidas guardadas en: {second_edited_path}")
                         except Exception as e:
-                            print(f"Error guardando segunda edición: {e}")
+                            print(f"Error guardando anotaciones corregidas: {e}")
             
             # Guardar eventos fusionados si se pudo realizar la fusión
             if merged_df is not None:

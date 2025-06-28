@@ -57,10 +57,16 @@ The processed files will be saved in BIDS format in:
 ## Features
 
 - EEG and peripheral data preprocessing (MNE, NeuroKit2)
-- BIDS compatibility (MNE-BIDS)
+- BIDS compatibility (MNE-BIDS) with standardized event ID mapping
 - Machine learning (scikit-learn)
 - Reproducible environments (micromamba, conda-lock)
 - Documentation (MkDocs)
+
+## Documentation
+
+Key documentation files:
+- [`docs/event_id_mapping_implementation.md`](docs/event_id_mapping_implementation.md) - Event ID mapping for BIDS compliance
+- [`docs/scripts_preprocessing.md`](docs/scripts_preprocessing.md) - Preprocessing scripts documentation
 
 ## Dependency management policy
 
