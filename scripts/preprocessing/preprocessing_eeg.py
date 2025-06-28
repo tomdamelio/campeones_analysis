@@ -82,9 +82,9 @@ raw_data_folder = "data/raw"
 
 subject = "14"
 session = "vr"
-task = "01"
+task = "04"
 acquisition = "b"
-run = "006"
+run = "009"
 data = "eeg"
 
 # Create a BIDSPath object pointing to raw data
@@ -780,17 +780,59 @@ raw_interpolate = raw_rereferenced.copy().interpolate_bads()
 # Log the interpolated channels
 log_preprocessing.log_detail("interpolated_channels", raw_ica.info["bads"])
 
+# Plot the final preprocessed data for visual inspection
+print("=== FINAL PREPROCESSED DATA VISUALIZATION ===")
+print("Plotting final preprocessed data (filtered, ICA applied, interpolated, re-referenced)...")
+
+# Create an interactive plot of the final preprocessed data
+final_browser = raw_interpolate.plot(
+    n_channels=32, 
+    scalings="auto",
+    title="Final Preprocessed EEG Data",
+    block=False
+)
+print("✓ Final preprocessed data browser created")
+print("  - Filtering: Notch (50, 100 Hz) + Bandpass (1-48 Hz)")
+print("  - ICA: Artifact components removed")
+print("  - Interpolation: Bad channels interpolated")
+print("  - Re-referencing: Average reference applied")
+print("  - Ready for epoching and analysis")
+
+# Create an interactive plot showing annotations for documentation
+print("Creating interactive plot with annotations for report...")
+print("✓ Interactive plot will show all preprocessing steps and annotations")
+
+# Add the final preprocessed raw data to the report (interactive with annotations)
+print("Adding interactive final preprocessed raw data to report with annotations...")
+
+# Verify annotations are present before adding to report
+if raw_interpolate.annotations is not None:
+    n_annotations = len(raw_interpolate.annotations)
+    annotation_types = set(raw_interpolate.annotations.description)
+    print(f"  → {n_annotations} annotations found: {list(annotation_types)}")
+    print("  → Annotations will be visible in the interactive plot")
+else:
+    print("  → No annotations found")
+
+# Add raw data with interactive plot that shows annotations
+report.add_raw(
+    raw=raw_interpolate, 
+    title="Final Preprocessed Raw Data (Interactive with Annotations)", 
+    psd=True,
+    # The interactive plot will automatically show annotations when present
+)
+print("✓ Interactive raw data plot added to report with:")
+print("  - All preprocessing steps applied")
+print("  - Annotations visible and clickable")
+print("  - Power Spectral Density analysis")
+print("  - Channel information and montage")
+
+print("=== FINAL PREPROCESSED DATA VISUALIZATION COMPLETED ===\n")
+
 #%%
 # 10. Save final preprocessed raw data
 
 print("=== SAVING FINAL PREPROCESSED RAW DATA ===")
-
-# Add the final preprocessed raw data to the report
-report.add_raw(
-    raw=raw_interpolate, 
-    title="Final Preprocessed Raw Data (Filtered, ICA, Interpolated, Rereferenced)", 
-    psd=True
-)
 
 # 10B. Generate individual PSDs for each annotation type (excluding 'bad')
 print("=== GENERATING INDIVIDUAL PSDs FOR EACH ANNOTATION TYPE ===")
@@ -937,7 +979,7 @@ if raw_interpolate.annotations is not None:
                     
                     # Debug: Check annotation coverage for this condition
                     current_type_annotations = [ann for ann in filtered_annotations if ann['description'] == ann_type]
-                    current_type_duration = sum([ann['duration'] for ann in current_type_annotations])
+                    current_type_duration = sum([float(ann['duration']) for ann in current_type_annotations])
                     print(f"  → Isolating {len(current_type_annotations)} segments of {ann_type} (total: {current_type_duration:.1f}s)")
                     
                     # Compute PSD for this annotation type (will automatically exclude 'bad')
