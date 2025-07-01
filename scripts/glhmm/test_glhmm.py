@@ -50,7 +50,7 @@ sys.path.append(str(repo_root))
 # Import GLHMM - assuming it's installed
 try:
     import glhmm
-    from glhmm import glhmm, preproc, statistics, graphics
+    from glhmm import glhmm, preproc, graphics, io
     print("✓ GLHMM library imported successfully")
 except ImportError as e:
     print(f"❌ Error importing GLHMM: {e}")
@@ -58,9 +58,9 @@ except ImportError as e:
     sys.exit(1)
 
 
-def load_tfr_data(subject, session, task, acquisition, run):
+def load_tfr_data(subject, session=None, task=None, acquisition=None, run=None, concatenated=False):
     """
-    Load clean TFR data and column information for a specific recording session.
+    Load clean TFR data and column information for a specific recording session or concatenated subject data.
     
     This function loads clean TFR data that has already been processed by eeg_tfr.py
     to exclude 'bad' segments and concatenate clean segments.
@@ -69,14 +69,16 @@ def load_tfr_data(subject, session, task, acquisition, run):
     ----------
     subject : str
         Subject ID (e.g., "14")
-    session : str
-        Session ID (e.g., "vr")
-    task : str
-        Task ID (e.g., "01")
-    acquisition : str
-        Acquisition parameter (e.g., "b")
-    run : str
-        Run ID (e.g., "006")
+    session : str, optional
+        Session ID (e.g., "vr"). Required when concatenated=False
+    task : str, optional
+        Task ID (e.g., "01"). Required when concatenated=False
+    acquisition : str, optional
+        Acquisition parameter (e.g., "b"). Required when concatenated=False
+    run : str, optional
+        Run ID (e.g., "006"). Required when concatenated=False
+    concatenated : bool, optional
+        If True, load concatenated data for entire subject (default: False)
         
     Returns
     -------
@@ -89,30 +91,49 @@ def load_tfr_data(subject, session, task, acquisition, run):
         Metadata information from JSON file including cleaning details
     """
     print(f"\n=== LOADING CLEAN TFR DATA ===")
-    print(f"Subject: {subject}, Session: {session}, Task: {task}, Acquisition: {acquisition}, Run: {run}")
-    print(f"Note: Loading clean data with 'bad' segments already excluded")
     
-    # Define TFR data directory
-    trf_dir = repo_root / "data" / "derivatives" / "trf"
+    if concatenated:
+        print(f"🔗 CONCATENATED MODE: Loading all data for subject {subject}")
+        print(f"Note: Loading concatenated clean data from all sessions/tasks/runs")
+        
+        # Define TFR data directory for concatenated files
+        trf_dir = repo_root / "data" / "derivatives" / "trf" / f"sub-{subject}"
+        
+        # Create filenames for concatenated data
+        data_filename = f"sub-{subject}_desc-morlet_tfr_concatenated.npz"
+        columns_filename = f"sub-{subject}_desc-morlet_columns_concatenated.tsv"
+        metadata_filename = f"sub-{subject}_desc-morlet_tfr_concatenated.json"
+        
+    else:
+        print(f"📄 SINGLE RUN MODE: Subject: {subject}, Session: {session}, Task: {task}, Acquisition: {acquisition}, Run: {run}")
+        print(f"Note: Loading clean data with 'bad' segments already excluded")
+        
+        # Define TFR data directory for individual files
+        trf_dir = repo_root / "data" / "derivatives" / "trf"
+        
+        # Create filenames based on BIDS convention
+        base_filename = f"sub-{subject}_ses-{session}_task-{task}_acq-{acquisition}_run-{run}"
+        data_filename = f"{base_filename}_desc-morlet_tfr.npz"
+        columns_filename = f"{base_filename}_desc-morlet_columns.tsv"
+        metadata_filename = f"{base_filename}_desc-morlet_tfr.json"
     
-    # Create filenames based on BIDS convention
-    base_filename = f"sub-{subject}_ses-{session}_task-{task}_acq-{acquisition}_run-{run}"
-    
-    # Load TFR data (.npy file)
-    data_filename = f"{base_filename}_desc-morlet_tfr.npy"
+    # Load TFR data (.npz file)
     data_path = trf_dir / data_filename
     
     if not data_path.exists():
-        raise FileNotFoundError(f"TFR data file not found: {data_path}")
+        if concatenated:
+            raise FileNotFoundError(f"Concatenated TFR data file not found: {data_path}\n"
+                                  f"Run 'python scripts/eeg_tfr.py --sub {subject}' first to generate concatenated data.")
+        else:
+            raise FileNotFoundError(f"TFR data file not found: {data_path}")
     
     print(f"Loading TFR data from: {data_path}")
-    data = np.load(data_path)
+    data = np.load(data_path)['arr_0']
     print(f"✓ Data loaded with shape: {data.shape}")
-    print(f"  Timepoints: {data.shape[0]}")
+    print(f"  Timepoints: {data.shape[0]:,}")
     print(f"  Features: {data.shape[1]}")
     
     # Load column names (.tsv file)
-    columns_filename = f"{base_filename}_desc-morlet_columns.tsv"
     columns_path = trf_dir / columns_filename
     
     if not columns_path.exists():
@@ -125,7 +146,6 @@ def load_tfr_data(subject, session, task, acquisition, run):
     print(f"  Example features: {column_names[:5]}{'...' if len(column_names) > 5 else ''}")
     
     # Load metadata (.json file)
-    metadata_filename = f"{base_filename}_desc-morlet_tfr.json"
     metadata_path = trf_dir / metadata_filename
     
     metadata = {}
@@ -134,24 +154,46 @@ def load_tfr_data(subject, session, task, acquisition, run):
         with open(metadata_path, 'r') as f:
             metadata = json.load(f)
         print(f"✓ Metadata loaded")
-        print(f"  Sampling frequency: {metadata.get('SamplingFrequency', 'N/A')} Hz")
-        print(f"  Number of channels: {metadata.get('NumberOfChannels', 'N/A')}")
-        print(f"  Number of frequencies: {metadata.get('NumberOfFrequencies', 'N/A')}")
         
-        # Show cleaning information if available
-        if metadata.get('CleaningApplied', False):
-            original_timepoints = metadata.get('OriginalTimePoints', 'N/A')
-            clean_timepoints = metadata.get('CleanTimePoints', 'N/A')
-            data_retention = metadata.get('DataRetention', 'N/A')
-            n_segments = metadata.get('NumberOfCleanSegments', 'N/A')
+        if concatenated:
+            print(f"  Subject: {metadata.get('Subject', 'N/A')}")
+            print(f"  Number of runs concatenated: {metadata.get('NumberOfRuns', 'N/A')}")
+            print(f"  Total timepoints: {metadata.get('TotalTimePoints', 'N/A'):,}")
+            print(f"  Total original timepoints: {metadata.get('TotalOriginalTimePoints', 'N/A'):,}")
             
-            print(f"  Cleaning information:")
-            print(f"    Original timepoints: {original_timepoints:,}")
-            print(f"    Clean timepoints: {clean_timepoints:,}")
-            print(f"    Data retention: {data_retention:.1%}" if isinstance(data_retention, (int, float)) else f"    Data retention: {data_retention}")
-            print(f"    Number of clean segments: {n_segments}")
+            data_retention = metadata.get('DataRetention', 'N/A')
+            print(f"  Overall data retention: {data_retention:.1%}" if isinstance(data_retention, (int, float)) else f"  Overall data retention: {data_retention}")
+            
+            # Show run breakdown if available
+            run_breakdown = metadata.get('RunBreakdown', [])
+            if run_breakdown:
+                print(f"  Run breakdown ({len(run_breakdown)} runs):")
+                for run_info in run_breakdown[:5]:  # Show first 5 runs
+                    run_name = run_info.get('run', 'Unknown')
+                    clean_pts = run_info.get('clean_timepoints', 0)
+                    original_pts = run_info.get('original_timepoints', 0)
+                    print(f"    {run_name}: {clean_pts:,} clean / {original_pts:,} original")
+                if len(run_breakdown) > 5:
+                    print(f"    ... and {len(run_breakdown) - 5} more runs")
         else:
-            print(f"  ⚠️  No cleaning information found in metadata")
+            print(f"  Sampling frequency: {metadata.get('SamplingFrequency', 'N/A')} Hz")
+            print(f"  Number of channels: {metadata.get('NumberOfChannels', 'N/A')}")
+            print(f"  Number of frequencies: {metadata.get('NumberOfFrequencies', 'N/A')}")
+            
+            # Show cleaning information if available
+            if metadata.get('CleaningApplied', False):
+                original_timepoints = metadata.get('OriginalTimePoints', 'N/A')
+                clean_timepoints = metadata.get('CleanTimePoints', 'N/A')
+                data_retention = metadata.get('DataRetention', 'N/A')
+                n_segments = metadata.get('NumberOfCleanSegments', 'N/A')
+                
+                print(f"  Cleaning information:")
+                print(f"    Original timepoints: {original_timepoints:,}")
+                print(f"    Clean timepoints: {clean_timepoints:,}")
+                print(f"    Data retention: {data_retention:.1%}" if isinstance(data_retention, (int, float)) else f"    Data retention: {data_retention}")
+                print(f"    Number of clean segments: {n_segments}")
+            else:
+                print(f"  ⚠️  No cleaning information found in metadata")
     else:
         print(f"⚠️  Metadata file not found: {metadata_path}")
     
@@ -161,10 +203,10 @@ def load_tfr_data(subject, session, task, acquisition, run):
     
     print(f"✓ Data consistency verified")
     
-    return data, column_names, metadata
+    return data, column_names, metadata, data_filename
 
 
-def load_idx_data(subject, session, task, acquisition, run):
+def load_idx_data(subject, session=None, task=None, acquisition=None, run=None, concatenated=False):
     """
     Load pre-generated index data for clean TFR segments.
     
@@ -172,14 +214,16 @@ def load_idx_data(subject, session, task, acquisition, run):
     ----------
     subject : str
         Subject ID (e.g., "14")
-    session : str
-        Session ID (e.g., "vr")
-    task : str
-        Task ID (e.g., "01")
-    acquisition : str
-        Acquisition parameter (e.g., "b")
-    run : str
-        Run ID (e.g., "006")
+    session : str, optional
+        Session ID (e.g., "vr"). Required when concatenated=False
+    task : str, optional
+        Task ID (e.g., "01"). Required when concatenated=False
+    acquisition : str, optional
+        Acquisition parameter (e.g., "b"). Required when concatenated=False
+    run : str, optional
+        Run ID (e.g., "006"). Required when concatenated=False
+    concatenated : bool, optional
+        If True, load concatenated indices for entire subject (default: False)
         
     Returns
     -------
@@ -189,19 +233,35 @@ def load_idx_data(subject, session, task, acquisition, run):
     """
     print(f"\n=== LOADING INDEX DATA ===")
     
-    # Define TFR data directory
-    trf_dir = repo_root / "data" / "derivatives" / "trf"
+    if concatenated:
+        print(f"🔗 CONCATENATED MODE: Loading index data for subject {subject}")
+        
+        # Define TFR data directory for concatenated files
+        trf_dir = repo_root / "data" / "derivatives" / "trf" / f"sub-{subject}"
+        
+        # Create filename for concatenated index data
+        idx_filename = f"idx_data_sub-{subject}_concatenated.npz"
+    else:
+        print(f"📄 SINGLE RUN MODE: Loading index data for specific run")
+        
+        # Define TFR data directory for individual files
+        trf_dir = repo_root / "data" / "derivatives" / "trf"
+        
+        # Create filename for index data
+        base_filename = f"sub-{subject}_ses-{session}_task-{task}_acq-{acquisition}_run-{run}"
+        idx_filename = f"idx_data_{base_filename}.npz"
     
-    # Create filename for index data
-    base_filename = f"sub-{subject}_ses-{session}_task-{task}_acq-{acquisition}_run-{run}"
-    idx_filename = f"idx_data_{base_filename}.npy"
     idx_path = trf_dir / idx_filename
     
     if not idx_path.exists():
-        raise FileNotFoundError(f"Index data file not found: {idx_path}")
+        if concatenated:
+            raise FileNotFoundError(f"Concatenated index data file not found: {idx_path}\n"
+                                  f"Run 'python scripts/eeg_tfr.py --sub {subject}' first to generate concatenated data.")
+        else:
+            raise FileNotFoundError(f"Index data file not found: {idx_path}")
     
     print(f"Loading index data from: {idx_path}")
-    idx_data = np.load(idx_path)
+    idx_data = np.load(idx_path)['arr_0']
     
     print(f"✓ Index data loaded successfully")
     print(f"  Index shape: {idx_data.shape}")
@@ -209,17 +269,25 @@ def load_idx_data(subject, session, task, acquisition, run):
     
     # Show segment details
     total_timepoints = 0
-    for i, (start, end) in enumerate(idx_data):
+    max_segments_to_show = 10 if concatenated else idx_data.shape[0]
+    
+    for i, (start, end) in enumerate(idx_data[:max_segments_to_show]):
         segment_length = end - start
         total_timepoints += segment_length
         print(f"  Segment {i+1}: [{start:6d}-{end:6d}] ({segment_length:6d} timepoints)")
+    
+    # Add remaining segments to total without printing
+    if concatenated and idx_data.shape[0] > max_segments_to_show:
+        for start, end in idx_data[max_segments_to_show:]:
+            total_timepoints += (end - start)
+        print(f"  ... and {idx_data.shape[0] - max_segments_to_show} more segments")
     
     print(f"  Total timepoints across segments: {total_timepoints:,}")
     
     return idx_data
 
 
-def prepare_data_for_glhmm(data, subject, session, task, acquisition, run, test_mode=False):
+def prepare_data_for_glhmm(data, subject, session=None, task=None, acquisition=None, run=None, test_mode=False, concatenated=False):
     """
     Prepare clean TFR data for GLHMM analysis.
     
@@ -235,16 +303,18 @@ def prepare_data_for_glhmm(data, subject, session, task, acquisition, run, test_
         Clean TFR data with shape (n_timepoints, n_features)
     subject : str
         Subject ID
-    session : str
-        Session ID
-    task : str
-        Task ID
-    acquisition : str
-        Acquisition parameter
-    run : str
-        Run ID
+    session : str, optional
+        Session ID. Required when concatenated=False
+    task : str, optional
+        Task ID. Required when concatenated=False
+    acquisition : str, optional
+        Acquisition parameter. Required when concatenated=False
+    run : str, optional
+        Run ID. Required when concatenated=False
     test_mode : bool
         If True, adjust indices for test data (first 500 timepoints)
+    concatenated : bool, optional
+        If True, load concatenated data for entire subject (default: False)
         
     Returns
     -------
@@ -257,9 +327,11 @@ def prepare_data_for_glhmm(data, subject, session, task, acquisition, run, test_
     print(f"Input clean TFR data shape: {data.shape}")
     if test_mode:
         print(f"🧪 Test mode: Data truncated to first 500 timepoints")
+    if concatenated:
+        print(f"🔗 Concatenated mode: Processing all subject data")
     
     # Load pre-generated index data
-    idx_data = load_idx_data(subject, session, task, acquisition, run)
+    idx_data = load_idx_data(subject, session, task, acquisition, run, concatenated=concatenated)
     
     # Adjust indices for test mode
     if test_mode:
@@ -430,67 +502,147 @@ def preprocess_data_for_glhmm(data, idx_data, pca_components=50):
     return processed_data, scaler, log
 
 
-def initialize_and_train_hmm(data, idx_data, K=10, preproclog=None, random_seed=42):
+def initialize_and_train_hmm(data, idx_data, K=10, preproclog=None, random_seed=42, data_filename=None):
     """
-    Initialize and train a Gaussian HMM using GLHMM.
+    Initialize and train a GLHMM model
+    """
+    print(f"🧠 Initializing GLHMM with K={K} states...")
     
-    Parameters
-    ----------
-    data : np.ndarray
-        Preprocessed data with shape (n_timepoints, n_features)
-    idx_data : np.ndarray
-        Session indices with shape (n_sessions, 2)
-    K : int
-        Number of states (default: 4)
-    preproclog : dict
-        Preprocessing log from preprocess_data
-    random_seed : int
-        Random seed for reproducibility
+    # Import GLHMM components
+    try:
+        import glhmm
+        from glhmm import glhmm as glhmm_module, preproc, graphics, io
+        print("✓ GLHMM library imported successfully")
+    except ImportError as e:
+        print(f"❌ Error importing GLHMM: {e}")
+        return None
+    
+    # Set random seed for reproducibility
+    np.random.seed(random_seed)
+    print(f"✓ Random seed set to {random_seed}")
+    
+    # Initialize GLHMM model
+    model_params = {
+        'K': K,
+        'covtype': 'shareddiag',
+        'model_mean': 'state', 
+        'model_beta': 'no',
+        'dirichlet_diag': 10
+    }
+    
+    hmm = glhmm_module.glhmm(**model_params)
+    print(f"✓ GLHMM model initialized")
+    
+    # For stochastic training, we need to prepare files in the format expected by GLHMM
+    print("📁 Preparing data files for stochastic training...")
+    
+    # Create temporary files for stochastic training
+    import tempfile
+    import os
+    temp_dir = tempfile.mkdtemp()
+    
+    # For stochastic training, we need multiple files or segments
+    # Let's split the data into chunks for stochastic processing
+    n_chunks = min(10, len(idx_data) // 100) if len(idx_data) > 100 else 1
+    n_chunks = max(1, n_chunks)  # At least 1 chunk
+    
+    chunk_size = len(data) // n_chunks
+    files_list = []
+    
+    for i in range(n_chunks):
+        start_idx = i * chunk_size
+        if i == n_chunks - 1:  # Last chunk gets remainder
+            end_idx = len(data)
+        else:
+            end_idx = (i + 1) * chunk_size
+            
+        # Extract chunk data
+        chunk_data = data[start_idx:end_idx]
         
-    Returns
-    -------
-    hmm : glhmm.glhmm
-        Trained HMM model
-    """
-    print(f"\n=== INITIALIZING AND TRAINING HMM ===")
-    print(f"Number of states (K): {K}")
-    print(f"Data shape: {data.shape}")
-    print(f"Session indices shape: {idx_data.shape}")
-    print(f"Random seed: {random_seed}")
+        # Find corresponding indices for this chunk
+        chunk_indices = []
+        for j, (idx_start, idx_end) in enumerate(idx_data):
+            # Adjust indices relative to chunk
+            if idx_start >= start_idx and idx_end <= end_idx:
+                chunk_indices.append([idx_start - start_idx, idx_end - start_idx])
+        
+        if not chunk_indices:
+            # If no complete segments in this chunk, create a single segment
+            chunk_indices = [[0, len(chunk_data)]]
+        
+        chunk_indices = np.array(chunk_indices)
+        
+        # Save chunk as .npz file with the format expected by GLHMM
+        chunk_filename = os.path.join(temp_dir, f"chunk_{i:03d}.npz")
+        np.savez(chunk_filename, 
+                Y=chunk_data,  # GLHMM expects 'Y' key for the data
+                indices=chunk_indices)  # indices for segments within this chunk
+        
+        files_list.append(chunk_filename)
+        print(f"  ✓ Created chunk {i+1}/{n_chunks}: {chunk_data.shape} with {len(chunk_indices)} segments")
     
-    # Initialize HMM
-    # We do not want to model an interaction between two sets of variables, so we set model_beta='no'
-    print("Initializing GLHMM...")
-    hmm = glhmm.glhmm(
-        model_beta='no',  # No interaction between variables
-        K=K,              # Number of states
-        covtype='sharedfull',   # Full covariance matrix, "sharedfull" is another option
-        preproclogY=preproclog  # Preprocessing log
-    )
+    # Training options for stochastic learning
+    train_options = {
+        'stochastic': True,
+        'cyc': 50,          # Number of cycles
+        'initcyc': 15,      # Initial cycles
+        'Nbatch': min(5, len(files_list)),  # Batch size
+        'initNbatch': min(3, len(files_list)),  # Initial batch size
+        'forget_rate': 0.75,
+        'base_weights': 0.25,
+        'min_cyc': 10,
+        'tol': 1e-4,
+        'verbose': True,
+        'deactivate_states': True,
+        'threshold_active': 20
+    }
     
-    print("✓ HMM initialized")
-    
-    # Train the HMM
-    print("\nTraining HMM...")
-    print("This may take several minutes depending on data size and number of states...")
+    print(f"🚀 Starting stochastic GLHMM training with {len(files_list)} file chunks...")
     
     try:
-        hmm.train(X=None, Y=data, indices=idx_data)
+        # For stochastic training, we pass files and don't provide X or Y directly
+        Gamma, Xi, fe = hmm.train(files=files_list, options=train_options)
+        
         print("✓ HMM training completed successfully")
-            
+        print(f"  Final free energy: {fe[-1]:.2f}")
+        print(f"  Active states: {hmm.get_active_K()}/{K}")
+        
+        # Clean up temporary files
+        for file in files_list:
+            try:
+                os.remove(file)
+            except:
+                pass
+        try:
+            os.rmdir(temp_dir)
+        except:
+            pass
+        
+        return hmm, fe, model_params
+        
     except Exception as e:
         print(f"❌ Error during HMM training: {e}")
         traceback.print_exc()
+        
+        # Clean up temporary files in case of error
+        for file in files_list:
+            try:
+                os.remove(file)
+            except:
+                pass
+        try:
+            os.rmdir(temp_dir)
+        except:
+            pass
+        
         raise
-    
-    return hmm
 
 # SEGUIR DESDE ACA
 # - Extender este codigo para que cuando le pase un participante completo,
 #   sin especificar task, session, etc, concatene todos los datos de ese participante
 #   y los procese juntos.
 # - Dejar eso corriendo en Arete (si fallo dejarlo corriendo localmente)
-def inspect_hmm_model(hmm, data, idx_data, column_names, original_n_features, save_dir=None, test_mode=False):
+def inspect_hmm_model(hmm, data, idx_data, column_names, original_n_features, subject, concatenated=False, save_dir=None, test_mode=False):
     """
     Inspect the trained HMM model by examining states, transitions, and dynamics.
     Also creates and saves visualizations.
@@ -505,6 +657,10 @@ def inspect_hmm_model(hmm, data, idx_data, column_names, original_n_features, sa
         Names of the original features (before PCA)
     original_n_features : int
         Number of original features (before PCA)
+    subject : str
+        Subject ID for plot titles
+    concatenated : bool
+        Whether using concatenated data for plot titles
     save_dir : Path, optional
         Directory to save plots
     test_mode : bool
@@ -519,11 +675,24 @@ def inspect_hmm_model(hmm, data, idx_data, column_names, original_n_features, sa
     # Create suffix for test mode
     test_suffix = "_test" if test_mode else ""
     
+    # Create title prefix for plots
+    title_prefix = f"sub-{subject}"
+
+    if test_mode:
+        title_prefix += " (Test Mode)"
+    
+    # Create filename prefix for saved files
+    filename_prefix = f"sub-{subject}"
+    if concatenated:
+        filename_prefix += "_concatenated"
+    
     # Extract model parameters
     K = hmm.hyperparameters["K"]  # Number of states
     n_features_processed = data.shape[1]    # Number of features after PCA
     
     print(f"Model summary:")
+    print(f"  Subject: {subject}")
+    print(f"  Concatenated mode: {concatenated}")
     print(f"  Number of states: {K}")
     print(f"  Number of features (processed/PCA): {n_features_processed}")
     print(f"  Number of features (original space): {original_n_features}")
@@ -564,9 +733,7 @@ def inspect_hmm_model(hmm, data, idx_data, column_names, original_n_features, sa
     # Plot 1: Original Transition Probabilities
     plt.subplot(1, 2, 1)
     plt.imshow(TP, cmap=cmap, interpolation='nearest')
-    title_text = 'Transition Probabilities'
-    if test_mode:
-        title_text += '\n(Test Mode)'
+    title_text = f'{title_prefix}\nTransition Probabilities'
     plt.title(title_text)
     plt.xlabel('To State')
     plt.ylabel('From State')
@@ -583,9 +750,7 @@ def inspect_hmm_model(hmm, data, idx_data, column_names, original_n_features, sa
     TP_noself2 = TP_noself / TP_noself.sum(axis=1, keepdims=True)  # Normalize probabilities
     
     plt.imshow(TP_noself2, cmap=cmap, interpolation='nearest')
-    title_text = 'Transition Probabilities\nwithout Self-Transitions'
-    if test_mode:
-        title_text = 'Transition Probabilities\nwithout Self-Transitions\n(Test Mode)'
+    title_text = f'{title_prefix}\nTransition Probabilities\nwithout Self-Transitions'
     plt.title(title_text)
     plt.xlabel('To State')
     plt.ylabel('From State')
@@ -597,7 +762,7 @@ def inspect_hmm_model(hmm, data, idx_data, column_names, original_n_features, sa
     
     plt.tight_layout()  # Adjust layout for better spacing
     
-    transition_plot_path = save_dir / f'transition_probabilities{test_suffix}.png'
+    transition_plot_path = save_dir / f'{filename_prefix}_transition_probabilities{test_suffix}.png'
     plt.savefig(transition_plot_path, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"✓ Transition probability plot saved: {transition_plot_path}")
@@ -670,16 +835,14 @@ def inspect_hmm_model(hmm, data, idx_data, column_names, original_n_features, sa
         plt.figure(figsize=(fig_width, fig_height))
         plt.imshow(mu, cmap=cmap, interpolation="none")
         plt.colorbar(label='Activation Level')  # Label for color bar
-        title_text = "State mean activation"
-        if test_mode:
-            title_text += " (Test Mode)"
+        title_text = f"{title_prefix}\nState mean activation"
         plt.title(title_text)
         plt.xticks(np.arange(K), np.arange(1, K+1))
         plt.gca().set_xlabel('State')
         plt.gca().set_ylabel('Features')
         plt.tight_layout()  # Adjust layout for better spacing
         
-        means_plot_path = save_dir / f'state_means{test_suffix}.png'
+        means_plot_path = save_dir / f'{filename_prefix}_state_means{test_suffix}.png'
         plt.savefig(means_plot_path, dpi=300, bbox_inches='tight')
         plt.close()
         print(f"✓ State means plot saved: {means_plot_path}")
@@ -735,14 +898,14 @@ def inspect_hmm_model(hmm, data, idx_data, column_names, original_n_features, sa
                 plt.xlabel('Features')
                 plt.ylabel('Features')
                 plt.colorbar()
-                title_text = "State covariance\nstate #%s" % (k+1)
-                if test_mode:
-                    title_text += " (Test)"
+                title_text = f"State {k+1} covariance"
                 plt.title(title_text)
             
+            # Add main title for the entire figure
+            plt.suptitle(f"{title_prefix}\nState Covariances: Time-varying functional connectivity", fontsize=14, y=0.95)
             plt.subplots_adjust(hspace=0.7, wspace=0.8)
             
-            covariances_plot_path = save_dir / f'state_covariances{test_suffix}.png'
+            covariances_plot_path = save_dir / f'{filename_prefix}_state_covariances{test_suffix}.png'
             plt.savefig(covariances_plot_path, dpi=300, bbox_inches='tight')
             plt.close()
             print(f"✓ State covariances plot saved: {covariances_plot_path}")
@@ -797,11 +960,12 @@ def inspect_hmm_model(hmm, data, idx_data, column_names, original_n_features, sa
         print(f"   First 20 states: {viterbi_states[:20]}")
         
         # Plot Viterbi path
-        vpath_plot_path = save_dir / f'viterbi_path{test_suffix}.png'
+        vpath_plot_path = save_dir / f'{filename_prefix}_viterbi_path{test_suffix}.png'
         try:
+            viterbi_title = f"{title_prefix}\nViterbi Path Analysis"
             graphics.plot_vpath(viterbi_path, 
                               idx_data=idx_data,
-                              title="Viterbi Path Analysis" + (" (Test Mode)" if test_mode else ""),
+                              title=viterbi_title,
                               save_path=vpath_plot_path)
             print(f"   ✓ Viterbi path plot saved to: {vpath_plot_path}")
         except (AttributeError, ImportError) as e:
@@ -820,7 +984,7 @@ def inspect_hmm_model(hmm, data, idx_data, column_names, original_n_features, sa
     }
 
 
-def save_model_results(hmm, model_params, save_dir=None, test_mode=False):
+def save_model_results(hmm, model_params, subject, concatenated=False, save_dir=None, test_mode=False, fe=None):
     """
     Save model results and parameters to files.
     
@@ -830,10 +994,16 @@ def save_model_results(hmm, model_params, save_dir=None, test_mode=False):
         Trained HMM model
     model_params : dict
         Extracted model parameters
+    subject : str
+        Subject ID for filename prefix
+    concatenated : bool
+        Whether using concatenated data for filename prefix
     save_dir : Path, optional
         Directory to save results
     test_mode : bool
         If True, add "_test" suffix to all output files
+    fe : float, optional
+        Final free energy of the trained model
     """
     print(f"\n=== SAVING MODEL RESULTS ===")
     
@@ -846,14 +1016,19 @@ def save_model_results(hmm, model_params, save_dir=None, test_mode=False):
     if test_mode:
         print(f"🧪 Test mode: All result files will include '_test' suffix")
     
+    # Create filename prefix for saved files
+    filename_prefix = f"sub-{subject}"
+    if concatenated:
+        filename_prefix += "_concatenated"
+    
     # Save transition probabilities
-    transition_path = save_dir / f'transition_probabilities{test_suffix}.npy'
+    transition_path = save_dir / f'{filename_prefix}_transition_probabilities{test_suffix}.npy'
     np.save(transition_path, model_params['transition_probs'])
     print(f"✓ Transition probabilities saved: {transition_path}")
     
     # Save state means (if available)
     if model_params['state_means'] is not None:
-        means_path = save_dir / f'state_means{test_suffix}.npy'
+        means_path = save_dir / f'{filename_prefix}_state_means{test_suffix}.npy'
         np.save(means_path, model_params['state_means'])
         print(f"✓ State means saved: {means_path}")
     else:
@@ -861,14 +1036,14 @@ def save_model_results(hmm, model_params, save_dir=None, test_mode=False):
     
     # Save state covariances (if available)
     if model_params['state_covariances'] is not None:
-        covariances_path = save_dir / f'state_covariances{test_suffix}.npy'
+        covariances_path = save_dir / f'{filename_prefix}_state_covariances{test_suffix}.npy'
         np.save(covariances_path, model_params['state_covariances'])
         print(f"✓ State covariances saved: {covariances_path}")
     else:
         print(f"⚠️  State covariances not available (model inspection error)")
     
     # Save initial state probabilities
-    init_probs_path = save_dir / f'initial_state_probabilities{test_suffix}.npy'
+    init_probs_path = save_dir / f'{filename_prefix}_initial_state_probabilities{test_suffix}.npy'
     np.save(init_probs_path, model_params['init_state_probs'])
     print(f"✓ Initial state probabilities saved: {init_probs_path}")
     
@@ -883,12 +1058,20 @@ def save_model_results(hmm, model_params, save_dir=None, test_mode=False):
         'covariance_type': 'sharedfull',
         'pca_components': model_params.get('pca_components', None),
         'test_mode': test_mode,
+        'subject': subject,
+        'concatenated': concatenated,
     }
     
-    summary_path = save_dir / f'model_summary{test_suffix}.json'
+    summary_path = save_dir / f'{filename_prefix}_model_summary{test_suffix}.json'
     with open(summary_path, 'w') as f:
         json.dump(summary, f, indent=4, default=str)
     print(f"✓ Model summary saved: {summary_path}")
+
+    # Save free energy
+    if fe is not None:
+        fe_path = save_dir / f'{filename_prefix}_free_energy{test_suffix}.npy'
+        np.save(fe_path, fe)
+        print(f"✓ Free energy saved: {fe_path}")
 
 
 def main():
@@ -901,28 +1084,35 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Train new model
+    # Train new model on single run
     python scripts/glhmm/test_glhmm.py --subject 14 --session vr --task 01 --acquisition b --run 006
     python scripts/glhmm/test_glhmm.py --subject 14 --session vr --task 01 --acquisition b --run 006 --states 6
     python scripts/glhmm/test_glhmm.py --subject 14 --session vr --task 01 --acquisition b --run 006 --states 4 --seed 42
     python scripts/glhmm/test_glhmm.py --subject 14 --session vr --task 01 --acquisition b --run 006 --pca-components 30
 
+    # Train new model on concatenated subject data (all runs)
+    python scripts/glhmm/test_glhmm.py --subject 14 --concatenated
+    python scripts/glhmm/test_glhmm.py --subject 14 --concatenated --states 8
+    python scripts/glhmm/test_glhmm.py --subject 14 --concatenated --states 10 --pca-components 60
+
     # Quick testing with only first 500 timepoints
     python scripts/glhmm/test_glhmm.py --subject 14 --session vr --task 01 --acquisition b --run 006 --test
-    python scripts/glhmm/test_glhmm.py --subject 14 --session vr --task 01 --acquisition b --run 006 --test --states 5
+    python scripts/glhmm/test_glhmm.py --subject 14 --concatenated --test --states 5
         """
     )
     
     parser.add_argument('--subject', type=str, required=True,
                        help='Subject ID (e.g., 14)')
+    parser.add_argument('--concatenated', action='store_true',
+                       help='Use concatenated data for entire subject (all sessions/tasks/runs)')
     parser.add_argument('--session', type=str, default='vr',
-                       help='Session ID (e.g., vr)')
-    parser.add_argument('--task', type=str, required=True,
-                       help='Task ID (e.g., 01)')
-    parser.add_argument('--acquisition', type=str, required=True,
-                       help='Acquisition parameter (e.g., b)')
-    parser.add_argument('--run', type=str, required=True,
-                       help='Run ID (e.g., 006)')
+                       help='Session ID (e.g., vr) - required when not using --concatenated')
+    parser.add_argument('--task', type=str,
+                       help='Task ID (e.g., 01) - required when not using --concatenated')
+    parser.add_argument('--acquisition', type=str,
+                       help='Acquisition parameter (e.g., b) - required when not using --concatenated')
+    parser.add_argument('--run', type=str,
+                       help='Run ID (e.g., 006) - required when not using --concatenated')
     parser.add_argument('--states', '-K', type=int, default=10,
                        help='Number of HMM states (default: 10)')
     parser.add_argument('--seed', type=int, default=42,
@@ -937,14 +1127,34 @@ Examples:
     # Parse arguments
     args = parser.parse_args()
     
+    # Validate argument combinations
+    if not args.concatenated:
+        missing_args = []
+        if not args.task:
+            missing_args.append('--task')
+        if not args.acquisition:
+            missing_args.append('--acquisition')
+        if not args.run:
+            missing_args.append('--run')
+        
+        if missing_args:
+            parser.error(f"When not using --concatenated, the following arguments are required: {', '.join(missing_args)}")
+    
     print("="*80)
     print("GLHMM ANALYSIS FOR EEG TIME-FREQUENCY DATA")
     print("="*80)
     print(f"Subject: {args.subject}")
-    print(f"Session: {args.session}")
-    print(f"Task: {args.task}")
-    print(f"Acquisition: {args.acquisition}")
-    print(f"Run: {args.run}")
+    
+    if args.concatenated:
+        print(f"🔗 MODE: Concatenated (all subject data)")
+        print(f"Note: Using all available sessions/tasks/runs for subject {args.subject}")
+    else:
+        print(f"📄 MODE: Single run")
+        print(f"Session: {args.session}")
+        print(f"Task: {args.task}")
+        print(f"Acquisition: {args.acquisition}")
+        print(f"Run: {args.run}")
+    
     print(f"Number of states: {args.states}")
     print(f"Random seed: {args.seed}")
     print(f"PCA components: {args.pca_components}")
@@ -952,9 +1162,14 @@ Examples:
     
     try:        
         # Step 1: Load clean TFR data
-        data, column_names, _ = load_tfr_data(
-            args.subject, args.session, args.task, args.acquisition, args.run
-        )
+        if args.concatenated:
+            data, column_names, _, data_filename = load_tfr_data(
+                args.subject, concatenated=True
+            )
+        else:
+            data, column_names, _, data_filename = load_tfr_data(
+                args.subject, args.session, args.task, args.acquisition, args.run, concatenated=False
+            )
         
         # Apply test mode if requested
         if args.test:
@@ -966,9 +1181,15 @@ Examples:
             print(f"   Using only first 500 timepoints for quick testing")
         
         # Step 2: Prepare data for GLHMM (load indices and validate consistency)
-        data, idx_data = prepare_data_for_glhmm(
-            data, args.subject, args.session, args.task, args.acquisition, args.run, test_mode=args.test
-        )
+        if args.concatenated:
+            data, idx_data = prepare_data_for_glhmm(
+                data, args.subject, test_mode=args.test, concatenated=True
+            )
+        else:
+            data, idx_data = prepare_data_for_glhmm(
+                data, args.subject, args.session, args.task, args.acquisition, args.run, 
+                test_mode=args.test, concatenated=False
+            )
         
         # Step 3: Preprocess data
         processed_data, _, preproclog = preprocess_data_for_glhmm(
@@ -988,14 +1209,25 @@ Examples:
         model_save_dir.mkdir(parents=True, exist_ok=True)
         
         # Step 5: Train new model
-        hmm = initialize_and_train_hmm(
+        training_result = initialize_and_train_hmm(
             processed_data, idx_data, K=args.states, 
-            preproclog=preproclog, random_seed=args.seed
+            preproclog=preproclog, random_seed=args.seed, data_filename=data_filename
         )
+        
+        if training_result is None:
+            print("❌ Training failed - could not import GLHMM")
+            return
+            
+        hmm, fe, model_params = training_result
         
         # Step 6: Save the trained model immediately to avoid re-training
         test_suffix = "_test" if args.test else ""
-        model_path = model_save_dir / f"hmm_model_sub-{args.subject}_run-{args.run}_states-{args.states}{test_suffix}.pkl"
+        concatenated_suffix = "_concatenated" if args.concatenated else ""
+        
+        if args.concatenated:
+            model_path = model_save_dir / f"hmm_model_sub-{args.subject}_concatenated_states-{args.states}{test_suffix}.pkl"
+        else:
+            model_path = model_save_dir / f"hmm_model_sub-{args.subject}_run-{args.run}_states-{args.states}{test_suffix}.pkl"
         
         print(f"\n💾 Saving trained model...")
         with open(model_path, 'wb') as f:
@@ -1005,21 +1237,25 @@ Examples:
             print(f"   You can manually reload this model if needed")
         
         # Step 7: Inspect model
-        model_params = inspect_hmm_model(hmm, processed_data, idx_data, column_names, data.shape[1], test_mode=args.test)
+        model_params = inspect_hmm_model(hmm, processed_data, idx_data, column_names, data.shape[1], args.subject, args.concatenated, test_mode=args.test)
         
         # Add PCA information to model_params
         model_params['pca_components'] = args.pca_components
         model_params['original_column_names'] = column_names
         model_params['test_mode'] = args.test
+        model_params['concatenated'] = args.concatenated
                     
-        save_model_results(hmm, model_params, test_mode=args.test)
+        save_model_results(hmm, model_params, args.subject, args.concatenated, test_mode=args.test, fe=fe)
         
         print("\n" + "="*80)
         print("✓ GLHMM ANALYSIS COMPLETED SUCCESSFULLY")
         print("="*80)
         print(f"Results saved in: {repo_root / 'data' / 'derivatives' / 'glhmm_results'}")
         print(f"\nData processing summary:")
-        print(f"  ✓ Clean TFR data loaded (bad segments excluded)")
+        if args.concatenated:
+            print(f"  ✓ Concatenated TFR data loaded (all subject runs, bad segments excluded)")
+        else:
+            print(f"  ✓ Clean TFR data loaded (bad segments excluded)")
         if args.test:
             print(f"  ✓ TEST MODE: Used only first 500 timepoints")
         print(f"  ✓ Segment indices validated for consistency")
