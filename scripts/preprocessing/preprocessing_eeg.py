@@ -83,8 +83,8 @@ raw_data_folder = "data/raw"
 subject = "14"
 session = "vr"
 task = "04"
-acquisition = "b"
-run = "009"
+acquisition = "a"
+run = "005"
 data = "eeg"
 
 # Create a BIDSPath object pointing to raw data
@@ -770,10 +770,9 @@ report.add_raw(
 # Log the rereferencing details
 log_preprocessing.log_detail("rereferenced_channels", "grand_average")
 
+#%%
+# Interpolate chs 
 
-##################################
-######   Interpolate chs  ########
-##################################
 # Interpolate bad channels in the raw data after ICA application
 raw_interpolate = raw_rereferenced.copy().interpolate_bads()
 
@@ -979,7 +978,7 @@ if raw_interpolate.annotations is not None:
                     
                     # Debug: Check annotation coverage for this condition
                     current_type_annotations = [ann for ann in filtered_annotations if ann['description'] == ann_type]
-                    current_type_duration = sum([float(ann['duration']) for ann in current_type_annotations])
+                    current_type_duration = sum([ann['duration'] for ann in current_type_annotations])
                     print(f"  → Isolating {len(current_type_annotations)} segments of {ann_type} (total: {current_type_duration:.1f}s)")
                     
                     # Compute PSD for this annotation type (will automatically exclude 'bad')

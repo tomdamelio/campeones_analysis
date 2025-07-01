@@ -557,15 +557,213 @@ SEGUIR DESDE ACA ->
 
 Sabado ->
 
-- [ ] Preprocesar los datos de todas las sesiones del sujeto 14.
-- [ ] Primera implementacion de GLHMM, de acuerdo a lo que conversamos con Diego (local) y explorar resultados
-      (ver audios de Diego para ver que debo hacer exactamente)
-- [ ] Implementar otros analisis exploratorios con estos datos
+- [x] Preprocesar los datos de todas las sesiones del sujeto 14.
+- [x] Implementar otros analisis exploratorios con estos datos
 
 
 Domingo
-- Preprocesar el EEG de todos los paticipantes hoy (16, 17,18).
-- Imeplemmentar TDE
+- [x] Armar un script llamado `eeg_tfr.py` (guardado en `./scripts`) que:
+      - Lee y carga en memoria el archivo una sesion, task y run particular de este participante
+
+        ```
+        # LOAD DATA
+        # Get the current working directory
+        cwd = os.getcwd()
+
+        # Define the file path components for Campeones Analysis project
+        raw_data_folder = "data/derivatives/campeones_preproc"
+
+        subject = "14"
+        session = "vr"
+        task = "01"
+        acquisition = "a"
+        run = "006"
+        data = "eeg"
+
+        # Create a BIDSPath object pointing to raw data
+        bids_path = BIDSPath(
+            subject=subject,
+            session=session,
+            task=task,
+            acquisition=acquisition,
+            run=run,
+            datatype=data,
+            suffix=data,
+            extension=".vhdr",  # Using .vhdr as the main file for BrainVision format
+            root=os.path.join(repo_root, raw_data_folder),
+        )
+
+        raw = read_raw_bids(bids_path, verbose=False)
+        raw.load_data()
+        print(f"Datos EEG cargados: {raw.info['nchan']} canales, {raw.n_times} puntos de muestreo.")
+
+        ```
+      - Calcula la descomposición en series de potencia por frecuencia con wavelets de Morlet
+
+        ```
+        # Suponemos que 'raw' ya está filtrado entre 1–45 Hz según el preprocesamiento previo.
+
+        # 1. Definir las frecuencias de wavelet y ciclos
+        freqs = np.array([2.0, 4.0, 8.0, 16.0, 32.0])  # Hz, espaciadas logarítmicamente por octavas
+        n_cycles = 6  # número de ciclos por wavelet (puede ser un escalar o un array de la misma longitud que freqs)
+        # Nota: n_cycles=6 es un valor intermedio. Se puede ajustar; p. ej., usar array como [3,4,6,7,8] para refinar cada banda.
+
+        # 2. Calcular la transformación tiempo-frecuencia con wavelets de Morlet
+        power_tfr = raw.compute_tfr(method='morlet', freqs=freqs, n_cycles=n_cycles, output='power')
+        # La función compute_tfr de Raw aplica la transformación a datos continuos. 
+        # Devolverá un objeto RawTFR con las dimensiones (canales*frec, tiempos).
+
+        print(power_tfr)  # imprime información del RawTFR resultante
+
+        # 3. Extraer los datos de poder en un array NumPy para manipulación
+        power_data = power_tfr.get_data()  # array de dimensión (n_channels * n_freqs, n_times)
+        ```
+      - Guardar la data resultante de las sesiones de un participante como un .npy file por sesion en
+        `./data/derivatives/trf`
+
+      Seguir lo mencinado en el inicio de https://github.com/CFIN-analysis/analysis_workshop_26May/blob/main/Notebooks/1_GLHMM_intro_module_tutorial.ipynb
+- [ ] Armar un script para que tome todos los datos de trf de un participante, los estructure de acuerdo al fomrato que necesita GLHMM
+      (libreria para obtener dinamicas de estados latentes en series de tiempo), y genere una primera version de la implementacion de dicho modelo.
+      - Para empezar, vamos a crear un script que haga esto con una sesion/task/run del participante 14
+        en concreto, este task 01 acq b y run 006 de ese participante:
+         `sub-14_ses-vr_task-01_acq-b_run-006_desc-morlet_tfr.npy`, es el npy con shape (n_channels * n_freqs, n_times)
+        Considera que los nombres de las columnas estan guardados en `sub-14_ses-vr_task-01_acq-b_run-006_desc-morlet_columns.tsv`.
+      De este modo, estos son los pasos necesarios de implementar el script
+      - Lee y carga el .npy para ese sujeto/sesion/run/task, ``sub-14_ses-vr_task-01_acq-b_run-006_desc-morlet_tfr.npy``, resultado de correr `eeg_trf.py`.
+      - Convierte esto a un numpy object (usar `to_numpy()`), y e instancia esta data de la sesion como `data`.
+      - Each session is stored as a 2D matrix with the shape of (no timepoints, no features):
+        - Timepoints (1st dimension, rows): The total number of recorded time points in the session.
+        - Features (2nd dimension, colum): The total number of features
+
+      - Preprocesar
+        - Como minimo estandarizar los datos. Estandarizar de forma separada para cada video / sesion / sujeto.
+          Al tener una unica sesion `idx_data` va a ser [[0, last_no_timepoints)] siendo `last_no_timepoints` el ultimo valor de `no timepoints`.
+
+      ```
+      # Preprocess data - we will only use the default option, which is to standardise the data
+      data, _, log = preproc.preprocess_data(Y, idx_data, standardise=True)
+      ```
+
+      - Initialise and train an HMM
+       -  We do not want to model an interaction between two sets of variables, we set model_beta='no'
+       ```
+       hmm = glhmm.glhmm(model_beta='no', K=4, covtype='full', preproclogY=log)
+       ```
+      -  you can check the hyperparameters (including the ones set by default) to make sure
+         that they correspond to how you want the model to be set up:
+       ```
+       print(hmm.hyperparameters) 
+       ```  
+      - train the HMM using the data and indices loaded above
+      ```
+      %%capture
+      np.random.seed(123)
+      hmm.train(X=None, Y=data, indices=T_t)
+      ```
+      - Inspect model
+        - Checking what the states look like by interrogating the state means and the state covariances
+          We will then look at the dynamics, i.e., how states transition between each other (transition probabilities)
+          and how the state sequence develops over time (the Viterbi path). 
+          Ver
+          1. https://github.com/CFIN-analysis/analysis_workshop_26May/blob/main/Notebooks/2_1_GaussianHMM.ipynb
+          2. https://github.com/CFIN-analysis/analysis_workshop_26May/blob/main/Notebooks/2_2_Prediction.ipynb
+
+        ```
+        K = hmm.hyperparameters["K"] # the number of states
+        n_channels = Y.shape[1] # the number of parcels/channels
+        init_stateP = hmm.Pi.copy() # the initial state probabilities
+        TP = np.zeros(shape=(K, K))
+        TP = hmm.P.copy() # the transition probability matrix
+        mu = np.zeros(shape=(n_channels, K))
+        mu = hmm.get_means() # the state means in the shape (no. features, no. states)
+        Sigma = np.zeros(shape=(n_channels, n_channels, K))
+        for k in range(K):
+        Sigma[:,:,k] = hmm.get_covariance_matrix(k=k) # the state covariance matrices in the shape (no. features, no. features, no. states)
+        ```
+
+      - Create the indices that will indicate the start and end timepoint of each session:
+        - Concatenated brain activity (data_session):
+          - The brain activity data (data) contains recordings from multiple sessions.
+            We concatenate all the sessions along the time dimension to form a single,
+            continuous 2D matrix.
+            The data should have the shape ((no subjects/sessions * no timepoints), no features),
+            meaning that all subjects and/or sessions have been concatenated along the first dimension.
+        - Create index matrix (idx_data):
+          - To track the start and end timepoints for each session, we generate an index matrix, idx_data,
+            using the function get_indices_from_list.
+            It will have a shape of: [No. of sessions, 2].
+           Each row specifies the start and end timepoints for a session.
+        ```
+        data = np.concatenate(data_session,axis=0)
+        # Get the start and end indices for each session
+        idx_data = statistics.get_indices_from_list(data_session)
+
+        # show the length of the data
+        print('total length of data:')
+        print(len(data))
+
+        # show indices
+        print('indices:')
+        print(idx_data)
+        ```
+        e.g. 
+        total length of data:
+        377536
+        indices:
+        [[     0  75685]
+        [ 75685 151447]
+        [151447 226381]
+        [226381 301893]
+        [301893 377536]]
+      
+      e.g.  In this case, we have generated timeseries for 20 subjects and 50 features.
+      Each subject has 1,000 timepoints.
+      The timeseries has the shape (20000, 50) and the indices have the shape (20, 2).
+      -  check that dimensions of input files are correct:
+
+    - [x] Revisar por que la generacion del trf para cada sesion del participante 14 no funcino
+          (dio todos NaNs). Solucionado. EL problema era que el paramatro reject_annotations
+
+    SEGUIR DEDE ACA:
+    - [x] Correr la implementacion del glhmm en una sesion del participante 14 (ya lo tengo armado esto)
+          Esto ya esta corriendo (empezo 15 10), asi que en un rato puedo ver results
+    - [ ] Extender esto a todas las sesiones de un mismo participante
+          - Concatenar los datos de todos los participantes para hacer una unica corridas
+            con e participante 14. Eso implica:
+            - Juntar todos los datos .npy de todas las sesiones de un mismo participante 14
+            - Armar un idx_data uniendo todos los segmentos con todos los segmentos
+          Una vez que tengo esos dos archivos, que los puedo guardar en `data/derivatives/trf/sub-{sub}`
+          ya puedo:
+          - Copiar estos archivos en Arete
+          - Correr `test_glhmm.py` sobre esos datos.
+
+          Una vez que esto este corriendo...
+
+- [ ] Preprocesar el EEG de todos los paticipantes hoy (16, 17,18)
+- [ ] Correr el GLHMM que corri antes pero para todos los participantes juntos 
+
+Martes ->
+- [ ] Correr el GLHMM que corri antes pero para todos los participantes por separado (un modelo por sujeto).
+- [ ] Hacer analisis estadisticos por estimulo (comparar estimulos de high arousal (e.g. video 9) vs low arousal (e.g. calm video))
+- [ ] Hacer analisis estadisticos across visits para comparar el model GLHMM
+      Ver https://github.com/vidaurre/glhmm/blob/main/docs/notebooks/Testing_across_visits.ipynb
+      EDA ->
+      - con señal tonica
+      - señal fasica
+      ECG ->
+      - HR
+      - HRV
+
+Miercoles
+- [ ] Implementar TDE model -> https://github.com/CFIN-analysis/analysis_workshop_26May/blob/main/Notebooks/1_GLHMM_intro_module_tutorial.ipynb
+      - Implement `States spectral analysis` descripto en el mismo notebook
+- [ ] Empezar a armar la presentacion
+
+Jueves
+- Terminar la presentacion (corriendo analisis extra)
+
+
+
 
 
 Queda para despues ->
