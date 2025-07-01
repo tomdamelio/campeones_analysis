@@ -502,140 +502,62 @@ def preprocess_data_for_glhmm(data, idx_data, pca_components=50):
     return processed_data, scaler, log
 
 
-def initialize_and_train_hmm(data, idx_data, K=10, preproclog=None, random_seed=42, data_filename=None):
+def initialize_and_train_hmm(data, idx_data, K=10, preproclog=None, random_seed=42):
     """
-    Initialize and train a GLHMM model
+    Initialize and train a Gaussian HMM using GLHMM.    
+    
+    Parameters
+    ----------
+    data : np.ndarray
+        Preprocessed data with shape (n_timepoints, n_features)
+    idx_data : np.ndarray
+        Session indices with shape (n_sessions, 2)
+    K : int
+        Number of states (default: 4)
+    preproclog : dict
+        Preprocessing log from preprocess_data
+    random_seed : int
+        Random seed for reproducibility
+        
+    Returns
+    -------
+    hmm : glhmm.glhmm
+        Trained HMM model
     """
-    print(f"🧠 Initializing GLHMM with K={K} states...")
+    print(f"\n=== INITIALIZING AND TRAINING HMM ===")
+    print(f"Number of states (K): {K}")
+    print(f"Data shape: {data.shape}")
+    print(f"Session indices shape: {idx_data.shape}")
+    print(f"Random seed: {random_seed}")
     
-    # Import GLHMM components
-    try:
-        import glhmm
-        from glhmm import glhmm as glhmm_module, preproc, graphics, io
-        print("✓ GLHMM library imported successfully")
-    except ImportError as e:
-        print(f"❌ Error importing GLHMM: {e}")
-        return None
+    # Initialize HMM
+    # We do not want to model an interaction between two sets of variables, so we set model_beta='no'
+    print("Initializing GLHMM...")
+    hmm = glhmm.glhmm(
+        model_beta='no',  # No interaction between variables
+        K=K,              # Number of states
+        covtype='sharedfull',   # Full covariance matrix, "sharedfull" is another option
+        preproclogY=preproclog  # Preprocessing log
+    )
     
-    # Set random seed for reproducibility
-    np.random.seed(random_seed)
-    print(f"✓ Random seed set to {random_seed}")
+    print("✓ HMM initialized")
     
-    # Initialize GLHMM model
-    model_params = {
-        'K': K,
-        'covtype': 'shareddiag',
-        'model_mean': 'state', 
-        'model_beta': 'no',
-        'dirichlet_diag': 10
-    }
-    
-    hmm = glhmm_module.glhmm(**model_params)
-    print(f"✓ GLHMM model initialized")
-    
-    # For stochastic training, we need to prepare files in the format expected by GLHMM
-    print("📁 Preparing data files for stochastic training...")
-    
-    # Create temporary files for stochastic training
-    import tempfile
-    import os
-    temp_dir = tempfile.mkdtemp()
-    
-    # For stochastic training, we need multiple files or segments
-    # Let's split the data into chunks for stochastic processing
-    n_chunks = min(10, len(idx_data) // 100) if len(idx_data) > 100 else 1
-    n_chunks = max(1, n_chunks)  # At least 1 chunk
-    
-    chunk_size = len(data) // n_chunks
-    files_list = []
-    
-    for i in range(n_chunks):
-        start_idx = i * chunk_size
-        if i == n_chunks - 1:  # Last chunk gets remainder
-            end_idx = len(data)
-        else:
-            end_idx = (i + 1) * chunk_size
-            
-        # Extract chunk data
-        chunk_data = data[start_idx:end_idx]
-        
-        # Find corresponding indices for this chunk
-        chunk_indices = []
-        for j, (idx_start, idx_end) in enumerate(idx_data):
-            # Adjust indices relative to chunk
-            if idx_start >= start_idx and idx_end <= end_idx:
-                chunk_indices.append([idx_start - start_idx, idx_end - start_idx])
-        
-        if not chunk_indices:
-            # If no complete segments in this chunk, create a single segment
-            chunk_indices = [[0, len(chunk_data)]]
-        
-        chunk_indices = np.array(chunk_indices)
-        
-        # Save chunk as .npz file with the format expected by GLHMM
-        chunk_filename = os.path.join(temp_dir, f"chunk_{i:03d}.npz")
-        np.savez(chunk_filename, 
-                Y=chunk_data,  # GLHMM expects 'Y' key for the data
-                indices=chunk_indices)  # indices for segments within this chunk
-        
-        files_list.append(chunk_filename)
-        print(f"  ✓ Created chunk {i+1}/{n_chunks}: {chunk_data.shape} with {len(chunk_indices)} segments")
-    
-    # Training options for stochastic learning
-    train_options = {
-        'stochastic': True,
-        'cyc': 50,          # Number of cycles
-        'initcyc': 15,      # Initial cycles
-        'Nbatch': min(5, len(files_list)),  # Batch size
-        'initNbatch': min(3, len(files_list)),  # Initial batch size
-        'forget_rate': 0.75,
-        'base_weights': 0.25,
-        'min_cyc': 10,
-        'tol': 1e-4,
-        'verbose': True,
-        'deactivate_states': True,
-        'threshold_active': 20
-    }
-    
-    print(f"🚀 Starting stochastic GLHMM training with {len(files_list)} file chunks...")
+    # Train the HMM
+    print("\nTraining HMM...")
+    print("This may take several minutes depending on data size and number of states...")
     
     try:
-        # For stochastic training, we pass files and don't provide X or Y directly
-        Gamma, Xi, fe = hmm.train(files=files_list, options=train_options)
-        
+        hmm.train(X=None,
+         Y=data,
+         indices=idx_data)
         print("✓ HMM training completed successfully")
-        print(f"  Final free energy: {fe[-1]:.2f}")
-        print(f"  Active states: {hmm.get_active_K()}/{K}")
-        
-        # Clean up temporary files
-        for file in files_list:
-            try:
-                os.remove(file)
-            except:
-                pass
-        try:
-            os.rmdir(temp_dir)
-        except:
-            pass
-        
-        return hmm, fe, model_params
-        
+            
     except Exception as e:
         print(f"❌ Error during HMM training: {e}")
         traceback.print_exc()
-        
-        # Clean up temporary files in case of error
-        for file in files_list:
-            try:
-                os.remove(file)
-            except:
-                pass
-        try:
-            os.rmdir(temp_dir)
-        except:
-            pass
-        
         raise
+    
+    return hmm
 
 # SEGUIR DESDE ACA
 # - Extender este codigo para que cuando le pase un participante completo,
@@ -984,7 +906,7 @@ def inspect_hmm_model(hmm, data, idx_data, column_names, original_n_features, su
     }
 
 
-def save_model_results(hmm, model_params, subject, concatenated=False, save_dir=None, test_mode=False, fe=None):
+def save_model_results(hmm, model_params, subject, concatenated=False, save_dir=None, test_mode=False):
     """
     Save model results and parameters to files.
     
@@ -1002,8 +924,6 @@ def save_model_results(hmm, model_params, subject, concatenated=False, save_dir=
         Directory to save results
     test_mode : bool
         If True, add "_test" suffix to all output files
-    fe : float, optional
-        Final free energy of the trained model
     """
     print(f"\n=== SAVING MODEL RESULTS ===")
     
@@ -1066,12 +986,6 @@ def save_model_results(hmm, model_params, subject, concatenated=False, save_dir=
     with open(summary_path, 'w') as f:
         json.dump(summary, f, indent=4, default=str)
     print(f"✓ Model summary saved: {summary_path}")
-
-    # Save free energy
-    if fe is not None:
-        fe_path = save_dir / f'{filename_prefix}_free_energy{test_suffix}.npy'
-        np.save(fe_path, fe)
-        print(f"✓ Free energy saved: {fe_path}")
 
 
 def main():
@@ -1209,16 +1123,10 @@ Examples:
         model_save_dir.mkdir(parents=True, exist_ok=True)
         
         # Step 5: Train new model
-        training_result = initialize_and_train_hmm(
+        hmm = initialize_and_train_hmm(
             processed_data, idx_data, K=args.states, 
-            preproclog=preproclog, random_seed=args.seed, data_filename=data_filename
+            preproclog=preproclog, random_seed=args.seed
         )
-        
-        if training_result is None:
-            print("❌ Training failed - could not import GLHMM")
-            return
-            
-        hmm, fe, model_params = training_result
         
         # Step 6: Save the trained model immediately to avoid re-training
         test_suffix = "_test" if args.test else ""
@@ -1245,7 +1153,7 @@ Examples:
         model_params['test_mode'] = args.test
         model_params['concatenated'] = args.concatenated
                     
-        save_model_results(hmm, model_params, args.subject, args.concatenated, test_mode=args.test, fe=fe)
+        save_model_results(hmm, model_params, args.subject, args.concatenated, test_mode=args.test)
         
         print("\n" + "="*80)
         print("✓ GLHMM ANALYSIS COMPLETED SUCCESSFULLY")
