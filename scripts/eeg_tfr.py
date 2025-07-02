@@ -1,31 +1,50 @@
 #!/usr/bin/env python
 """
-EEG Time-Frequency Representation (TFR) Analysis Script with Event-Based Cleaning
+EEG Time-Frequency Representation (TFR) Analysis Script with Event-Based Cleaning and Multi-Subject Support
 
 This script computes time-frequency decomposition using Morlet wavelets for preprocessed EEG data
 from the Campeones Analysis project. It automatically processes all available sessions, tasks, and runs
-for a specified subject, and saves the resulting TFR data in a clean format suitable for analysis.
+for specified subject(s), and saves the resulting TFR data in a clean format suitable for analysis.
+Supports processing multiple subjects simultaneously and combining all subjects into unified files.
 
 Features:
 - Loads preprocessed EEG data from derivatives/campeones_preproc
-- Automatically discovers all available sessions/tasks/runs for a subject
+- Automatically discovers all available sessions/tasks/runs for subject(s)
 - Computes TFR using Morlet wavelets at specific frequency bands
 - Loads event annotations from preprocessing to identify 'bad' segments
 - Creates clean TFR data by excluding 'bad' segments and concatenating good segments
 - Generates index mapping files to track timepoint correspondence
 - Reshapes data to (n_times, n_channels*n_freqs) format
-- Saves clean results as .npy files with comprehensive metadata and column descriptions
+- Supports processing multiple subjects simultaneously
+- Optional cross-subject concatenation into unified all_subs_* files
+- Maintains consistent ordering between data and indices across all levels of concatenation
+- Saves clean results as .npz files with comprehensive metadata and column descriptions
 
-Output Files (per run):
-- *_desc-morlet_tfr.npy : Clean TFR data (bad segments excluded)
-- *_desc-morlet_columns.tsv : Column names and order
-- *_desc-morlet_tfr.json : Comprehensive metadata including segment mapping
-- idx_data_*.npy : Clean data indices (segment boundaries in clean timepoints)
-- idx_data_OLD_timepoints_*.npy : Original data indices (segment boundaries in original timepoints)
+Output Files (per subject):
+- sub-{subject}_desc-morlet_tfr_concatenated.npz : Clean TFR data (bad segments excluded)
+- sub-{subject}_desc-morlet_columns_concatenated.tsv : Column names and order
+- sub-{subject}_desc-morlet_tfr_concatenated.json : Comprehensive metadata including segment mapping
+- idx_data_sub-{subject}_concatenated.npz: Clean data indices (segment boundaries in clean timepoints)
+- idx_data_OLD_timepoints_sub-{subject}_concatenated.npz : Original data indices (segment boundaries in original timepoints)
+
+Output Files (when --combine-all-subs is used):
+- all_subs_desc-morlet_tfr.npz : Clean TFR data from all subjects (bad segments excluded)
+- all_subs_desc-morlet_columns.tsv : Column names and order
+- all_subs_desc-morlet_tfr.json : Comprehensive metadata including segment mapping
+- idx_data_all_subs.npz: Clean data indices (segment boundaries in clean timepoints)
+- idx_data_OLD_timepoints_all_subs.npz : Original data indices (segment boundaries in original timepoints)
 
 Usage:
+    # Single subject
     python scripts/eeg_tfr.py --sub 14
     python scripts/eeg_tfr.py --sub 14 --freqs 2 4 8 16 32 --cycles 4
+    
+    # Multiple subjects
+    python scripts/eeg_tfr.py --sub 14 16 17 18
+    python scripts/eeg_tfr.py --sub 14 16 17 18 --freqs 2 4 8 16 32 --cycles 4
+    
+    # Multiple subjects with cross-subject concatenation
+    python scripts/eeg_tfr.py --sub 14 16 17 18 --combine-all-subs
 
 """
 
@@ -659,6 +678,7 @@ def save_tfr_data(reshaped_data, column_names, subject, session, task, acquisiti
 def process_single_file(file_info, freqs, n_cycles):
     """
     Process a single EEG file for TFR analysis with event-based cleaning.
+    Returns data in memory without saving to disk.
     
     Parameters
     ----------
@@ -671,8 +691,8 @@ def process_single_file(file_info, freqs, n_cycles):
         
     Returns
     -------
-    bool
-        True if processing was successful, False otherwise
+    dict or None
+        Dictionary containing processed data and metadata, or None if processing failed
     """
     try:
         print(f"\n{'='*80}")
@@ -720,157 +740,171 @@ def process_single_file(file_info, freqs, n_cycles):
                 file_info['acquisition'], file_info['run']
             )
         else:
-            print(f"⚠️  No events available - saving original TFR data without cleaning")
-        
-        # Step 6: Save results
-        data_path, columns_path = save_tfr_data(
-            reshaped_data, column_names, 
-            file_info['subject'], file_info['session'], file_info['task'], 
-            file_info['acquisition'], file_info['run'], raw.info['sfreq'],
-            clean_data, clean_segments_indices, original_segments_indices, events_summary
-        )
+            print(f"⚠️  No events available - using original TFR data without cleaning")
+            clean_data = reshaped_data
         
         print(f"\n✓ PROCESSING COMPLETED SUCCESSFULLY")
-        print(f"  Data file: {data_path}")
-        print(f"  Columns file: {columns_path}")
         
-        if clean_data is not None:
+        if clean_data is not None and events_df is not None:
             print(f"  Clean data shape: {clean_data.shape}")
             print(f"  Original data shape: {reshaped_data.shape}")
             print(f"  Data retention: {100*clean_data.shape[0]/reshaped_data.shape[0]:.1f}%")
             print(f"  Clean segments: {len(clean_segments_indices) if clean_segments_indices is not None else 0}")
         else:
-            print(f"  Final data shape: {reshaped_data.shape}")
+            print(f"  Final data shape: {clean_data.shape}")
         
-        print(f"  Features (channels × frequencies): {reshaped_data.shape[1]}")
+        print(f"  Features (channels × frequencies): {clean_data.shape[1]}")
         print(f"  Column order maintained: {len(column_names)} features")
         
-        return True
+        # Return processed data in memory
+        return {
+            'file_info': file_info,
+            'clean_data': clean_data,
+            'original_data': reshaped_data,
+            'column_names': column_names,
+            'clean_segments_indices': clean_segments_indices,
+            'original_segments_indices': original_segments_indices,
+            'events_summary': events_summary,
+            'sfreq': raw.info['sfreq'],
+            'run_name': f"sub-{file_info['subject']}_ses-{file_info['session']}_task-{file_info['task']}_acq-{file_info['acquisition']}_run-{file_info['run']}"
+        }
         
     except Exception as e:
         print(f"\n❌ ERROR processing sub-{file_info['subject']} ses-{file_info['session']} "
               f"task-{file_info['task']} acq-{file_info['acquisition']} run-{file_info['run']}: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        return None
 
 
-def concatenate_subject_data(subject, trf_output_dir):
+def process_and_concatenate_subject_data(subject, available_files, freqs, n_cycles):
     """
-    Concatenate all TFR data files for a subject into single combined files.
+    Process all EEG files for a subject and directly save concatenated TFR data.
     
-    This function finds all processed TFR files for a subject, concatenates the data,
-    and adjusts the indices appropriately to account for the concatenation.
+    This function processes all files in memory and creates concatenated outputs
+    without saving individual files.
     
     Parameters
     ----------
     subject : str
         Subject ID (e.g., "14")
-    trf_output_dir : Path
-        Directory containing the individual TFR files
+    available_files : list of dict
+        List of file information dictionaries
+    freqs : np.ndarray
+        Frequencies for TFR analysis
+    n_cycles : int
+        Number of cycles per wavelet
         
     Returns
     -------
     bool
-        True if concatenation was successful, False otherwise
+        True if processing was successful, False otherwise
     """
     print(f"\n{'='*80}")
-    print(f"CONCATENATING ALL DATA FOR SUBJECT {subject}")
+    print(f"PROCESSING AND CONCATENATING ALL DATA FOR SUBJECT {subject}")
     print(f"{'='*80}")
     
     try:
-        # Find all TFR files for this subject
-        tfr_pattern = f"sub-{subject}_*_desc-morlet_tfr.npz"
-        tfr_files = sorted(list(trf_output_dir.glob(tfr_pattern)))
-        
-        if not tfr_files:
-            print(f"❌ No TFR files found for subject {subject}")
-            return False
-        
-        print(f"Found {len(tfr_files)} TFR files for subject {subject}:")
-        for tfr_file in tfr_files:
-            print(f"  - {tfr_file.name}")
-        
-        # Lists to store data and metadata
-        all_tfr_data = []
+        # Lists to store processed data from all files
+        all_clean_data = []
         all_clean_indices = []
         all_original_indices = []
-        all_metadata = []
+        all_run_info = []
         
         # Counters for index adjustment
         cumulative_clean_timepoints = 0
         cumulative_original_timepoints = 0
         
+        # Column names (should be consistent across all files)
+        column_names = None
+        sfreq = None
+        
         # Process each file
-        for i, tfr_file in enumerate(tfr_files):
-            print(f"\nProcessing file {i+1}/{len(tfr_files)}: {tfr_file.name}")
+        successful_files = []
+        failed_files = []
+        
+        for i, file_info in enumerate(available_files, 1):
+            print(f"\n{'='*20} PROCESSING FILE {i}/{len(available_files)} {'='*20}")
             
-            # Extract run information from filename
-            base_name = tfr_file.stem.replace('_desc-morlet_tfr', '')
+            # Process single file in memory
+            processed_data = process_single_file(file_info, freqs, n_cycles)
             
-            # Load TFR data
-            tfr_data = np.load(tfr_file)
-            all_tfr_data.append(tfr_data['arr_0'])
-            print(f"  TFR data shape: {tfr_data['arr_0'].shape}")
+            if processed_data is None:
+                failed_files.append(file_info)
+                print(f"❌ Failed to process file {i}, skipping...")
+                continue
             
-            # Load metadata
-            metadata_file = tfr_file.parent / f"{base_name}_desc-morlet_tfr.json"
-            if metadata_file.exists():
-                with open(metadata_file, 'r') as f:
-                    metadata = json.load(f)
-                all_metadata.append(metadata)
-                
-                original_timepoints = metadata.get('OriginalTimePoints', tfr_data['arr_0'].shape[0])
-                print(f"  Original timepoints: {original_timepoints:,}")
-                print(f"  Clean timepoints: {tfr_data['arr_0'].shape[0]:,}")
-            else:
-                print(f"  ⚠️  Metadata file not found: {metadata_file.name}")
-                original_timepoints = tfr_data['arr_0'].shape[0]  # Fallback
-                all_metadata.append({})
+            successful_files.append(file_info)
             
-            # Load clean data indices
-            clean_idx_file = tfr_file.parent / f"idx_data_{base_name}.npz"
-            if clean_idx_file.exists():
-                clean_indices = np.load(clean_idx_file)
-                
+            # Extract data from processed result
+            clean_data = processed_data['clean_data']
+            original_data = processed_data['original_data']
+            clean_segments_indices = processed_data['clean_segments_indices']
+            original_segments_indices = processed_data['original_segments_indices']
+            events_summary = processed_data['events_summary']
+            
+            # Store column names from first successful file
+            if column_names is None:
+                column_names = processed_data['column_names']
+                sfreq = processed_data['sfreq']
+                print(f"✓ Column names and sampling frequency stored from first file")
+            
+            # Verify column consistency
+            if processed_data['column_names'] != column_names:
+                print(f"⚠️  Warning: Column names differ for {processed_data['run_name']}")
+            
+            # Add clean data to collection
+            all_clean_data.append(clean_data)
+            print(f"✓ Added clean data: {clean_data.shape}")
+            
+            # Adjust indices for concatenation
+            if clean_segments_indices is not None:
                 # Adjust clean indices for concatenation
-                adjusted_clean_indices = clean_indices['arr_0'] + cumulative_clean_timepoints
+                adjusted_clean_indices = clean_segments_indices + cumulative_clean_timepoints
                 all_clean_indices.append(adjusted_clean_indices)
-                
-                print(f"  Clean indices shape: {clean_indices['arr_0'].shape}")
                 print(f"  Clean indices adjustment: +{cumulative_clean_timepoints}")
-                print(f"  Clean indices (original): {clean_indices['arr_0']}")
-                print(f"  Clean indices (adjusted): {adjusted_clean_indices}")
-            else:
-                print(f"  ⚠️  Clean indices file not found: {clean_idx_file.name}")
+                print(f"  Clean indices shape: {clean_segments_indices.shape}")
             
-            # Load original timepoints indices
-            original_idx_file = tfr_file.parent / f"idx_data_OLD_timepoints_{base_name}.npz"
-            if original_idx_file.exists():
-                original_indices = np.load(original_idx_file)
-                
+            if original_segments_indices is not None:
                 # Adjust original indices for concatenation
-                adjusted_original_indices = original_indices['arr_0'] + cumulative_original_timepoints
+                adjusted_original_indices = original_segments_indices + cumulative_original_timepoints
                 all_original_indices.append(adjusted_original_indices)
-                
-                print(f"  Original indices shape: {original_indices['arr_0'].shape}")
                 print(f"  Original indices adjustment: +{cumulative_original_timepoints}")
-                print(f"  Original indices (original): {original_indices['arr_0']}")
-                print(f"  Original indices (adjusted): {adjusted_original_indices}")
-            else:
-                print(f"  ⚠️  Original indices file not found: {original_idx_file.name}")
+                print(f"  Original indices shape: {original_segments_indices.shape}")
+            
+            # Create run information
+            clean_points = clean_data.shape[0]
+            original_points = original_data.shape[0]
+            
+            run_info = {
+                "run": processed_data['run_name'],
+                "clean_timepoints": clean_points,
+                "original_timepoints": original_points,
+                "clean_start_index": cumulative_clean_timepoints,
+                "clean_end_index": cumulative_clean_timepoints + clean_points,
+                "original_start_index": cumulative_original_timepoints,
+                "original_end_index": cumulative_original_timepoints + original_points,
+                "events_summary": events_summary
+            }
+            all_run_info.append(run_info)
             
             # Update cumulative counters
-            cumulative_clean_timepoints += tfr_data['arr_0'].shape[0]
-            cumulative_original_timepoints += original_timepoints
+            cumulative_clean_timepoints += clean_points
+            cumulative_original_timepoints += original_points
             
             print(f"  Cumulative clean timepoints: {cumulative_clean_timepoints:,}")
             print(f"  Cumulative original timepoints: {cumulative_original_timepoints:,}")
         
+        # Check if we have any successful processing
+        if not all_clean_data:
+            print(f"❌ No files were successfully processed for subject {subject}")
+            return False
+        
         # Concatenate all data
         print(f"\n=== CONCATENATING DATA ===")
-        concatenated_tfr = np.vstack(all_tfr_data)
+        concatenated_tfr = np.vstack(all_clean_data)
         print(f"Concatenated TFR data shape: {concatenated_tfr.shape}")
+        print(f"Total files concatenated: {len(all_clean_data)}")
         
         # Concatenate indices if available
         concatenated_clean_indices = None
@@ -879,21 +913,19 @@ def concatenate_subject_data(subject, trf_output_dir):
         if all_clean_indices:
             concatenated_clean_indices = np.vstack(all_clean_indices)
             print(f"Concatenated clean indices shape: {concatenated_clean_indices.shape}")
-            print(f"Final clean indices:\n{concatenated_clean_indices}")
         
         if all_original_indices:
             concatenated_original_indices = np.vstack(all_original_indices)
             print(f"Concatenated original indices shape: {concatenated_original_indices.shape}")
-            print(f"Final original indices:\n{concatenated_original_indices}")
         
         # Create subject-specific output directory
-        subject_output_dir = trf_output_dir / f"sub-{subject}"
-        subject_output_dir.mkdir(parents=True, exist_ok=True)
-        print(f"Subject output directory: {subject_output_dir}")
+        output_dir = repo_root / "data" / "derivatives" / "trf" / f"sub-{subject}"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Subject output directory: {output_dir}")
         
         # Save concatenated TFR data
         concat_tfr_filename = f"sub-{subject}_desc-morlet_tfr_concatenated.npz"
-        concat_tfr_path = subject_output_dir / concat_tfr_filename
+        concat_tfr_path = output_dir / concat_tfr_filename
         np.savez(concat_tfr_path, concatenated_tfr)
         print(f"✓ Concatenated TFR data saved: {concat_tfr_path}")
         print(f"  File size: {concat_tfr_path.stat().st_size / (1024**2):.2f} MB")
@@ -901,62 +933,350 @@ def concatenate_subject_data(subject, trf_output_dir):
         # Save concatenated clean indices
         if concatenated_clean_indices is not None:
             concat_clean_idx_filename = f"idx_data_sub-{subject}_concatenated.npz"
-            concat_clean_idx_path = subject_output_dir / concat_clean_idx_filename
+            concat_clean_idx_path = output_dir / concat_clean_idx_filename
             np.savez(concat_clean_idx_path, concatenated_clean_indices)
             print(f"✓ Concatenated clean indices saved: {concat_clean_idx_path}")
         
         # Save concatenated original indices
         if concatenated_original_indices is not None:
             concat_original_idx_filename = f"idx_data_OLD_timepoints_sub-{subject}_concatenated.npz"
-            concat_original_idx_path = subject_output_dir / concat_original_idx_filename
+            concat_original_idx_path = output_dir / concat_original_idx_filename
             np.savez(concat_original_idx_path, concatenated_original_indices)
             print(f"✓ Concatenated original indices saved: {concat_original_idx_path}")
         
-        # Load column names from first file (should be same for all)
-        first_base_name = tfr_files[0].stem.replace('_desc-morlet_tfr', '')
-        columns_file = tfr_files[0].parent / f"{first_base_name}_desc-morlet_columns.tsv"
-        if columns_file.exists():
-            columns_df = pd.read_csv(columns_file, sep='\t')
-            
-            # Save concatenated column names
+        # Save column names
+        if column_names is not None:
             concat_columns_filename = f"sub-{subject}_desc-morlet_columns_concatenated.tsv"
-            concat_columns_path = subject_output_dir / concat_columns_filename
+            concat_columns_path = output_dir / concat_columns_filename
+            columns_df = pd.DataFrame({'column_name': column_names})
             columns_df.to_csv(concat_columns_path, sep='\t', index=False)
-            print(f"✓ Column names copied: {concat_columns_path}")
+            print(f"✓ Column names saved: {concat_columns_path}")
+        
+        # Extract frequency information from column names
+        unique_freqs = []
+        unique_channels = []
+        if column_names is not None:
+            unique_freqs = sorted(list(set([name.split('_')[1] for name in column_names])))
+            unique_channels = sorted(list(set([name.split('_')[0] for name in column_names])))
         
         # Create comprehensive metadata for concatenated data
         concat_metadata = {
             "Description": "Concatenated time-frequency representation for entire subject",
             "Subject": subject,
             "Method": "Morlet wavelets",
-            "ConcatenatedFiles": [f.name for f in tfr_files],
+            "Frequencies": unique_freqs,
+            "Channels": unique_channels,
+            "NumberOfChannels": len(unique_channels),
+            "NumberOfFrequencies": len(unique_freqs),
             "TotalTimePoints": concatenated_tfr.shape[0],
             "TotalOriginalTimePoints": cumulative_original_timepoints,
             "DataShape": list(concatenated_tfr.shape),
-            "NumberOfRuns": len(tfr_files),
+            "NumberOfRuns": len(all_run_info),
             "DataRetention": float(concatenated_tfr.shape[0] / cumulative_original_timepoints) if cumulative_original_timepoints > 0 else 1.0,
             "Units": "Power (arbitrary units)",
+            "SamplingFrequency": float(sfreq) if sfreq else None,
+            "SamplingFrequencyUnit": "Hz",
+            "ColumnOrder": column_names,
+            "RunBreakdown": all_run_info,
+            "CleaningApplied": True,
             "GeneratedBy": {
                 "Name": "eeg_tfr.py",
-                "Description": "Concatenated TFR analysis using MNE-Python Morlet wavelets",
-                "Version": "2.0"
+                "Description": "Direct concatenated TFR analysis using MNE-Python Morlet wavelets",
+                "Version": "2.1"
             }
         }
         
-        # Add run-specific information
-        run_info = []
+        # Add indices information if available
+        if concatenated_clean_indices is not None:
+            concat_metadata["CleanSegments"] = concatenated_clean_indices.tolist()
+            concat_metadata["NumberOfCleanSegments"] = len(concatenated_clean_indices)
+            concat_metadata["IndexFiles"] = {
+                "CleanIndices": concat_clean_idx_filename,
+                "OriginalIndices": concat_original_idx_filename if concatenated_original_indices is not None else None,
+                "Description": "Index files map between clean (cropped) and original timepoints"
+            }
+        
+        # Save concatenated metadata
+        concat_metadata_filename = f"sub-{subject}_desc-morlet_tfr_concatenated.json"
+        concat_metadata_path = output_dir / concat_metadata_filename
+        with open(concat_metadata_path, 'w') as f:
+            json.dump(concat_metadata, f, indent=4)
+        print(f"✓ Concatenated metadata saved: {concat_metadata_path}")
+        
+        # Summary
+        print(f"\n=== PROCESSING SUMMARY ===")
+        print(f"Subject: {subject}")
+        print(f"Files available: {len(available_files)}")
+        print(f"Files successfully processed: {len(successful_files)}")
+        print(f"Files failed: {len(failed_files)}")
+        print(f"Total clean timepoints: {concatenated_tfr.shape[0]:,}")
+        print(f"Total original timepoints: {cumulative_original_timepoints:,}")
+        print(f"Overall data retention: {100*concatenated_tfr.shape[0]/cumulative_original_timepoints:.1f}%")
+        print(f"Features per timepoint: {concatenated_tfr.shape[1]}")
+        if concatenated_clean_indices is not None:
+            print(f"Total clean segments: {len(concatenated_clean_indices)}")
+        
+        print(f"\nConcatenated files saved in: {output_dir}")
+        print(f"  - {concat_tfr_filename}")
+        if concatenated_clean_indices is not None:
+            print(f"  - {concat_clean_idx_filename}")
+        if concatenated_original_indices is not None:
+            print(f"  - {concat_original_idx_filename}")
+        print(f"  - {concat_columns_filename}")
+        print(f"  - {concat_metadata_filename}")
+        
+        if failed_files:
+            print(f"\n⚠️  Failed files:")
+            for file_info in failed_files:
+                print(f"  - sub-{file_info['subject']} ses-{file_info['session']} "
+                      f"task-{file_info['task']} acq-{file_info['acquisition']} run-{file_info['run']}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error processing and concatenating data for subject {subject}: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def combine_all_subjects_data(successful_subjects, freqs, n_cycles):
+    """
+    Combine concatenated TFR data from all successful subjects into single files.
+    
+    This function loads the concatenated data from each subject and combines them
+    into final all_subs_* files, maintaining consistent ordering between data and indices.
+    
+    Parameters
+    ----------
+    successful_subjects : list
+        List of subject IDs that were successfully processed
+    freqs : np.ndarray
+        Frequencies used for TFR analysis (for metadata)
+    n_cycles : int
+        Number of cycles used (for metadata)
+        
+    Returns
+    -------
+    bool
+        True if combination was successful, False otherwise
+    """
+    print(f"\n{'='*100}")
+    print(f"COMBINING ALL SUBJECTS INTO FINAL CONCATENATED FILES")
+    print(f"{'='*100}")
+    
+    if len(successful_subjects) < 2:
+        print(f"❌ Need at least 2 subjects to combine, but only {len(successful_subjects)} successful")
+        return False
+    
+    print(f"Subjects to combine (in order): {successful_subjects}")
+    print(f"Total subjects: {len(successful_subjects)}")
+    
+    try:
+        # Lists to store data from all subjects
+        all_subjects_data = []
+        all_subjects_clean_indices = []
+        all_subjects_original_indices = []
+        all_subjects_metadata = []
+        
+        # Counters for index adjustment across subjects
+        cumulative_clean_timepoints = 0
+        cumulative_original_timepoints = 0
+        
+        # Column names (should be consistent across subjects)
+        column_names = None
+        
+        # Process each subject in order
+        for subject_idx, subject in enumerate(successful_subjects):
+            print(f"\n--- Loading data for subject {subject} ({subject_idx + 1}/{len(successful_subjects)}) ---")
+            
+            # Define paths for this subject's concatenated files
+            subject_dir = repo_root / "data" / "derivatives" / "trf" / f"sub-{subject}"
+            
+            # Load TFR data
+            tfr_file = subject_dir / f"sub-{subject}_desc-morlet_tfr_concatenated.npz"
+            if not tfr_file.exists():
+                print(f"❌ TFR file not found for subject {subject}: {tfr_file}")
+                return False
+            
+            subject_tfr_data = np.load(tfr_file)['arr_0']
+            all_subjects_data.append(subject_tfr_data)
+            print(f"✓ Loaded TFR data: {subject_tfr_data.shape}")
+            
+            # Load metadata
+            metadata_file = subject_dir / f"sub-{subject}_desc-morlet_tfr_concatenated.json"
+            if metadata_file.exists():
+                with open(metadata_file, 'r') as f:
+                    subject_metadata = json.load(f)
+                all_subjects_metadata.append(subject_metadata)
+                
+                # Get original timepoints for this subject
+                subject_original_timepoints = subject_metadata.get('TotalOriginalTimePoints', subject_tfr_data.shape[0])
+                print(f"  Original timepoints: {subject_original_timepoints:,}")
+                print(f"  Clean timepoints: {subject_tfr_data.shape[0]:,}")
+                print(f"  Data retention: {subject_metadata.get('DataRetention', 'N/A')}")
+            else:
+                print(f"⚠️  Metadata file not found: {metadata_file}")
+                subject_original_timepoints = subject_tfr_data.shape[0]  # Fallback
+                all_subjects_metadata.append({})
+            
+            # Store column names from first subject
+            if column_names is None and metadata_file.exists():
+                column_names = subject_metadata.get('ColumnOrder', [])
+                if column_names:
+                    print(f"✓ Column names stored from subject {subject}: {len(column_names)} features")
+                else:
+                    # Fallback: load from .tsv file
+                    columns_file = subject_dir / f"sub-{subject}_desc-morlet_columns_concatenated.tsv"
+                    if columns_file.exists():
+                        columns_df = pd.read_csv(columns_file, sep='\t')
+                        column_names = columns_df['column_name'].tolist()
+                        print(f"✓ Column names loaded from TSV: {len(column_names)} features")
+            
+            # Load clean data indices
+            clean_idx_file = subject_dir / f"idx_data_sub-{subject}_concatenated.npz"
+            if clean_idx_file.exists():
+                subject_clean_indices = np.load(clean_idx_file)['arr_0']
+                
+                # Adjust clean indices for across-subjects concatenation
+                adjusted_clean_indices = subject_clean_indices + cumulative_clean_timepoints
+                all_subjects_clean_indices.append(adjusted_clean_indices)
+                
+                print(f"  Clean indices shape: {subject_clean_indices.shape}")
+                print(f"  Clean indices adjustment: +{cumulative_clean_timepoints}")
+                print(f"  Adjusted clean indices range: [{adjusted_clean_indices.min()}-{adjusted_clean_indices.max()}]")
+            else:
+                print(f"⚠️  Clean indices file not found: {clean_idx_file}")
+            
+            # Load original timepoints indices
+            original_idx_file = subject_dir / f"idx_data_OLD_timepoints_sub-{subject}_concatenated.npz"
+            if original_idx_file.exists():
+                subject_original_indices = np.load(original_idx_file)['arr_0']
+                
+                # Adjust original indices for across-subjects concatenation
+                adjusted_original_indices = subject_original_indices + cumulative_original_timepoints
+                all_subjects_original_indices.append(adjusted_original_indices)
+                
+                print(f"  Original indices shape: {subject_original_indices.shape}")
+                print(f"  Original indices adjustment: +{cumulative_original_timepoints}")
+                print(f"  Adjusted original indices range: [{adjusted_original_indices.min()}-{adjusted_original_indices.max()}]")
+            else:
+                print(f"⚠️  Original indices file not found: {original_idx_file}")
+            
+            # Update cumulative counters
+            cumulative_clean_timepoints += subject_tfr_data.shape[0]
+            cumulative_original_timepoints += subject_original_timepoints
+            
+            print(f"  Cumulative clean timepoints: {cumulative_clean_timepoints:,}")
+            print(f"  Cumulative original timepoints: {cumulative_original_timepoints:,}")
+        
+        # Concatenate all subjects' data
+        print(f"\n=== CONCATENATING ALL SUBJECTS ===")
+        combined_tfr = np.vstack(all_subjects_data)
+        print(f"Combined TFR data shape: {combined_tfr.shape}")
+        print(f"Total subjects combined: {len(all_subjects_data)}")
+        
+        # Concatenate indices if available
+        combined_clean_indices = None
+        combined_original_indices = None
+        
+        if all_subjects_clean_indices:
+            combined_clean_indices = np.vstack(all_subjects_clean_indices)
+            print(f"Combined clean indices shape: {combined_clean_indices.shape}")
+            print(f"Clean indices range: [{combined_clean_indices.min()}-{combined_clean_indices.max()}]")
+        
+        if all_subjects_original_indices:
+            combined_original_indices = np.vstack(all_subjects_original_indices)
+            print(f"Combined original indices shape: {combined_original_indices.shape}")
+            print(f"Original indices range: [{combined_original_indices.min()}-{combined_original_indices.max()}]")
+        
+        # Create output directory for combined files
+        output_dir = repo_root / "data" / "derivatives" / "trf"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Combined files output directory: {output_dir}")
+        
+        # Save combined TFR data
+        combined_tfr_filename = "all_subs_desc-morlet_tfr.npz"
+        combined_tfr_path = output_dir / combined_tfr_filename
+        np.savez(combined_tfr_path, combined_tfr)
+        print(f"✓ Combined TFR data saved: {combined_tfr_path}")
+        print(f"  File size: {combined_tfr_path.stat().st_size / (1024**2):.2f} MB")
+        
+        # Save combined clean indices
+        if combined_clean_indices is not None:
+            combined_clean_idx_filename = "idx_data_all_subs.npz"
+            combined_clean_idx_path = output_dir / combined_clean_idx_filename
+            np.savez(combined_clean_idx_path, combined_clean_indices)
+            print(f"✓ Combined clean indices saved: {combined_clean_idx_path}")
+        
+        # Save combined original indices
+        if combined_original_indices is not None:
+            combined_original_idx_filename = "idx_data_OLD_timepoints_all_subs.npz"
+            combined_original_idx_path = output_dir / combined_original_idx_filename
+            np.savez(combined_original_idx_path, combined_original_indices)
+            print(f"✓ Combined original indices saved: {combined_original_idx_path}")
+        
+        # Save column names
+        if column_names:
+            combined_columns_filename = "all_subs_desc-morlet_columns.tsv"
+            combined_columns_path = output_dir / combined_columns_filename
+            columns_df = pd.DataFrame({'column_name': column_names})
+            columns_df.to_csv(combined_columns_path, sep='\t', index=False)
+            print(f"✓ Combined column names saved: {combined_columns_path}")
+        
+        # Extract frequency information from column names
+        unique_freqs = []
+        unique_channels = []
+        if column_names:
+            unique_freqs = sorted(list(set([name.split('_')[1] for name in column_names])))
+            unique_channels = sorted(list(set([name.split('_')[0] for name in column_names])))
+        
+        # Create comprehensive metadata for combined data
+        combined_metadata = {
+            "Description": "Combined time-frequency representation from all subjects",
+            "Subjects": successful_subjects,
+            "SubjectOrder": successful_subjects,
+            "Method": "Morlet wavelets",
+            "Frequencies": unique_freqs,
+            "Channels": unique_channels,
+            "NumberOfChannels": len(unique_channels),
+            "NumberOfFrequencies": len(unique_freqs),
+            "TotalTimePoints": combined_tfr.shape[0],
+            "TotalOriginalTimePoints": cumulative_original_timepoints,
+            "DataShape": list(combined_tfr.shape),
+            "NumberOfSubjects": len(successful_subjects),
+            "DataRetention": float(combined_tfr.shape[0] / cumulative_original_timepoints) if cumulative_original_timepoints > 0 else 1.0,
+            "Units": "Power (arbitrary units)",
+            "ColumnOrder": column_names,
+            "CleaningApplied": True,
+            "GeneratedBy": {
+                "Name": "eeg_tfr.py",
+                "Description": "Combined multi-subject TFR analysis using MNE-Python Morlet wavelets",
+                "Version": "2.2",
+                "Parameters": {
+                    "frequencies": freqs.tolist(),
+                    "n_cycles": n_cycles
+                }
+            }
+        }
+        
+        # Add subject-specific information
+        subject_breakdown = []
         cumulative_clean = 0
         cumulative_original = 0
         
-        for i, (tfr_data, metadata) in enumerate(zip(all_tfr_data, all_metadata)):
-            run_name = tfr_files[i].stem.replace('_desc-morlet_tfr', '')
+        for i, (subject, tfr_data, metadata) in enumerate(zip(successful_subjects, all_subjects_data, all_subjects_metadata)):
             clean_points = tfr_data.shape[0]
-            original_points = metadata.get('OriginalTimePoints', clean_points)
+            original_points = metadata.get('TotalOriginalTimePoints', clean_points)
+            num_runs = metadata.get('NumberOfRuns', 0)
             
-            run_info.append({
-                "run": run_name,
+            subject_breakdown.append({
+                "subject": subject,
+                "order": i + 1,
                 "clean_timepoints": clean_points,
                 "original_timepoints": original_points,
+                "number_of_runs": num_runs,
+                "data_retention": metadata.get('DataRetention', 1.0),
                 "clean_start_index": cumulative_clean,
                 "clean_end_index": cumulative_clean + clean_points,
                 "original_start_index": cumulative_original,
@@ -966,47 +1286,60 @@ def concatenate_subject_data(subject, trf_output_dir):
             cumulative_clean += clean_points
             cumulative_original += original_points
         
-        concat_metadata["RunBreakdown"] = run_info
+        combined_metadata["SubjectBreakdown"] = subject_breakdown
         
         # Add indices information if available
-        if concatenated_clean_indices is not None:
-            concat_metadata["CleanSegments"] = concatenated_clean_indices.tolist()
-            concat_metadata["NumberOfCleanSegments"] = len(concatenated_clean_indices)
+        if combined_clean_indices is not None:
+            combined_metadata["CleanSegments"] = combined_clean_indices.tolist()
+            combined_metadata["NumberOfCleanSegments"] = len(combined_clean_indices)
+            combined_metadata["IndexFiles"] = {
+                "CleanIndices": combined_clean_idx_filename,
+                "OriginalIndices": combined_original_idx_filename if combined_original_indices is not None else None,
+                "Description": "Index files map between clean (cropped) and original timepoints across all subjects"
+            }
         
-        if concatenated_original_indices is not None:
-            concat_metadata["OriginalSegments"] = concatenated_original_indices.tolist()
+        # Save combined metadata
+        combined_metadata_filename = "all_subs_desc-morlet_tfr.json"
+        combined_metadata_path = output_dir / combined_metadata_filename
+        with open(combined_metadata_path, 'w') as f:
+            json.dump(combined_metadata, f, indent=4)
+        print(f"✓ Combined metadata saved: {combined_metadata_path}")
         
-        # Save concatenated metadata
-        concat_metadata_filename = f"sub-{subject}_desc-morlet_tfr_concatenated.json"
-        concat_metadata_path = subject_output_dir / concat_metadata_filename
-        with open(concat_metadata_path, 'w') as f:
-            json.dump(concat_metadata, f, indent=4)
-        print(f"✓ Concatenated metadata saved: {concat_metadata_path}")
+        # Validation: Verify data and indices consistency
+        print(f"\n=== VALIDATION ===")
+        data_length = combined_tfr.shape[0]
+        if combined_clean_indices is not None:
+            max_clean_idx = combined_clean_indices.max()
+            if max_clean_idx >= data_length:
+                print(f"❌ Validation failed: max clean index ({max_clean_idx}) >= data length ({data_length})")
+                return False
+            else:
+                print(f"✓ Clean indices validation passed: max index {max_clean_idx} < data length {data_length}")
         
         # Summary
-        print(f"\n=== CONCATENATION SUMMARY ===")
-        print(f"Subject: {subject}")
-        print(f"Files concatenated: {len(tfr_files)}")
-        print(f"Total clean timepoints: {concatenated_tfr.shape[0]:,}")
+        print(f"\n=== COMBINATION SUMMARY ===")
+        print(f"Subjects combined: {successful_subjects}")
+        print(f"Subject order maintained consistently in data and indices")
+        print(f"Total clean timepoints: {combined_tfr.shape[0]:,}")
         print(f"Total original timepoints: {cumulative_original_timepoints:,}")
-        print(f"Overall data retention: {100*concatenated_tfr.shape[0]/cumulative_original_timepoints:.1f}%")
-        print(f"Features per timepoint: {concatenated_tfr.shape[1]}")
-        if concatenated_clean_indices is not None:
-            print(f"Total clean segments: {len(concatenated_clean_indices)}")
+        print(f"Overall data retention: {100*combined_tfr.shape[0]/cumulative_original_timepoints:.1f}%")
+        print(f"Features per timepoint: {combined_tfr.shape[1]}")
+        if combined_clean_indices is not None:
+            print(f"Total clean segments: {len(combined_clean_indices)}")
         
-        print(f"\nConcatenated files saved in: {subject_output_dir}")
-        print(f"  - {concat_tfr_filename}")
-        if concatenated_clean_indices is not None:
-            print(f"  - {concat_clean_idx_filename}")
-        if concatenated_original_indices is not None:
-            print(f"  - {concat_original_idx_filename}")
-        print(f"  - {concat_columns_filename}")
-        print(f"  - {concat_metadata_filename}")
+        print(f"\nCombined files saved in: {output_dir}")
+        print(f"  - {combined_tfr_filename}")
+        if combined_clean_indices is not None:
+            print(f"  - {combined_clean_idx_filename}")
+        if combined_original_indices is not None:
+            print(f"  - {combined_original_idx_filename}")
+        print(f"  - {combined_columns_filename}")
+        print(f"  - {combined_metadata_filename}")
         
         return True
         
     except Exception as e:
-        print(f"❌ Error concatenating data for subject {subject}: {e}")
+        print(f"❌ Error combining all subjects data: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -1022,17 +1355,28 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+    # Single subject
     python scripts/eeg_tfr.py --sub 14
     python scripts/eeg_tfr.py --sub 14 --freqs 2 4 8 16 32
     python scripts/eeg_tfr.py --sub 14 --cycles 4
+    
+    # Multiple subjects
+    python scripts/eeg_tfr.py --sub 14 16 17 18
+    python scripts/eeg_tfr.py --sub 14 16 17 18 --freqs 2 4 8 16 32 --cycles 4
+    python scripts/eeg_tfr.py --sub 14 16 17 18 --skip-existing
+    
+    # Multiple subjects with cross-subject concatenation
+    python scripts/eeg_tfr.py --sub 14 16 17 18 --combine-all-subs
+    python scripts/eeg_tfr.py --sub 14 16 17 18 --combine-all-subs --freqs 2 4 8 16 32
         """
     )
     
     parser.add_argument(
         '--sub', '--subject', 
         type=str, 
+        nargs='+',
         required=True,
-        help='Subject ID (e.g., 14)'
+        help='Subject ID(s) (e.g., 14 or 14 16 17 18 for multiple subjects)'
     )
     
     parser.add_argument(
@@ -1056,128 +1400,209 @@ Examples:
         help='Skip files that already have TFR output'
     )
     
+    parser.add_argument(
+        '--combine-all-subs',
+        action='store_true',
+        help='Combine all subjects into single concatenated files (all_subs_*). Requires multiple subjects.'
+    )
+    
     # Parse arguments
     args = parser.parse_args()
     
     print("="*80)
     print("EEG TIME-FREQUENCY REPRESENTATION ANALYSIS")
     print("="*80)
-    print(f"Subject: {args.sub}")
+    
+    # Handle multiple subjects
+    subjects = args.sub
+    print(f"Subjects to process: {subjects}")
+    print(f"Total subjects: {len(subjects)}")
     print(f"Frequencies: {args.freqs} Hz")
     print(f"Number of cycles: {args.cycles}")
     print(f"Skip existing files: {args.skip_existing}")
+    print(f"Combine all subjects: {args.combine_all_subs}")
+    
+    # Validate combine-all-subs flag
+    if args.combine_all_subs and len(subjects) < 2:
+        print(f"❌ Error: --combine-all-subs requires at least 2 subjects, but only {len(subjects)} provided")
+        return 1
     
     # TFR parameters
     freqs = np.array(args.freqs)
     n_cycles = args.cycles
     
+    # Track processing results across all subjects
+    subject_results = {}
+    successful_subjects = []
+    failed_subjects = []
+    skipped_subjects = []
+    
     try:
-        # Step 1: Find all available EEG files for the subject
-        available_files = find_available_eeg_files(args.sub)
-        
-        if not available_files:
-            print(f"❌ No EEG files found for subject {args.sub}")
-            return 1
-        
-        # Step 2: Process each file
-        successful_files = []
-        failed_files = []
-        skipped_files = []
-        
-        for i, file_info in enumerate(available_files, 1):
-            print(f"\n{'='*20} FILE {i}/{len(available_files)} {'='*20}")
+        # Process each subject
+        for subject_idx, subject in enumerate(subjects, 1):
+            print(f"\n{'='*100}")
+            print(f"PROCESSING SUBJECT {subject_idx}/{len(subjects)}: {subject}")
+            print(f"{'='*100}")
             
-            # Check if output already exists
-            if args.skip_existing:
-                output_dir = repo_root / "data" / "derivatives" / "trf"
-                base_filename = (f"sub-{file_info['subject']}_ses-{file_info['session']}_"
-                               f"task-{file_info['task']}_acq-{file_info['acquisition']}_"
-                               f"run-{file_info['run']}")
-                data_filename = f"{base_filename}_desc-morlet_tfr.npz"
-                data_path = output_dir / data_filename
+            try:
+                # Step 1: Find all available EEG files for the subject
+                available_files = find_available_eeg_files(subject)
                 
-                if data_path.exists():
-                    print(f"⏭️  SKIPPING: Output already exists for {base_filename}")
-                    skipped_files.append(file_info)
+                if not available_files:
+                    print(f"❌ No EEG files found for subject {subject}")
+                    failed_subjects.append(subject)
+                    subject_results[subject] = {
+                        'status': 'failed',
+                        'reason': 'No EEG files found',
+                        'files_found': 0
+                    }
                     continue
-            
-            # Process the file
-            success = process_single_file(file_info, freqs, n_cycles)
-            
-            if success:
-                successful_files.append(file_info)
+                
+                # Step 2: Check if output already exists (for skip-existing option)
+                if args.skip_existing:
+                    output_dir = repo_root / "data" / "derivatives" / "trf" / f"sub-{subject}"
+                    concat_tfr_filename = f"sub-{subject}_desc-morlet_tfr_concatenated.npz"
+                    concat_tfr_path = output_dir / concat_tfr_filename
+                    
+                    if concat_tfr_path.exists():
+                        print(f"⏭️  SKIPPING: Concatenated output already exists for subject {subject}")
+                        print(f"Output file: {concat_tfr_path}")
+                        skipped_subjects.append(subject)
+                        subject_results[subject] = {
+                            'status': 'skipped',
+                            'reason': 'Output already exists',
+                            'files_found': len(available_files),
+                            'output_file': str(concat_tfr_path)
+                        }
+                        continue
+                
+                # Step 3: Process all files and generate concatenated data directly
+                processing_success = process_and_concatenate_subject_data(subject, available_files, freqs, n_cycles)
+                
+                if processing_success:
+                    successful_subjects.append(subject)
+                    output_dir = repo_root / "data" / "derivatives" / "trf" / f"sub-{subject}"
+                    subject_results[subject] = {
+                        'status': 'success',
+                        'files_found': len(available_files),
+                        'output_dir': str(output_dir)
+                    }
+                    print(f"✓ Subject {subject} processed successfully")
+                else:
+                    failed_subjects.append(subject)
+                    subject_results[subject] = {
+                        'status': 'failed',
+                        'reason': 'Processing failed',
+                        'files_found': len(available_files)
+                    }
+                    print(f"❌ Subject {subject} processing failed")
+                    
+            except Exception as e:
+                print(f"❌ Critical error processing subject {subject}: {e}")
+                import traceback
+                traceback.print_exc()
+                failed_subjects.append(subject)
+                subject_results[subject] = {
+                    'status': 'failed',
+                    'reason': f'Critical error: {str(e)}',
+                    'files_found': 0
+                }
+        
+        # Step 4: Combine all subjects if requested
+        combination_success = True
+        if args.combine_all_subs:
+            if successful_subjects:
+                print(f"\n{'='*100}")
+                print(f"COMBINING ALL SUBJECTS (--combine-all-subs FLAG ACTIVE)")
+                print(f"{'='*100}")
+                combination_success = combine_all_subjects_data(successful_subjects, freqs, n_cycles)
+                
+                if combination_success:
+                    print(f"✓ All subjects successfully combined into final files")
+                else:
+                    print(f"❌ Failed to combine all subjects data")
             else:
-                failed_files.append(file_info)
+                print(f"\n⚠️  Cannot combine subjects: no subjects were successfully processed")
+                combination_success = False
         
-        # Step 3: Generate concatenated files for the subject
-        trf_output_dir = repo_root / "data" / "derivatives" / "trf"
+        # Final Summary across all subjects
+        print(f"\n{'='*100}")
+        print("FINAL PROCESSING SUMMARY - ALL SUBJECTS")
+        print(f"{'='*100}")
         
-        if successful_files or skipped_files:
-            print(f"\n{'='*20} CONCATENATING SUBJECT DATA {'='*20}")
-            concatenation_success = concatenate_subject_data(args.sub, trf_output_dir)
-            
-            if not concatenation_success:
-                print(f"⚠️  Warning: Failed to concatenate data for subject {args.sub}")
-        else:
-            print(f"\n⚠️  No files were processed or found - skipping concatenation")
-        
-        # Step 4: Summary
-        print(f"\n{'='*80}")
-        print("PROCESSING SUMMARY")
-        print(f"{'='*80}")
-        print(f"Total files found: {len(available_files)}")
-        print(f"Successfully processed: {len(successful_files)}")
-        print(f"Failed: {len(failed_files)}")
-        print(f"Skipped: {len(skipped_files)}")
-        
-        if successful_files:
-            print(f"\n✓ Successfully processed files:")
-            for file_info in successful_files:
-                print(f"  - sub-{file_info['subject']} ses-{file_info['session']} "
-                      f"task-{file_info['task']} acq-{file_info['acquisition']} run-{file_info['run']}")
-        
-        if failed_files:
-            print(f"\n❌ Failed files:")
-            for file_info in failed_files:
-                print(f"  - sub-{file_info['subject']} ses-{file_info['session']} "
-                      f"task-{file_info['task']} acq-{file_info['acquisition']} run-{file_info['run']}")
-        
-        if skipped_files:
-            print(f"\n⏭️  Skipped files:")
-            for file_info in skipped_files:
-                print(f"  - sub-{file_info['subject']} ses-{file_info['session']} "
-                      f"task-{file_info['task']} acq-{file_info['acquisition']} run-{file_info['run']}")
+        print(f"Total subjects requested: {len(subjects)}")
+        print(f"Successfully processed: {len(successful_subjects)}")
+        print(f"Failed: {len(failed_subjects)}")
+        print(f"Skipped: {len(skipped_subjects)}")
         
         print(f"\nTFR Analysis Configuration:")
         print(f"  Frequencies analyzed: {freqs} Hz")
         print(f"  Number of cycles used: {n_cycles}")
         print(f"  Method: Morlet wavelets")
         print(f"  Event-based cleaning: Applied (excludes 'bad' segments)")
+        print(f"  Output mode: Direct concatenation only")
+        if args.combine_all_subs:
+            print(f"  Multi-subject combination: {'✓ Applied' if combination_success else '❌ Failed'}")
         
-        print(f"\nOutput directory: {repo_root / 'data' / 'derivatives' / 'trf'}")
-        print(f"Individual files per run:")
-        print(f"  - *_desc-morlet_tfr.npz (Clean TFR data)")
-        print(f"  - *_desc-morlet_columns.tsv (Column names and order)")  
-        print(f"  - *_desc-morlet_tfr.json (Comprehensive metadata)")
-        print(f"  - idx_data_*.npz (Clean data segment indices)")
-        print(f"  - idx_data_OLD_timepoints_*.npz (Original data indices)")
+        # Detailed results by subject
+        if successful_subjects:
+            print(f"\n✓ SUCCESSFULLY PROCESSED SUBJECTS ({len(successful_subjects)}):")
+            for subject in successful_subjects:
+                result = subject_results[subject]
+                print(f"  - Subject {subject}: {result['files_found']} files processed")
+                print(f"    Output: {result['output_dir']}")
         
-        if successful_files:
-            print(f"\nConcatenated files for subject {args.sub}:")
-            print(f"  Location: {trf_output_dir / f'sub-{args.sub}'}")
-            print(f"  - sub-{args.sub}_desc-morlet_tfr_concatenated.npz")
-            print(f"  - idx_data_sub-{args.sub}_concatenated.npz")
-            print(f"  - idx_data_OLD_timepoints_sub-{args.sub}_concatenated.npz")
-            print(f"  - sub-{args.sub}_desc-morlet_columns_concatenated.tsv")
-            print(f"  - sub-{args.sub}_desc-morlet_tfr_concatenated.json")
+        if skipped_subjects:
+            print(f"\n⏭️  SKIPPED SUBJECTS ({len(skipped_subjects)}):")
+            for subject in skipped_subjects:
+                result = subject_results[subject]
+                print(f"  - Subject {subject}: {result['reason']}")
+                print(f"    Found {result['files_found']} files, output exists at: {result.get('output_file', 'N/A')}")
+        
+        if failed_subjects:
+            print(f"\n❌ FAILED SUBJECTS ({len(failed_subjects)}):")
+            for subject in failed_subjects:
+                result = subject_results[subject]
+                print(f"  - Subject {subject}: {result['reason']}")
+                if result['files_found'] > 0:
+                    print(f"    Files found: {result['files_found']}")
+        
+        print(f"\nOutput locations:")
+        base_output_dir = repo_root / "data" / "derivatives" / "trf"
+        print(f"  Base directory: {base_output_dir}")
+        for subject in successful_subjects + skipped_subjects:
+            print(f"  - sub-{subject}/")
+            print(f"    └── sub-{subject}_desc-morlet_tfr_concatenated.npz")
+            print(f"    └── idx_data_sub-{subject}_concatenated.npz")
+            print(f"    └── idx_data_OLD_timepoints_sub-{subject}_concatenated.npz")
+            print(f"    └── sub-{subject}_desc-morlet_columns_concatenated.tsv")
+            print(f"    └── sub-{subject}_desc-morlet_tfr_concatenated.json")
+        
+        if args.combine_all_subs and combination_success:
+            output_dir = repo_root / "data" / "derivatives" / "trf"
+            print(f"\nCombined files for ALL SUBJECTS:")
+            print(f"  Location: {output_dir}")
+            print(f"  - all_subs_desc-morlet_tfr.npz")
+            print(f"  - idx_data_all_subs.npz")
+            print(f"  - idx_data_OLD_timepoints_all_subs.npz")
+            print(f"  - all_subs_desc-morlet_columns.tsv")
+            print(f"  - all_subs_desc-morlet_tfr.json")
+            print(f"  Subject order: {successful_subjects}")
+        
+        print(f"\nNote: Individual run files are NOT saved in this version.")
+        print(f"      All data is processed and concatenated directly for each subject.")
+        if args.combine_all_subs:
+            print(f"      When --combine-all-subs is used, additional all_subs_* files are created.")
         
         # Return appropriate exit code
-        if failed_files and not successful_files:
-            return 1  # All files failed
-        elif failed_files:
-            return 2  # Some files failed
+        if failed_subjects and not successful_subjects and not skipped_subjects:
+            return 1  # All subjects failed
+        elif failed_subjects:
+            return 2  # Some subjects failed
+        elif args.combine_all_subs and not combination_success:
+            return 3  # Subject processing succeeded but combination failed
         else:
-            return 0  # All successful
+            return 0  # All successful or skipped
         
     except Exception as e:
         print(f"\n❌ CRITICAL ERROR: {e}")

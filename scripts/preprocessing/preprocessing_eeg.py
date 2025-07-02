@@ -80,7 +80,7 @@ cwd = os.getcwd()
 # Define the file path components for Campeones Analysis project
 raw_data_folder = "data/raw"
 
-subject = "14"
+subject = "18"
 session = "vr"
 task = "04"
 acquisition = "a"

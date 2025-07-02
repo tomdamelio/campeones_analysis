@@ -622,7 +622,7 @@ Domingo
         `./data/derivatives/trf`
 
       Seguir lo mencinado en el inicio de https://github.com/CFIN-analysis/analysis_workshop_26May/blob/main/Notebooks/1_GLHMM_intro_module_tutorial.ipynb
-- [ ] Armar un script para que tome todos los datos de trf de un participante, los estructure de acuerdo al fomrato que necesita GLHMM
+- [x] Armar un script para que tome todos los datos de trf de un participante, los estructure de acuerdo al fomrato que necesita GLHMM
       (libreria para obtener dinamicas de estados latentes en series de tiempo), y genere una primera version de la implementacion de dicho modelo.
       - Para empezar, vamos a crear un script que haga esto con una sesion/task/run del participante 14
         en concreto, este task 01 acq b y run 006 de ese participante:
@@ -717,56 +717,103 @@ Domingo
         [301893 377536]]
       
       e.g.  In this case, we have generated timeseries for 20 subjects and 50 features.
-      Each subject has 1,000 timepoints.
+      Each17,18) subject has 1,000 timepoints.
       The timeseries has the shape (20000, 50) and the indices have the shape (20, 2).
       -  check that dimensions of input files are correct:
 
     - [x] Revisar por que la generacion del trf para cada sesion del participante 14 no funcino
           (dio todos NaNs). Solucionado. EL problema era que el paramatro reject_annotations
 
-    SEGUIR DEDE ACA:
+
     - [x] Correr la implementacion del glhmm en una sesion del participante 14 (ya lo tengo armado esto)
           Esto ya esta corriendo (empezo 15 10), asi que en un rato puedo ver results
-    - [ ] Extender esto a todas las sesiones de un mismo participante
-          - Concatenar los datos de todos los participantes para hacer una unica corridas
-            con e participante 14. Eso implica:
-            - Juntar todos los datos .npy de todas las sesiones de un mismo participante 14
-            - Armar un idx_data uniendo todos los segmentos con todos los segmentos
-          Una vez que tengo esos dos archivos, que los puedo guardar en `data/derivatives/trf/sub-{sub}`
-          ya puedo:
-          - Copiar estos archivos en Arete
-          - Correr `test_glhmm.py` sobre esos datos.
-
-          Una vez que esto este corriendo...
-
-- [ ] Preprocesar el EEG de todos los paticipantes hoy (16, 17,18)
-- [ ] Correr el GLHMM que corri antes pero para todos los participantes juntos 
-
 Martes ->
-- [ ] Correr el GLHMM que corri antes pero para todos los participantes por separado (un modelo por sujeto).
+  - [x] Extender esto a todas las sesiones de un mismo participante
+        - Concatenar los datos de todos los participantes para hacer una unica corridas
+          con e participante 14. Eso implica:
+          - Juntar todos los datos .npy de todas las sesiones de un mismo participante 14
+          - Armar un idx_data uniendo todos los segmentos con todos los segmentos
+        Una vez que tengo esos dos archivos, que los puedo guardar en `data/derivatives/trf/sub-{sub}`
+        ya puedo:
+
+        - Copiar estos archivos en Arete. En concreto, toda la carpeta C:\Users\tdamelio\Desktop\campeones_analysis\data\derivatives\trf\sub-14
+        - Correr `test_glhmm.py` sobre esos datos.
+
+        Una vez que esto este corriendo...
+
+
+- [x] Preprocesar el EEG de todos los paticipantes hoy (16, 
+      Sujeto 16
+      ---------
+      Sesion A -> la señal de eeg era decididamente mala / muy ruidosa
+      Sesion b
+      - task 01 run 007 -> la señal de eeg esta perfecta, pero faltan estas anotaciones, asi que no lo pude preprocesar. despues revisar
+      - task 02 run 008 -> la señal de eeg esta completamente ruidosa. Parece que la referencia habra quedado sobre el ECG
+        despues de filtrar igual no queda tan mal.
+
+      Sujeto 17
+      ---------
+      Sesion A -> 
+      estoy viendo el PSD del task 02 que no hay pico caracteristioco de alfa. raro.
+      idem del 03.
+      
+      Sesion B -> NO HAY AUN
+
+      Sujeto 18
+      ---------
+      Sesion A -> 
+      Sesion B -> NO HAY AUN
+
+  
+  Miercoles
+  - [x] Correr el GLHMM que corri antes pero para todos los participantes juntos 
+    - [x] Chequear que se haya subido a drive el all_subs..._.npz
+    - [x] Cuando haya terminao de subirse, desde terminal, hacer cd en `data_local/tomasdamelio/campeones_data/derivatives/trf` 
+    - [x] Correr `gdown --folder --remaining-ok "https://drive.google.com/drive/folders/1WWIIHta2hT-00m9bXDAmDmJ00ug-TeXO?usp=sharing" -O .`
+    - [x] Luego de conectarme a vpn, en  `test_glhmm.py` hacer los cambios necesarios para
+      correr `all_subs`
+    - [x] Desde git bash correr test_glhmm
+      - `screen -S glhmm`
+      - `micromamba activate campeones`
+      - `cd campeones_analysis`
+      - `python scripts/glhmm/test_glhmm.py`
+      - `ctrl a y D`
+      - `screen -r glhmm`
+
+
+Mientras esto corre, empezar a armar analisis con los resultados que ya corri para el sub 14
+La presentacion son 10 minutos total
+- [x] Pensar que analisis estadisticas voy a hacer
+  SEGUIR DESDE ACA ->
+- [ ] Extraer información de EDA Phasic y Tonic con cvxEDA
+- [ ] Correr analisis exploratorios de PSD de EEG, comparando estimulo de miedo contra calm.
+- [ ] Correr analiss exploratorios de EDA (fasico y tonico), comparando estimulo de miedo contra calm.
 - [ ] Hacer analisis estadisticos por estimulo (comparar estimulos de high arousal (e.g. video 9) vs low arousal (e.g. calm video))
 - [ ] Hacer analisis estadisticos across visits para comparar el model GLHMM
       Ver https://github.com/vidaurre/glhmm/blob/main/docs/notebooks/Testing_across_visits.ipynb
       EDA ->
       - con señal tonica
       - señal fasica
-      ECG ->
-      - HR
-      - HRV
 
-Miercoles
-- [ ] Implementar TDE model -> https://github.com/CFIN-analysis/analysis_workshop_26May/blob/main/Notebooks/1_GLHMM_intro_module_tutorial.ipynb
-      - Implement `States spectral analysis` descripto en el mismo notebook
-- [ ] Empezar a armar la presentacion
+
+
+- [ ] Correr el GLHMM que corri antes pero para todos los participantes por separado (un modelo por sujeto),
+      solo en caso qeu el modelo de todos los participantes tenga algo raro.
+
 
 Jueves
-- Terminar la presentacion (corriendo analisis extra)
+- Hacer la presentacion
 
 
 
 
 
 Queda para despues ->
+
+- [ ] Implementar TDE model -> https://github.com/CFIN-analysis/analysis_workshop_26May/blob/main/Notebooks/1_GLHMM_intro_module_tutorial.ipynb
+      - Implement `States spectral analysis` descripto en el mismo notebook
+- Extraer otras medidas perifericas (HR)
+- [ ] Preprocesar sujeto 15 (), y resto de los participantes que corri peroque la
 
 - Estrucutrar los datos de las encuestas (por ahora guardados simplemente en `sourcedata` como 3 csvs separados)
     - [ ] Poblar el archivo `participants.tsv` con la informacion de los participantes.
