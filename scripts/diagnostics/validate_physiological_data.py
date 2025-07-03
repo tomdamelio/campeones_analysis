@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
-TFR Data Validation Script
+physio Data Validation Script
 
-This script validates the consistency of concatenated TFR data and indices,
+This script validates the consistency of concatenated physiological data and indices,
 ensuring that the order of concatenation is the same for both data and indices.
 
 Features:
@@ -40,7 +40,7 @@ def extract_run_info_from_filename(filename):
     Parameters
     ----------
     filename : str or Path
-        TFR filename
+        physio filename
         
     Returns
     -------
@@ -71,7 +71,7 @@ def create_sort_key(filename):
     Parameters
     ----------
     filename : str or Path
-        TFR filename
+        physio filename
         
     Returns
     -------
@@ -91,23 +91,23 @@ def create_sort_key(filename):
 
 def load_individual_files(subject, trf_output_dir):
     """
-    Load all individual TFR files for a subject in sorted order.
+    Load all individual physio files for a subject in sorted order.
     
     Parameters
     ----------
     subject : str
         Subject ID
     trf_output_dir : Path
-        Directory containing TFR files
+        Directory containing physio files
         
     Returns
     -------
     dict
         Dictionary with loaded data and metadata
     """
-    print(f"🔍 Loading individual TFR files for subject {subject}")
+    print(f"🔍 Loading individual physio files for subject {subject}")
     
-    # Find all individual TFR files
+    # Find all individual physio files
     tfr_pattern = f"sub-{subject}_*_desc-morlet_tfr.npz"
     tfr_files = list(trf_output_dir.glob(tfr_pattern))
     
@@ -115,7 +115,7 @@ def load_individual_files(subject, trf_output_dir):
     tfr_files = [f for f in tfr_files if 'concatenated' not in f.name]
     
     if not tfr_files:
-        print(f"❌ No individual TFR files found for subject {subject}")
+        print(f"❌ No individual physio files found for subject {subject}")
         return None
     
     # Sort files using consistent ordering
@@ -140,7 +140,7 @@ def load_individual_files(subject, trf_output_dir):
         individual_data['file_order'].append(run_info)
         individual_data['files'].append(tfr_file)
         
-        # Load TFR data
+        # Load physio data
         tfr_data = np.load(tfr_file)
         data = tfr_data['arr_0']
         individual_data['data'].append(data)
@@ -183,7 +183,7 @@ def load_individual_files(subject, trf_output_dir):
 
 def load_concatenated_files(subject, trf_output_dir):
     """
-    Load concatenated TFR files for a subject from subdirectory sub-{subject}.
+    Load concatenated physio files for a subject from subdirectory sub-{subject}.
     """
     print(f"\n🔍 Buscando archivos concatenados para el sujeto {subject}")
     subject_dir = trf_output_dir / f"sub-{subject}"
@@ -191,14 +191,14 @@ def load_concatenated_files(subject, trf_output_dir):
         print(f"❌ No se encontró el directorio del sujeto: {subject_dir}")
         return None
     concatenated_data = {}
-    # TFR data
-    concat_tfr_file = subject_dir / f"sub-{subject}_desc-morlet_tfr_concatenated.npz"
+    # physio data
+    concat_tfr_file = subject_dir / f"sub-{subject}_desc-physio_features_concatenated.npz"
     if concat_tfr_file.exists():
         tfr_data = np.load(concat_tfr_file)
         concatenated_data['data'] = tfr_data['arr_0']
-        print(f"✓ TFR concatenado cargado: {concatenated_data['data'].shape}")
+        print(f"✓ physio concatenado cargado: {concatenated_data['data'].shape}")
     else:
-        print(f"❌ No se encontró el archivo TFR concatenado: {concat_tfr_file}")
+        print(f"❌ No se encontró el archivo physio concatenado: {concat_tfr_file}")
         return None
     # Clean indices
     concat_clean_idx_file = subject_dir / f"idx_data_sub-{subject}_concatenated.npz"
@@ -219,7 +219,7 @@ def load_concatenated_files(subject, trf_output_dir):
         print(f"⚠️  No se encontró el archivo de índices originales concatenados: {concat_original_idx_file}")
         concatenated_data['original_indices'] = None
     # Metadata
-    concat_metadata_file = subject_dir / f"sub-{subject}_desc-morlet_tfr_concatenated.json"
+    concat_metadata_file = subject_dir / f"sub-{subject}_desc-physio_features_concatenated.json"
     if concat_metadata_file.exists():
         with open(concat_metadata_file, 'r') as f:
             concatenated_data['metadata'] = json.load(f)
@@ -660,7 +660,7 @@ def generate_validation_report(validation_results, subject, verbose=False):
     else:
         print(f"⚠️  VALIDATION ISSUES DETECTED")
         print(f"❌ Total issues found: {total_issues}")
-        print(f"🔧 Review the issues above and re-run the TFR processing if needed")
+        print(f"🔧 Review the issues above and re-run the physio processing if needed")
     
     return all_passed, total_issues
 
@@ -671,8 +671,10 @@ def validate_all_subs(trf_output_dir, verbose=False):
     """
     print(f"\n{'='*60}")
     print("Validando archivos concatenados entre participantes (all_subs)")
-    tfr_file = trf_output_dir / "all_subs_desc-morlet_tfr.npz"
+    tfr_file = trf_output_dir / "all_subs_desc-physio_features.npz"
     idx_file = trf_output_dir / "idx_data_all_subs.npz"
+    idx_orig_file = trf_output_dir / "idx_data_OLD_timepoints_all_subs.npz"
+    columns_file = trf_output_dir / "all_subs_desc-physio_columns.tsv"
     if not tfr_file.exists():
         print(f"❌ Archivo de datos no encontrado: {tfr_file}")
         return 1
@@ -693,15 +695,30 @@ def validate_all_subs(trf_output_dir, verbose=False):
             print(f"{i:3d}: {row}")
     if max_clean_idx <= n_rows:
         print(f"✅ Relación válida: max_clean_idx <= n_rows")
-        return 0
     else:
         print(f"❌ max_clean_idx > n_rows (posible error de índices)")
         return 1
+    # Validar índices originales si existe
+    if idx_orig_file.exists():
+        idx_orig_arr = np.load(idx_orig_file)['arr_0']
+        print(f"Forma del archivo de índices originales: {idx_orig_arr.shape}")
+        if verbose:
+            print(f"Todas las filas de original_indices:")
+            for i, row in enumerate(idx_orig_arr):
+                print(f"{i:3d}: {row}")
+    else:
+        print(f"⚠️  No se encontró el archivo de índices originales: {idx_orig_file}")
+    # Validar columnas si existe
+    if columns_file.exists():
+        print(f"✓ Archivo de columnas encontrado: {columns_file}")
+    else:
+        print(f"⚠️  No se encontró el archivo de columnas: {columns_file}")
+    return 0
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Validate TFR data concatenation consistency",
+        description="Validate physio data concatenation consistency",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(
@@ -721,11 +738,11 @@ def main():
     )
     args = parser.parse_args()
     print("="*80)
-    print("TFR DATA CONCATENATION VALIDATION")
+    print("physio DATA CONCATENATION VALIDATION")
     print("="*80)
-    trf_output_dir = repo_root / "data" / "derivatives" / "trf"
+    trf_output_dir = repo_root / "data" / "derivatives" / "physio"
     if not trf_output_dir.exists():
-        print(f"❌ TFR output directory not found: {trf_output_dir}")
+        print(f"❌ physio output directory not found: {trf_output_dir}")
         return 1
     if args.all_subs:
         return validate_all_subs(trf_output_dir, verbose=args.verbose)
