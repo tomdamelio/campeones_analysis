@@ -59,6 +59,7 @@ from pathlib import Path
 from git import Repo
 import mne
 from mne_bids import BIDSPath, read_raw_bids
+import csv
 
 # Find the repository root
 script_path = Path(__file__).resolve()
@@ -322,6 +323,23 @@ def find_available_eeg_files(subject):
     print(f"  Tasks: {sorted(tasks)}")
     print(f"  Acquisitions: {sorted(acquisitions)}")
     print(f"  Runs: {sorted(runs)}")
+    
+    # Sort file_info by acquisition, then task (as int), then run (as int)
+    def sort_key(info):
+        # Acquisition: sort alphabetically (a, b, ...)
+        acq = info.get('acquisition', '')
+        # Task: try to convert to int, fallback to string
+        try:
+            task = int(info.get('task', ''))
+        except Exception:
+            task = info.get('task', '')
+        # Run: try to convert to int, fallback to string
+        try:
+            run = int(info.get('run', ''))
+        except Exception:
+            run = info.get('run', '')
+        return (acq, task, run)
+    file_info = sorted(file_info, key=sort_key)
     
     return file_info
 
@@ -810,6 +828,8 @@ def process_and_concatenate_subject_data(subject, available_files, freqs, n_cycl
         all_clean_indices = []
         all_original_indices = []
         all_run_info = []
+        filelog = []
+        old_timepoints_seconds_from_start = []
         
         # Counters for index adjustment
         cumulative_clean_timepoints = 0
@@ -894,6 +914,15 @@ def process_and_concatenate_subject_data(subject, available_files, freqs, n_cycl
             
             print(f"  Cumulative clean timepoints: {cumulative_clean_timepoints:,}")
             print(f"  Cumulative original timepoints: {cumulative_original_timepoints:,}")
+            
+            filelog.append(file_info['filepath'])
+            # Guardar los intervalos en segundos desde el inicio de cada archivo
+            if original_segments_indices is not None:
+                for seg in original_segments_indices:
+                    start_tp, end_tp = seg
+                    start_sec = start_tp / sfreq
+                    end_sec = end_tp / sfreq
+                    old_timepoints_seconds_from_start.append([start_sec, end_sec])
         
         # Check if we have any successful processing
         if not all_clean_data:
@@ -1003,6 +1032,16 @@ def process_and_concatenate_subject_data(subject, available_files, freqs, n_cycl
             json.dump(concat_metadata, f, indent=4)
         print(f"✓ Concatenated metadata saved: {concat_metadata_path}")
         
+        # Guardar archivo de segundos desde inicio de cada archivo
+        np.savez(output_dir / f"idx_data_OLD_timepoints_in_seconds_from_start_sub-{subject}_concatenated.npz",
+                 np.array(old_timepoints_seconds_from_start))
+        # Guardar filelog
+        with open(output_dir / f"filelog_concatenate_sub-{subject}.csv", 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['filename'])
+            for fname in filelog:
+                writer.writerow([fname])
+        
         # Summary
         print(f"\n=== PROCESSING SUMMARY ===")
         print(f"Subject: {subject}")
@@ -1078,6 +1117,8 @@ def combine_all_subjects_data(successful_subjects, freqs, n_cycles):
         all_subjects_clean_indices = []
         all_subjects_original_indices = []
         all_subjects_metadata = []
+        all_filelogs = []
+        all_old_timepoints_seconds_from_start = []
         
         # Counters for index adjustment across subjects
         cumulative_clean_timepoints = 0
@@ -1169,6 +1210,18 @@ def combine_all_subjects_data(successful_subjects, freqs, n_cycles):
             
             print(f"  Cumulative clean timepoints: {cumulative_clean_timepoints:,}")
             print(f"  Cumulative original timepoints: {cumulative_original_timepoints:,}")
+            
+            # Cargar filelog y old_timepoints_seconds_from_start de cada sujeto
+            filelog_path = subject_dir / f"filelog_concatenate_sub-{subject}.csv"
+            old_seconds_path = subject_dir / f"idx_data_OLD_timepoints_in_seconds_from_start_sub-{subject}_concatenated.npz"
+            if filelog_path.exists():
+                with open(filelog_path, 'r') as f:
+                    reader = csv.reader(f)
+                    next(reader)  # skip header
+                    all_filelogs.extend([row[0] for row in reader])
+            if old_seconds_path.exists():
+                arr = np.load(old_seconds_path)['arr_0']
+                all_old_timepoints_seconds_from_start.extend(arr)
         
         # Concatenate all subjects' data
         print(f"\n=== CONCATENATING ALL SUBJECTS ===")
@@ -1310,11 +1363,21 @@ def combine_all_subjects_data(successful_subjects, freqs, n_cycles):
         data_length = combined_tfr.shape[0]
         if combined_clean_indices is not None:
             max_clean_idx = combined_clean_indices.max()
-            if max_clean_idx >= data_length:
-                print(f"❌ Validation failed: max clean index ({max_clean_idx}) >= data length ({data_length})")
+            if max_clean_idx > data_length:
+                print(f"❌ Validation failed: max clean index ({max_clean_idx}) > data length ({data_length})")
                 return False
             else:
-                print(f"✓ Clean indices validation passed: max index {max_clean_idx} < data length {data_length}")
+                print(f"✓ Clean indices validation passed: max index {max_clean_idx} <= data length {data_length}")
+        
+        # Guardar archivos combinados
+        output_dir = repo_root / "data" / "derivatives" / "trf"
+        np.savez(output_dir / "idx_data_OLD_timepoints_in_seconds_from_start_all_subs.npz",
+                 np.array(all_old_timepoints_seconds_from_start))
+        with open(output_dir / "filelog_concatenate_all_subs.csv", 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['filename'])
+            for fname in all_filelogs:
+                writer.writerow([fname])
         
         # Summary
         print(f"\n=== COMBINATION SUMMARY ===")

@@ -322,6 +322,23 @@ def find_available_eeg_files(subject):
     print(f"  Acquisitions: {sorted(acquisitions)}")
     print(f"  Runs: {sorted(runs)}")
     
+    # Sort file_info by acquisition, then task (as int), then run (as int)
+    def sort_key(info):
+        # Acquisition: sort alphabetically (a, b, ...)
+        acq = info.get('acquisition', '')
+        # Task: try to convert to int, fallback to string
+        try:
+            task = int(info.get('task', ''))
+        except Exception:
+            task = info.get('task', '')
+        # Run: try to convert to int, fallback to string
+        try:
+            run = int(info.get('run', ''))
+        except Exception:
+            run = info.get('run', '')
+        return (acq, task, run)
+    file_info = sorted(file_info, key=sort_key)
+    
     return file_info
 
 

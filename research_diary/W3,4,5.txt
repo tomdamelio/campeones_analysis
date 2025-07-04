@@ -784,10 +784,21 @@ Martes ->
 Mientras esto corre, empezar a armar analisis con los resultados que ya corri para el sub 14
 La presentacion son 10 minutos total
 - [x] Pensar que analisis estadisticas voy a hacer
+- [x] Extraer información de EDA Phasic y Tonic con cvxEDA del sub 14 acq b
+
+- Sesion 16 a y 14 a dentro de `campeones-prepoc` los puse en una carpeta aparte para analizar una unica sesion por participante
+
   SEGUIR DESDE ACA ->
-- [ ] Extraer información de EDA Phasic y Tonic con cvxEDA
+      - [x] Recien corri eeg_tfr para sujetos 14 16 17 18 
+      - [x] Correr `print_all_subs_indices` para all_subjects, a ver si coiniden las marcas
+        (ya esta hecho, solo tengo que correrlo)
+      - [x] Volver a correr `physiology_features` para obtener features de EDA. Comparar las marcas con los de EEG
+      - [x] Plotear features trf del sub 14 sesion b concatenada, para ver si esta todo bien.
+            -> todo estaria bien, pero tarda mucho en correr ese plot
+      - Con esos features, correr implementacion de GLHMM especificamente para esta sesion 14 acq b
+      - Con estos datos (sub 14 acq b), puedo correr GLHMM across visits con la señal de EDA
+        (seguir el tutorial pre-especificado)
 - [ ] Correr analisis exploratorios de PSD de EEG, comparando estimulo de miedo contra calm.
-- [ ] Correr analiss exploratorios de EDA (fasico y tonico), comparando estimulo de miedo contra calm.
 - [ ] Hacer analisis estadisticos por estimulo (comparar estimulos de high arousal (e.g. video 9) vs low arousal (e.g. calm video))
 - [ ] Hacer analisis estadisticos across visits para comparar el model GLHMM
       Ver https://github.com/vidaurre/glhmm/blob/main/docs/notebooks/Testing_across_visits.ipynb
@@ -795,10 +806,8 @@ La presentacion son 10 minutos total
       - con señal tonica
       - señal fasica
 
-
-
-- [ ] Correr el GLHMM que corri antes pero para todos los participantes por separado (un modelo por sujeto),
-      solo en caso qeu el modelo de todos los participantes tenga algo raro.
+- [ ] Revisar lo que corri antes para todos los particiapantes, a ver que tal esas salidas.
+- [ ] Correr el GLHMM que corri antes pero para todos los participantes.
 
 
 Jueves

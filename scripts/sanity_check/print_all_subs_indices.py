@@ -61,4 +61,32 @@ if clean_indices is not None:
         if max_clean_idx <= n_rows:
             print(f"✅ Relación válida: max_clean_idx <= n_rows")
         else:
-            print(f"❌ max_clean_idx > n_rows (posible error de índices)") 
+            print(f"❌ max_clean_idx > n_rows (posible error de índices)")
+
+# Imprimir filelog_concatenate
+filelog_path = trf_dir / f"filelog_concatenate_{sub}.csv"
+print(f"\n{'='*60}")
+print(f"Filelog de archivos concatenados")
+print(f"Archivo: {filelog_path}")
+if not filelog_path.exists():
+    print(f"❌ Archivo no encontrado")
+else:
+    with open(filelog_path, 'r') as f:
+        lines = f.readlines()
+        for i, line in enumerate(lines):
+            print(f"{i:3d}: {line.strip()}")
+
+# Imprimir idx_data_OLD_timepoints_in_seconds_from_start
+old_seconds_path = trf_dir / f"idx_data_OLD_timepoints_in_seconds_from_start_{sub}.npz"
+print(f"\n{'='*60}")
+print(f"OLD timepoints in seconds from start")
+print(f"Archivo: {old_seconds_path}")
+if not old_seconds_path.exists():
+    print(f"❌ Archivo no encontrado")
+else:
+    arr_sec = np.load(old_seconds_path)['arr_0']
+    print(f"Forma del array: {arr_sec.shape}")
+    print(f"Todas las filas:")
+    for i, row in enumerate(arr_sec):
+        print(f"{i:3d}: {row}")
+    print(f"Min: {arr_sec.min()}  Max: {arr_sec.max()}") 
