@@ -741,8 +741,14 @@ ica.exclude = to_exclude.tolist()
 # ica.plot_components(inst=epochs_clean, picks=range(15))
 
 # Plot the sources identified by ICA
+# Plot the sources identified by ICA
 if interactive:
+    print("Opening interactive ICA sources plot...")
     ica.plot_sources(raw_filtered, block=True, show=True)
+    
+    print("Opening interactive ICA components plot (topomaps)...")
+    ica.plot_components(inst=raw_filtered, show=True)
+    
     plt.show(block=True)
 
 # Add the ICA results to the report
@@ -784,8 +790,13 @@ log_preprocessing.log_detail("iclabel_review_components", [f"ICA{i:03d}" for i, 
 ##################################
 raw_ica = mne.add_reference_channels(raw_ica.load_data(), ref_channels=["FCz"])
 
-# Path to your .bvef file
-bvef_file_path = './BC-32_FCz_modified.bvef'
+# Path to your .bvef file (relative to this script)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+bvef_file_path = os.path.join(script_dir, 'BC-32_FCz_modified.bvef')
+
+if not os.path.exists(bvef_file_path):
+    raise FileNotFoundError(f"Montage file not found at: {bvef_file_path}")
+
 ## Load the extended montage
 montage = mne.channels.read_custom_montage(bvef_file_path)
 #

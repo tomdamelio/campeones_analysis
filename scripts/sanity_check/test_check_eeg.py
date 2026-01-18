@@ -29,6 +29,11 @@ def process_eeg_data(bids_path):
     
     # Plotear datos
     print("\nGenerando plot de señales EEG...")
+    
+    # Generate PSD plot
+    print("Generando PSD de la señal...")
+    raw.compute_psd(fmax=50).plot(show=True)
+
     # Scalings for EEG might need adjustment, but auto usually works
     # block=True is essential to keep the window open when running from script
     # We use scalings='auto' to ensure signals are visible
