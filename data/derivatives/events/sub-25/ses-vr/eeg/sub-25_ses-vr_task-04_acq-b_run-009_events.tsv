@@ -1,0 +1,6 @@
+onset	duration	trial_type	stim_id	condition	stim_file
+0.0	94.0	video	003	affective	stimuli/3.mp4
+0.0	229.0	video	002	affective	stimuli/2.mp4
+0.0	61.028	video	012	affective	stimuli/12.mp4
+0.0	60.0	video_luminance	112	luminance	stimuli/green_intensity_video_12.mp4
+0.0	93.0	calm	902	calm	stimuli/902.mp4

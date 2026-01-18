@@ -64,9 +64,10 @@ The processed files will be saved in BIDS format in:
 
 ## Documentation
 
-Key documentation files:
+Complete technical documentation:
+- **[`docs/README.md`](docs/README.md)** - Complete technical documentation (architecture, pipeline, scripts)
 - [`docs/event_id_mapping_implementation.md`](docs/event_id_mapping_implementation.md) - Event ID mapping for BIDS compliance
-- [`docs/scripts_preprocessing.md`](docs/scripts_preprocessing.md) - Preprocessing scripts documentation
+- [`docs/correct_file_mode.md`](docs/correct_file_mode.md) - Manual correction mode for event files
 
 ## Dependency management policy
 

@@ -24,20 +24,29 @@ La detección utiliza técnicas específicas para cada tipo de señal:
 - Para el canal PHOTO: filtrado en banda alrededor de 2 Hz + detección de envolvente
 
 Uso:
-    # Uso básico (solo crea merged_events):
-    python detect_markers.py --subject 16 --session vr --task 02 --run 003 --acq a
+    # Procesar TODAS las combinaciones para un sujeto (comportamiento por defecto):
+    python detect_markers.py --subject 25
+    
+    # Procesar solo una tarea específica (todas las adquisiciones):
+    python detect_markers.py --subject 25 --task 02
+    
+    # Procesar una combinación específica (task + acq):
+    python detect_markers.py --subject 25 --task 02 --acq a
+    
+    # Usar --all-runs explícitamente (equivalente a solo --subject):
+    python detect_markers.py --subject 25 --all-runs
     
     # Para guardar también archivos intermedios (opcional):
-    python detect_markers.py --subject 16 --session vr --task 02 --run 003 --acq a --save-auto-events --save-edited-events
+    python detect_markers.py --subject 16 --task 02 --acq a --save-auto-events --save-edited-events
     
     # Personalizar duración mínima para filtrar anotaciones cortas:
-    python detect_markers.py --subject 16 --session vr --task 02 --run 003 --acq a --min-annotation-duration 15.0
+    python detect_markers.py --subject 16 --session vr --task 02 --acq a --min-annotation-duration 15.0
     
     # Corregir un archivo ya procesado (modo corrección):
-    python detect_markers.py --subject 14 --session vr --task 01 --run 006 --acq b --correct-file
+    python detect_markers.py --subject 14 --session vr --task 01 --acq b --correct-file
     
     # Corregir archivo de un directorio específico:
-    python detect_markers.py --subject 14 --session vr --task 01 --run 006 --acq b --correct-file --correct-file-dir merged_events --correct-file-desc merged
+    python detect_markers.py --subject 14 --session vr --task 01 --acq b --correct-file --correct-file-dir merged_events --correct-file-desc merged
 
 Parámetros importantes:
     --photo-distance: Distancia mínima entre picos en segundos (default: 25)
@@ -113,12 +122,12 @@ def parse_args():
                         help="ID del sujeto (e.g., '16')")
     parser.add_argument("--session", type=str, default="vr",
                         help="ID de la sesión (default: 'vr')")
-    parser.add_argument("--task", type=str, required=True,
-                        help="ID de la tarea (e.g., '02')")
-    parser.add_argument("--run", type=str, required=True,
-                        help="ID del run (e.g., '003')")
+    parser.add_argument("--task", type=str, default=None,
+                        help="ID de la tarea (e.g., '02'). Si no se especifica, procesa todas las tareas disponibles")
     parser.add_argument("--acq", type=str, default=None,
-                        help="Parámetro de adquisición (e.g., 'a')")
+                        help="Parámetro de adquisición (e.g., 'a'). Si no se especifica, procesa todas las adquisiciones")
+    parser.add_argument("--all-runs", action="store_true",
+                        help="Procesar todas las runs disponibles para el sujeto/sesión/tarea/acq especificados")
     parser.add_argument("--audio-threshold", type=float, default=2.0,
                         help="Factor para el umbral de detección en el canal AUDIO (default: 2.0)")
     parser.add_argument("--photo-threshold", type=float, default=1.5,
@@ -196,9 +205,10 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_raw_data(subject, session, task, run, acq=None):
+def load_raw_data(subject, session, task, acq=None):
     """
-    Carga los datos raw originales.
+    Carga los datos raw originales. Detecta automáticamente el run basándose en
+    la combinación única de sub-XX_ses-YY_task-ZZ_acq-A.
     
     Parameters
     ----------
@@ -208,17 +218,15 @@ def load_raw_data(subject, session, task, run, acq=None):
         ID de la sesión
     task : str
         ID de la tarea
-    run : str
-        ID del run
     acq : str, optional
         Parámetro de adquisición
     
     Returns
     -------
     tuple
-        (raw, bids_path) con los datos raw y la ruta BIDS
+        (raw, bids_path, run) con los datos raw, la ruta BIDS y el run detectado
     """
-    print(f"\n=== Cargando datos para sub-{subject} ses-{session} task-{task} run-{run} ===\n")
+    print(f"\n=== Cargando datos para sub-{subject} ses-{session} task-{task} acq-{acq} ===\n")
     
     # Definir rutas
     bids_root = repo_root / 'data' / 'raw'
@@ -226,10 +234,43 @@ def load_raw_data(subject, session, task, run, acq=None):
     # Asegurar formato correcto de parámetros
     if task and task.isdigit():
         task = task.zfill(2)
-    if run and run.isdigit():
-        run = run.zfill(3)
     if acq:
         acq = acq.lower()
+    
+    # Buscar archivo EEG que coincida con el patrón (sin especificar run)
+    import glob
+    pattern = f"sub-{subject}/ses-{session}/eeg/sub-{subject}_ses-{session}_task-{task}_acq-{acq}_run-*_eeg.vhdr"
+    search_path = bids_root / pattern
+    
+    matching_files = glob.glob(str(search_path))
+    
+    if not matching_files:
+        raise FileNotFoundError(
+            f"No se encontró archivo EEG para sub-{subject}_ses-{session}_task-{task}_acq-{acq}\n"
+            f"Patrón de búsqueda: {search_path}"
+        )
+    
+    if len(matching_files) > 1:
+        print(f"⚠️  Se encontraron múltiples archivos que coinciden:")
+        for f in matching_files:
+            print(f"  - {f}")
+        raise ValueError(
+            f"Múltiples archivos encontrados para sub-{subject}_ses-{session}_task-{task}_acq-{acq}. "
+            "La combinación sub-ses-task-acq debería ser única."
+        )
+    
+    # Extraer el run del nombre del archivo encontrado
+    eeg_file = Path(matching_files[0])
+    filename = eeg_file.name
+    # Extraer run del patrón: sub-XX_ses-YY_task-ZZ_acq-A_run-BBB_eeg.vhdr
+    import re
+    run_match = re.search(r'_run-(\d+)_', filename)
+    if not run_match:
+        raise ValueError(f"No se pudo extraer el run del archivo: {filename}")
+    
+    run = run_match.group(1)
+    print(f"✓ Archivo encontrado: {filename}")
+    print(f"✓ Run detectado automáticamente: {run}")
     
     # Crear BIDSPath para datos raw
     bids_path = BIDSPath(
@@ -245,15 +286,96 @@ def load_raw_data(subject, session, task, run, acq=None):
     
     print(f"Ruta de datos raw: {bids_path.fpath}")
     
-    # Verificar que el archivo existe
-    if not bids_path.fpath.exists():
-        raise FileNotFoundError(f"Archivo raw no encontrado: {bids_path.fpath}")
-    
     # Cargar datos raw
     raw = read_raw_bids(bids_path, verbose=False)
     print(f"Datos raw cargados: {raw}")
     
-    return raw, bids_path
+    return raw, bids_path, run
+
+
+def find_all_matching_files(subject, session, task, acq=None):
+    """
+    Encuentra todos los archivos EEG que coinciden con los parámetros especificados.
+    
+    Parameters
+    ----------
+    subject : str
+        ID del sujeto
+    session : str
+        ID de la sesión
+    task : str
+        ID de la tarea
+    acq : str, optional
+        Parámetro de adquisición
+    
+    Returns
+    -------
+    list of tuple
+        Lista de tuplas (raw, bids_path, run) para cada archivo encontrado
+    """
+    print(f"\n=== Buscando todos los archivos para sub-{subject} ses-{session} task-{task} acq-{acq} ===\n")
+    
+    # Definir rutas
+    bids_root = repo_root / 'data' / 'raw'
+    
+    # Asegurar formato correcto de parámetros
+    if task and task.isdigit():
+        task = task.zfill(2)
+    if acq:
+        acq = acq.lower()
+    
+    # Buscar archivos EEG que coincidan con el patrón
+    import glob
+    pattern = f"sub-{subject}/ses-{session}/eeg/sub-{subject}_ses-{session}_task-{task}_acq-{acq}_run-*_eeg.vhdr"
+    search_path = bids_root / pattern
+    
+    matching_files = glob.glob(str(search_path))
+    
+    if not matching_files:
+        print(f"⚠️  No se encontraron archivos EEG para sub-{subject}_ses-{session}_task-{task}_acq-{acq}")
+        print(f"Patrón de búsqueda: {search_path}")
+        return []
+    
+    print(f"✓ Se encontraron {len(matching_files)} archivo(s):")
+    
+    results = []
+    for file_path in sorted(matching_files):
+        eeg_file = Path(file_path)
+        filename = eeg_file.name
+        
+        # Extraer run del patrón: sub-XX_ses-YY_task-ZZ_acq-A_run-BBB_eeg.vhdr
+        import re
+        run_match = re.search(r'_run-(\d+)_', filename)
+        if not run_match:
+            print(f"  ⚠️  No se pudo extraer el run del archivo: {filename}")
+            continue
+        
+        run = run_match.group(1)
+        print(f"  - {filename} (run: {run})")
+        
+        # Crear BIDSPath para datos raw
+        bids_path = BIDSPath(
+            subject=subject,
+            session=session,
+            task=task,
+            run=run,
+            acquisition=acq,
+            datatype='eeg',
+            root=bids_root,
+            extension='.vhdr'
+        )
+        
+        try:
+            # Cargar datos raw
+            raw = read_raw_bids(bids_path, verbose=False)
+            results.append((raw, bids_path, run))
+        except Exception as e:
+            print(f"  ⚠️  Error al cargar {filename}: {e}")
+            continue
+    
+    print(f"\n✓ Se cargaron exitosamente {len(results)} archivo(s)\n")
+    
+    return results
 
 
 def apply_zscore_to_raw(raw):
@@ -2541,26 +2663,46 @@ def correct_existing_file(raw, bids_path, args):
     return 0
 
 
-def main():
-    """Función principal del script."""
-    args = parse_args()
+def process_single_run(raw, bids_path, run, args):
+    """
+    Procesa una única run con los parámetros especificados.
     
+    Parameters
+    ----------
+    raw : mne.io.Raw
+        Objeto Raw de MNE con los datos
+    bids_path : mne_bids.BIDSPath
+        Ruta BIDS del archivo
+    run : str
+        Número de run
+    args : argparse.Namespace
+        Argumentos de línea de comandos
+    
+    Returns
+    -------
+    int
+        0 si el procesamiento fue exitoso, 1 si hubo error
+    """
     try:
-        # Cargar datos raw
-        raw, bids_path = load_raw_data(
-            args.subject, args.session, args.task, args.run, args.acq
-        )
+        print(f"\n{'='*80}")
+        print(f"PROCESANDO: sub-{args.subject} ses-{args.session} task-{args.task} acq-{args.acq} run-{run}")
+        print(f"{'='*80}\n")
         
         # Si se especificó --correct-file, ejecutar el modo de corrección
+        # Ahora pasamos el run detectado en args para compatibilidad
         if args.correct_file:
-            return correct_existing_file(raw, bids_path, args)
+            # Crear un nuevo namespace con el run detectado
+            import copy
+            args_with_run = copy.copy(args)
+            args_with_run.run = run
+            return correct_existing_file(raw, bids_path, args_with_run)
         
         # Cargar eventos existentes si se solicita
         original_events_df = None
         original_events_path = None
         if args.load_events or args.merge_events:
             original_events_df = load_events_file(
-                args.subject, args.session, args.task, args.run, args.acq,
+                args.subject, args.session, args.task, run, args.acq,
                 events_dir=args.events_dir, desc=args.events_desc
             )
             
@@ -2571,7 +2713,7 @@ def main():
                     subject=args.subject,
                     session=args.session,
                     task=args.task,
-                    run=args.run,
+                    run=run,
                     acquisition=args.acq,
                     datatype='eeg',
                     suffix='events',
@@ -2634,7 +2776,7 @@ def main():
         else:
             print("No se guardan anotaciones automáticas (usar --save-auto-events si se necesitan)")
             # Crear una ruta temporal para compatibilidad con funciones que esperan auto_path
-            auto_path = f"temp_auto_events_{args.subject}_{args.session}_{args.task}_{args.run}.tsv"
+            auto_path = f"temp_auto_events_{args.subject}_{args.session}_{args.task}_{run}.tsv"
         
         # Visualizar señales con anotaciones y permitir edición manual si está habilitada
         updated_annotations, has_changes = visualize_signals_with_annotations(
@@ -2697,6 +2839,9 @@ def main():
             print("(Usar --save-edited-events si necesitas guardar también en edited_events)")
         elif args.enable_manual_edit and not has_changes:
             print("\nNo se detectaron cambios en las anotaciones.")
+        
+        # Inicializar merged_df como None por defecto
+        merged_df = None
         
         # Si se solicitó fusionar los eventos, hacerlo ahora
         if args.merge_events and original_events_df is not None:
@@ -2856,6 +3001,114 @@ def main():
         return 1
     
     return 0
+
+
+def main():
+    """Función principal del script."""
+    args = parse_args()
+    
+    # Definir las tareas disponibles (mismo mapeo que en 02_create_events_tsv.py)
+    available_tasks = ['01', '02', '03', '04']
+    available_acqs = ['a', 'b']
+    
+    # Determinar qué tareas procesar
+    if args.task:
+        # Si se especificó una tarea, solo procesar esa
+        tasks_to_process = [args.task]
+    elif args.all_runs:
+        # Si se especificó --all-runs explícitamente, procesar todas las tareas
+        tasks_to_process = available_tasks
+    else:
+        # Si solo se especificó el sujeto, procesar todas las tareas (comportamiento por defecto)
+        tasks_to_process = available_tasks
+        print("ℹ️  No se especificó tarea. Procesando todas las tareas disponibles.")
+    
+    # Determinar qué adquisiciones procesar
+    if args.acq:
+        # Si se especificó acq, solo procesar esa
+        acqs_to_process = [args.acq]
+    else:
+        # Si no se especificó, procesar todas
+        acqs_to_process = available_acqs
+        if not args.task:
+            print("ℹ️  No se especificó adquisición. Procesando todas las adquisiciones (a, b).")
+    
+    # Si se especificaron task y acq, procesar una única combinación
+    if args.task and args.acq:
+        print(f"\n*** PROCESANDO COMBINACIÓN ESPECÍFICA: sub-{args.subject} ses-{args.session} task-{args.task} acq-{args.acq} ***\n")
+        
+        try:
+            # Cargar datos raw (el run se detecta automáticamente)
+            raw, bids_path, run = load_raw_data(
+                args.subject, args.session, args.task, args.acq
+            )
+            
+            return process_single_run(raw, bids_path, run, args)
+            
+        except Exception as e:
+            print(f"\nERROR: {e}")
+            import traceback
+            traceback.print_exc()
+            return 1
+    
+    # Si no, procesar múltiples combinaciones
+    else:
+        print(f"\n*** PROCESANDO MÚLTIPLES COMBINACIONES PARA sub-{args.subject} ***\n")
+        print(f"Tareas a procesar: {tasks_to_process}")
+        print(f"Adquisiciones a procesar: {acqs_to_process}\n")
+        
+        successful_runs = 0
+        failed_runs = 0
+        skipped_runs = 0
+        
+        for task in tasks_to_process:
+            for acq in acqs_to_process:
+                try:
+                    # Buscar todos los archivos que coincidan
+                    all_files = find_all_matching_files(
+                        args.subject, args.session, task, acq
+                    )
+                    
+                    if not all_files:
+                        print(f"⚠️  No se encontraron archivos para task-{task} acq-{acq}, continuando...")
+                        skipped_runs += 1
+                        continue
+                    
+                    print(f"\n{'='*80}")
+                    print(f"PROCESANDO: task-{task} acq-{acq} ({len(all_files)} archivo(s))")
+                    print(f"{'='*80}\n")
+                    
+                    for raw, bids_path, run in all_files:
+                        # Crear una copia de args con los valores actuales de task y acq
+                        import copy
+                        args_current = copy.copy(args)
+                        args_current.task = task
+                        args_current.acq = acq
+                        
+                        result = process_single_run(raw, bids_path, run, args_current)
+                        
+                        if result == 0:
+                            successful_runs += 1
+                        else:
+                            failed_runs += 1
+                            print(f"\n⚠️  Error procesando run {run}, continuando con las siguientes...")
+                
+                except Exception as e:
+                    print(f"\n⚠️  Error procesando task-{task} acq-{acq}: {e}")
+                    failed_runs += 1
+                    continue
+        
+        # Resumen final
+        print(f"\n{'='*80}")
+        print("RESUMEN DE PROCESAMIENTO")
+        print(f"{'='*80}")
+        print(f"✅ Runs procesadas exitosamente: {successful_runs}")
+        print(f"❌ Runs con errores: {failed_runs}")
+        print(f"⏭️  Combinaciones sin archivos: {skipped_runs}")
+        print(f"📊 Total intentado: {successful_runs + failed_runs}")
+        print(f"{'='*80}\n")
+        
+        return 0 if failed_runs == 0 else 1
 
 
 if __name__ == "__main__":

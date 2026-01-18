@@ -1,8 +1,8 @@
-# Modo de Corrección de Archivos - detect_markers.py
+# Modo de Corrección de Archivos - 03_detect_markers.py
 
 ## Descripción
 
-El modo de corrección (`--correct-file`) permite editar manualmente archivos de eventos ya procesados por `detect_markers.py`. Esta funcionalidad es útil cuando:
+El modo de corrección (`--correct-file`) permite editar manualmente archivos de eventos ya procesados por `03_detect_markers.py`. Esta funcionalidad es útil cuando:
 
 - Se detectan discrepancias significativas en las duraciones de eventos
 - Se necesita ajustar manualmente onsets o duraciones
@@ -11,12 +11,13 @@ El modo de corrección (`--correct-file`) permite editar manualmente archivos de
 
 ## Uso Básico
 
+**NOTA**: El parámetro `--run` ya no es necesario. El script detecta automáticamente el run del archivo EEG basándose en la combinación única `sub-XX_ses-YY_task-ZZ_acq-A`.
+
 ```bash
-python scripts/preprocessing/detect_markers.py \
+python scripts/preprocessing/03_detect_markers.py \
     --subject 14 \
     --session vr \
     --task 01 \
-    --run 006 \
     --acq b \
     --correct-file
 ```
@@ -26,11 +27,10 @@ python scripts/preprocessing/detect_markers.py \
 ### Especificar directorio y descripción del archivo
 
 ```bash
-python scripts/preprocessing/detect_markers.py \
+python scripts/preprocessing/03_detect_markers.py \
     --subject 14 \
     --session vr \
     --task 01 \
-    --run 006 \
     --acq b \
     --correct-file \
     --correct-file-dir merged_events \
@@ -40,11 +40,10 @@ python scripts/preprocessing/detect_markers.py \
 ### Guardado automático sin confirmación
 
 ```bash
-python scripts/preprocessing/detect_markers.py \
+python scripts/preprocessing/03_detect_markers.py \
     --subject 14 \
     --session vr \
     --task 01 \
-    --run 006 \
     --acq b \
     --correct-file \
     --force-save
@@ -120,16 +119,15 @@ Cuando la detección automática pierde algunos eventos reales.
 
 ```bash
 # 1. Corregir archivo merged_events
-python scripts/preprocessing/detect_markers.py \
+python scripts/preprocessing/03_detect_markers.py \
     --subject 14 \
     --session vr \
     --task 01 \
-    --run 006 \
     --acq b \
     --correct-file
 
 # 2. El script mostrará:
-#    - Información del archivo cargado
+#    - Información del archivo cargado (run detectado automáticamente)
 #    - Estadísticas de eventos
 #    - Lista detallada de eventos
 #    - Abrirá ventana interactiva

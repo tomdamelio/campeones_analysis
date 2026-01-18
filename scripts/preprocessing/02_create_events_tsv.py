@@ -115,8 +115,6 @@ def parse_args():
                        help="ID de la tarea específica a procesar (ej: '01')")
     parser.add_argument("--acq", type=str,
                        help="Parámetro de adquisición (ej: 'a')")
-    parser.add_argument("--run", type=str,
-                       help="ID del run específico a procesar (ej: '003')")
     parser.add_argument("--all-runs", action="store_true",
                        help="Procesar todas las runs disponibles para cada sujeto")
     
@@ -1101,6 +1099,9 @@ def find_matching_eeg_file(bids_root, subject, session, task, acq=None, run=None
     """
     Encuentra el archivo EEG que coincide con los parámetros dados.
     
+    NOTA: El parámetro 'run' es ignorado ya que la combinación sub-XX_ses-YY_task-ZZ_acq-A
+    es única para cada archivo. El run se detecta automáticamente del archivo encontrado.
+    
     Parameters
     ----------
     bids_root : Path
@@ -1114,7 +1115,7 @@ def find_matching_eeg_file(bids_root, subject, session, task, acq=None, run=None
     acq : str, optional
         Parámetro de adquisición (e.g., 'a')
     run : str, optional
-        Número de ejecución (e.g., '003')
+        IGNORADO - El run se detecta automáticamente del archivo
     
     Returns
     -------
@@ -1128,17 +1129,8 @@ def find_matching_eeg_file(bids_root, subject, session, task, acq=None, run=None
         print(f"Directorio EEG no encontrado: {eeg_dir}")
         return None, None
     
-    # Si el run no está especificado, intentar calcularlo a partir del task
-    if run is None and task is not None:
-        try:
-            # Formato: task-XX → run-0XX+1 (ej: task-02 → run-003)
-            task_num = int(task)
-            run = str(task_num + 1).zfill(3)
-            print(f"Run calculado a partir de task: task-{task} → run-{run}")
-        except (ValueError, TypeError):
-            pass
-    
-    # Construir un patrón de búsqueda con los parámetros que conocemos
+    # Construir un patrón de búsqueda SIN especificar run
+    # La combinación sub-XX_ses-YY_task-ZZ_acq-A es única
     pattern = f"sub-{subject}_ses-{session}"
     if task:
         # Asegurarse de que task tiene formato XX (dos dígitos)
@@ -1149,37 +1141,15 @@ def find_matching_eeg_file(bids_root, subject, session, task, acq=None, run=None
     if acq:
         # Asegurarse de que acq está en minúsculas
         pattern += f"_acq-{acq.lower()}"
-    if run:
-        # Asegurarse de que run tiene formato XXX (tres dígitos)
-        run_fmt = run
-        if run_fmt.isdigit():
-            run_fmt = str(int(run_fmt)).zfill(3)
-        pattern += f"_run-{run_fmt}"
-    pattern += "_eeg.eeg"
+    # NO especificamos run - usamos wildcard para encontrar cualquier run
+    pattern += "_run-*_eeg.eeg"
     
     print(f"Buscando archivos con patrón: {pattern}")
     matching_files = list(eeg_dir.glob(pattern))
     
-    # Si no se encuentra con todos los parámetros, intentar ajustar el run
-    if not matching_files and task:
-        print(f"No se encontraron archivos con el patrón completo, intentando con diferentes formatos de run...")
-        
-        # Probar con diferentes formatos de run
-        for run_fmt in [str(int(task)+1).zfill(3), str(int(task)).zfill(3), str(int(task)+1)]:
-            alt_pattern = f"sub-{subject}_ses-{session}_task-{task.zfill(2) if task.isdigit() else task}"
-            if acq:
-                alt_pattern += f"_acq-{acq.lower()}"
-            alt_pattern += f"_run-{run_fmt}_eeg.eeg"
-            
-            print(f"Intentando con patrón alternativo: {alt_pattern}")
-            alt_files = list(eeg_dir.glob(alt_pattern))
-            if alt_files:
-                matching_files = alt_files
-                break
-    
-    # Si aún no se encuentra, mostrar todos los archivos disponibles
+    # Si no se encuentra, mostrar todos los archivos disponibles
     if not matching_files:
-        print(f"No se encontraron archivos EEG para sub-{subject} ses-{session} task-{task}")
+        print(f"No se encontraron archivos EEG para sub-{subject} ses-{session} task-{task} acq-{acq}")
         all_files = list(eeg_dir.glob(f"sub-{subject}_ses-{session}*.eeg"))
         if all_files:
             print(f"Archivos disponibles para sub-{subject} ses-{session}:")
@@ -1187,18 +1157,20 @@ def find_matching_eeg_file(bids_root, subject, session, task, acq=None, run=None
                 print(f"  - {f.name}")
         return None, None
     
-    # Si hay más de un archivo, mostrar las opciones
+    # Si hay más de un archivo, es un error (la combinación debería ser única)
     if len(matching_files) > 1:
-        print(f"Se encontraron múltiples archivos EEG:")
+        print(f"¡ADVERTENCIA! Se encontraron múltiples archivos EEG para la misma combinación task/acq:")
         for i, f in enumerate(matching_files):
             print(f"  {i+1}. {f.name}")
-        print(f"Usando el primer archivo encontrado: {matching_files[0].name}")
+        print(f"Esto no debería ocurrir. Usando el primer archivo encontrado: {matching_files[0].name}")
     else:
         print(f"Archivo encontrado: {matching_files[0].name}")
     
-    # Extraer la información del archivo seleccionado
+    # Extraer la información del archivo seleccionado (incluyendo el run detectado)
     selected_file = matching_files[0]
     file_info = extract_eeg_info(selected_file.name)
+    
+    print(f"Run detectado automáticamente del archivo: {file_info.get('run', 'N/A')}")
     
     return selected_file, file_info
 
@@ -1206,6 +1178,10 @@ def find_matching_eeg_file(bids_root, subject, session, task, acq=None, run=None
 def process_subject(subject, session=None, task=None, acq=None, run=None):
     """
     Procesa un sujeto específico siguiendo todos los pasos.
+    
+    NOTA: El parámetro 'run' es ignorado. El run se detecta automáticamente
+    del archivo EEG encontrado, ya que la combinación sub-XX_ses-YY_task-ZZ_acq-A
+    es única para cada archivo.
     
     Parameters
     ----------
@@ -1218,10 +1194,11 @@ def process_subject(subject, session=None, task=None, acq=None, run=None):
     acq : str, optional
         Parámetro de adquisición (e.g., 'a')
     run : str, optional
-        Número de ejecución (e.g., '003')
+        IGNORADO - El run se detecta automáticamente del archivo
     """
     # Imprimir valores de entrada para depuración
-    print(f"\n=== Iniciando proceso para sub-{subject} ses-{session} task-{task} acq-{acq} run-{run} ===\n")
+    print(f"\n=== Iniciando proceso para sub-{subject} ses-{session} task-{task} acq-{acq} ===\n")
+    print(f"NOTA: El parámetro 'run' se detectará automáticamente del archivo EEG")
     
     if session is None:
         session = 'vr'  # Usar 'vr' como valor predeterminado
@@ -1297,8 +1274,9 @@ def process_subject(subject, session=None, task=None, acq=None, run=None):
     annot = create_annotations(df_with_durations)
     
     # 5. Encontrar y cargar el archivo raw correspondiente
+    # NOTA: No pasamos 'run' porque se detecta automáticamente del archivo
     bids_root = repo_root / 'data' / 'raw'
-    eeg_file, eeg_info = find_matching_eeg_file(bids_root, subject, session, task, acq, run)
+    eeg_file, eeg_info = find_matching_eeg_file(bids_root, subject, session, task, acq, run=None)
     
     if eeg_file is None:
         print(f"No se pudo encontrar un archivo EEG adecuado")
@@ -1428,66 +1406,36 @@ def main():
     for subject in subjects_to_process:
         print(f"\n=== Procesando sujeto {subject} ===\n")
         
-        # Si se especificó una tarea/run específica
-        if args.task and args.run:
-            run = args.run
-            task = args.task
-            acq_list = [args.acq] if args.acq else acq_values
-            
+        # Determinar qué tareas procesar
+        if args.task:
+            # Si se especificó una tarea, solo procesar esa
+            tasks_to_process = [args.task]
+        elif args.all_runs:
+            # Si se especificó --all-runs explícitamente, procesar todas las tareas
+            tasks_to_process = list(task_run_map.keys())
+        else:
+            # Si solo se especificó el sujeto, procesar todas las tareas (comportamiento por defecto)
+            tasks_to_process = list(task_run_map.keys())
+            print("ℹ️  No se especificó tarea. Procesando todas las tareas disponibles.")
+        
+        # Determinar qué adquisiciones procesar
+        if args.acq:
+            # Si se especificó acq, solo procesar esa
+            acq_list = [args.acq]
+        else:
+            # Si no se especificó, procesar todas
+            acq_list = acq_values
+            if not args.task:
+                print("ℹ️  No se especificó adquisición. Procesando todas las adquisiciones (a, b).")
+        
+        # Procesar cada combinación de task/acq
+        for task in tasks_to_process:
             for acq in acq_list:
-                print(f"Procesando sub-{subject} task-{task} acq-{acq} run-{run}")
-                if process_subject(subject, args.session, task, acq, run):
+                print(f"Procesando sub-{subject} task-{task} acq-{acq}")
+                if process_subject(subject, args.session, task, acq, run=None):
                     successful_runs += 1
                 else:
                     failed_runs += 1
-        
-        # Si se debe procesar todas las runs
-        elif args.all_runs or (not args.task and not args.run):
-            for task, run in task_run_map.items():
-                acq_list = [args.acq] if args.acq else acq_values
-                
-                for acq in acq_list:
-                    print(f"Procesando sub-{subject} task-{task} acq-{acq} run-{run}")
-                    if process_subject(subject, args.session, task, acq, run):
-                        successful_runs += 1
-                    else:
-                        failed_runs += 1
-        
-        # Si solo se especificó una tarea
-        elif args.task:
-            task = args.task
-            run = task_run_map.get(task, f"00{int(task)+1}")
-            acq_list = [args.acq] if args.acq else acq_values
-            
-            for acq in acq_list:
-                print(f"Procesando sub-{subject} task-{task} acq-{acq} run-{run}")
-                if process_subject(subject, args.session, task, acq, run):
-                    successful_runs += 1
-                else:
-                    failed_runs += 1
-        
-        # Si solo se especificó un run
-        elif args.run:
-            run = args.run
-            # Deducir la tarea a partir del run
-            task = None
-            for t, r in task_run_map.items():
-                if r == run:
-                    task = t
-                    break
-            
-            if task:
-                acq_list = [args.acq] if args.acq else acq_values
-                
-                for acq in acq_list:
-                    print(f"Procesando sub-{subject} task-{task} acq-{acq} run-{run}")
-                    if process_subject(subject, args.session, task, acq, run):
-                        successful_runs += 1
-                    else:
-                        failed_runs += 1
-            else:
-                print(f"No se pudo deducir la tarea para el run {run}")
-                failed_runs += 1
     
     print("\n=== Resumen de procesamiento ===")
     print(f"Runs procesadas exitosamente: {successful_runs}")

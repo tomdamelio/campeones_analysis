@@ -1,0 +1,39 @@
+{
+    "trial_type": {
+        "Description": "Broad class of event",
+        "Levels": {
+            "video": "Affective video clip (original colours) [HED: Sensory-event,Visual,Video,Stimulus/Affective]",
+            "video_luminance": "Video clip with luminance-enhanced green channel [HED: Sensory-event,Visual,Video,Attribute/Luminance-increase,Stimulus/Affective]",
+            "fixation": "Central fixation cross (baseline) [HED: Task,Instruction,Fixation,Baseline]",
+            "calm": "Calming audiovisual clip [HED: Sensory-event,Audio-Visual,Relaxation]",
+            "practice": "Practice stimulus used before main task [HED: Task,Instruction,Practice]"
+        }
+    },
+    "stim_id": {
+        "LongName": "Stimulus identifier",
+        "Description": "001-014 = affective videos; 101/103/107/109/112 = luminance videos; 500 = fixation; 901\u2013902 = calm; 991-994 = practice"
+    },
+    "condition": {
+        "Description": "Experimental condition of the event",
+        "Levels": {
+            "affective": "Emotionally engaging content",
+            "luminance": "Green-channel luminance manipulation",
+            "baseline": "Baseline with fixation",
+            "calm": "Calm/relaxation stimulus",
+            "practice": "Pre-experiment practice clip"
+        }
+    },
+    "stim_file": {
+        "Description": "Relative path to the stimulus file inside the stimuli/ folder"
+    },
+    "ProcessingMethod": {
+        "Description": "Fusi\u00f3n de eventos originales con anotaciones detectadas autom\u00e1ticamente y editadas manualmente",
+        "OriginalEventsSource": "C:\\Users\\tdamelio\\Desktop\\campeones_analysis\\data\\derivatives\\events\\sub-25\\ses-vr\\eeg\\sub-25_ses-vr_task-02_acq-a_run-003_events.tsv",
+        "MergeDate": "2026-01-17T23:39:23"
+    },
+    "GeneratedBy": {
+        "Name": "detect_markers.py",
+        "Version": "1.5",
+        "Description": "Fusi\u00f3n de eventos originales con anotaciones detectadas/editadas"
+    }
+}
