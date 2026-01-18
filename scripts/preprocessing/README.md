@@ -56,20 +56,18 @@ Detecta marcadores audiovisuales y fusiona con eventos iniciales.
 ### Paso 4: Preprocesamiento EEG
 **Script**: `04_preprocessing_eeg.py`
 
-**NOTA**: Este es un notebook de Jupyter convertido a script. No usa argumentos de línea de comandos.
+**Script**: `04_preprocessing_eeg.py`
 
-Para ejecutar, modificar las variables directamente en el código (líneas 83-87):
-```python
-subject = "18"
-session = "vr"
-task = "04"
-acquisition = "a"
-run = "005"
+Ahora soporta argumentos por línea de comandos, por lo que no es necesario editar el script.
+
+**Uso básico (sin pausas, genera reporte HTML):**
+```bash
+micromamba run -n campeones python scripts/preprocessing/04_preprocessing_eeg.py --subject 18 --session vr --task 04 --run 005
 ```
 
-Luego ejecutar:
+**Modo interactivo (pausa para inspección visual de tramas y componentes ICA):**
 ```bash
-micromamba run -n campeones python scripts/preprocessing/04_preprocessing_eeg.py
+micromamba run -n campeones python scripts/preprocessing/04_preprocessing_eeg.py --subject 18 --session vr --task 04 --run 005 --interactive
 ```
 
 Aplica filtrado, ICA, y segmentación en épocas.

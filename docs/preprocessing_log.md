@@ -122,11 +122,22 @@ Este documento registra el estado del preprocesamiento de cada participante y se
 | 03 | a | ? | 🔄 REVISAR | Marcas audio/photo detectadas correctamente. Ajuste manual pendiente. | 2025-01-18 |
 | 04 | a | ? | 🔄 REVISAR | Marcas audio/photo detectadas correctamente. Ajuste manual pendiente. | 2025-01-18 |
 | 01 | b | ? | 🔄 REVISAR | Marcas audio/photo detectadas correctamente. Ajuste manual pendiente. | 2025-01-18 |
-| 02 | b | ? | 🔄 REVISAR | Marcas audio/photo detectadas correctamente. Ajuste manual pendiente. | 2025-01-18 |
+| 02 | b | 008 | 🔄 REVISAR | Duraciones de bloques hacen sentido pero no coinciden con lo esperado. Ver detalle. | 2025-01-18 |
 | 03 | b | ? | 🔄 REVISAR | Marcas audio/photo detectadas correctamente. Ajuste manual pendiente. | 2025-01-18 |
 | 04 | b | ? | 🔄 REVISAR | Marcas audio/photo detectadas correctamente. Ajuste manual pendiente. | 2025-01-18 |
 
 **Resumen Sub-27**: Marcas detectadas correctamente en day A y day B (8/8 tasks) - **Ajuste manual y preprocesamiento pendientes para ambos días. Segundo sujeto con ambos días completos**
+
+**Detalle Task 02 Acq b Run 008**:
+- **Problema Crítico**: El usuario detectó **6 eventos** manuales (vs 5 esperados).
+- Se utilizó `--force-merge` para guardar las anotaciones.
+Duraciones observadas (6 eventos en total):
+1. **~300 s** (Posible cruz de fijación)
+2. "104 s" (901.mp4)
+3. "162 s" (6.mp4)
+4. "216 s" (13.mp4)
+5. "116 s" (14.mp4)
+6. "60 s" (green/extra)
 
 ---
 
@@ -361,6 +372,10 @@ Este documento registra el estado del preprocesamiento de cada participante y se
 ---
 
 ## Notas Metodológicas
+
+### Sincronización Audio-Photo
+- **Offset observado**: La marca de PHOTO está separada aprox. **225 ms** de la marca de AUDIO (a izquierda y derecha).
+- **Utilidad**: Esta información es crítica para ajustar manualmente las marcas cuando el canal AUDIO está perdido y solo se dispone del canal PHOTO (menos preciso).
 
 ### Criterios de Validación
 1. **Marcas válidas**: Se detectan marcadores audiovisuales coincidentes entre canales AUDIO y PHOTO

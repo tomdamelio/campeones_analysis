@@ -126,6 +126,8 @@ def parse_args():
                         help="ID de la tarea (e.g., '02'). Si no se especifica, procesa todas las tareas disponibles")
     parser.add_argument("--acq", type=str, default=None,
                         help="Parámetro de adquisición (e.g., 'a'). Si no se especifica, procesa todas las adquisiciones")
+    parser.add_argument("--run", type=str, default=None,
+                        help="ID del run (e.g., '001')")
     parser.add_argument("--all-runs", action="store_true",
                         help="Procesar todas las runs disponibles para el sujeto/sesión/tarea/acq especificados")
     parser.add_argument("--audio-threshold", type=float, default=2.0,
@@ -184,6 +186,8 @@ def parse_args():
                         help="Directorio dentro de derivatives donde guardar los eventos fusionados (default: merged_events)")
     parser.add_argument("--merged-desc", type=str, default="merged",
                         help="Descripción para los eventos fusionados (default: merged)")
+    parser.add_argument("--force-merge", action="store_true",
+                        help="Forzar la fusión incluso si la cantidad de eventos no coincide (riesgoso, usar con precaución)")
     parser.add_argument("--save-auto-events", action="store_true",
                         help="Guardar también las anotaciones automáticas en auto_events (opcional)")
     parser.add_argument("--save-edited-events", action="store_true",
@@ -205,7 +209,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_raw_data(subject, session, task, acq=None):
+def load_raw_data(subject, session, task, acq=None, run=None):
     """
     Carga los datos raw originales. Detecta automáticamente el run basándose en
     la combinación única de sub-XX_ses-YY_task-ZZ_acq-A.
@@ -239,7 +243,8 @@ def load_raw_data(subject, session, task, acq=None):
     
     # Buscar archivo EEG que coincida con el patrón (sin especificar run)
     import glob
-    pattern = f"sub-{subject}/ses-{session}/eeg/sub-{subject}_ses-{session}_task-{task}_acq-{acq}_run-*_eeg.vhdr"
+    run_str = f"run-{run}" if run else "run-*"
+    pattern = f"sub-{subject}/ses-{session}/eeg/sub-{subject}_ses-{session}_task-{task}_acq-{acq}_{run_str}_eeg.vhdr"
     search_path = bids_root / pattern
     
     matching_files = glob.glob(str(search_path))
@@ -2260,7 +2265,7 @@ def filter_short_annotations(annotations, min_duration=20.0):
         return mne.Annotations([], [], [])
 
 
-def merge_events_with_annotations(original_events_df, annotations, max_duration_diff=0.5, min_annotation_duration=20.0):
+def merge_events_with_annotations(original_events_df, annotations, max_duration_diff=0.5, min_annotation_duration=20.0, force_merge=False):
     """
     Fusiona los eventos originales con las nuevas anotaciones, actualizando los onsets y duraciones.
     Los eventos originales se mantienen en su orden original.
@@ -2314,37 +2319,69 @@ def merge_events_with_annotations(original_events_df, annotations, max_duration_
             annotations = filtered_annotations
         else:
             print(f"❌ Después del filtrado aún no coinciden: {len(events_df)} eventos vs {len(filtered_annotations)} anotaciones")
-            print("Se requerirá edición manual adicional.")
-            return None, filtered_annotations, True
+            
+            if force_merge:
+                print(f"⚠️  FORZANDO FUSIÓN: Se ignorará la discrepancia de cantidades por solicitud del usuario.")
+                print(f"   Se generará un archivo de eventos basado en las {len(filtered_annotations)} anotaciones.")
+                print(f"   Las columnas de metadatos se copiarán secuencialmente hasta donde sea posible.")
+                annotations = filtered_annotations
+            else:
+                print("Se requerirá edición manual adicional.")
+                return None, filtered_annotations, True
     else:
         print(f"✅ Las cantidades coinciden: {len(events_df)} eventos = {len(annotations)} anotaciones")
         filtered_annotations = annotations
     
     # Si llegamos aquí, las cantidades coinciden - proceder con la fusión
+    # Si llegamos aquí, las cantidades coinciden o se forzó la fusión
     # Crear una copia del DataFrame para no modificar el original
-    merged_df = events_df.copy()
-    
-    # Actualizar onsets y duraciones
-    merged_df['onset'] = annotations.onset
-    merged_df['duration'] = annotations.duration
-    
-    # Verificar diferencias significativas en duración
-    duration_differences = []
-    for i, (orig_dur, new_dur) in enumerate(zip(events_df['duration'], merged_df['duration'])):
-        if abs(orig_dur - new_dur) > max_duration_diff:
-            duration_differences.append({
-                'event_index': i,
-                'event_number': i + 1,
-                'original_duration': orig_dur,
-                'new_duration': new_dur,
-                'difference': abs(orig_dur - new_dur)
-            })
-            print(f"¡ADVERTENCIA! Diferencia significativa en la duración del evento {i+1}:")
-            print(f"  Original: {orig_dur:.2f}s")
-            print(f"  Nueva: {new_dur:.2f}s")
-    
-    # Determinar si se necesita edición manual por diferencias de duración
-    needs_duration_correction = len(duration_differences) > 0
+    if len(events_df) == len(annotations):
+        merged_df = events_df.copy()
+        
+        # Actualizar onsets y duraciones
+        merged_df['onset'] = annotations.onset
+        merged_df['duration'] = annotations.duration
+        
+        # Verificar diferencias significativas en duración
+        duration_differences = []
+        for i, (orig_dur, new_dur) in enumerate(zip(events_df['duration'], merged_df['duration'])):
+            if abs(orig_dur - new_dur) > max_duration_diff:
+                duration_differences.append({
+                    'event_index': i,
+                    'event_number': i + 1,
+                    'original_duration': orig_dur,
+                    'new_duration': new_dur,
+                    'difference': abs(orig_dur - new_dur)
+                })
+                print(f"¡ADVERTENCIA! Diferencia significativa en la duración del evento {i+1}:")
+                print(f"  Original: {orig_dur:.2f}s")
+                print(f"  Nueva: {new_dur:.2f}s")
+                
+        needs_duration_correction = len(duration_differences) > 0 and not force_merge
+        
+    else:
+        # Caso de fusión forzada con cantidades diferentes
+        print("⚠️  Construyendo DataFrame de eventos fusionados con cantidades diferentes...")
+        
+        # Crear DataFrame base con la info de las anotaciones
+        merged_df = pd.DataFrame({
+            'onset': annotations.onset,
+            'duration': annotations.duration,
+            'trial_type': annotations.description
+        })
+        
+        # Intentar recuperar metadatos del original secuencialmente
+        # (Esto asume que el orden se mantiene aunque falten o sobren eventos)
+        common_cols = [c for c in events_df.columns if c not in ['onset', 'duration', 'trial_type']]
+        
+        for col in common_cols:
+            merged_df[col] = "n/a" # Valor por defecto
+            
+            # Copiar valores hasta el mínimo de longitud
+            limit = min(len(events_df), len(merged_df))
+            merged_df.loc[:limit-1, col] = events_df.loc[:limit-1, col].values
+            
+        needs_duration_correction = False  # Si forzamos, asumimos que no queremos corregir duraciones
     
     # Mostrar resumen de la fusión
     print("\nResumen de la fusión:")
@@ -2852,7 +2889,8 @@ def process_single_run(raw, bids_path, run, args):
             merged_df, filtered_annotations, needs_manual_edit = merge_events_with_annotations(
                 original_events_df, annotations_to_merge, 
                 max_duration_diff=args.max_duration_diff, 
-                min_annotation_duration=args.min_annotation_duration
+                min_annotation_duration=args.min_annotation_duration,
+                force_merge=args.force_merge
             )
             
             # Si se necesita edición manual adicional, abrir el visualizador otra vez
@@ -2878,7 +2916,8 @@ def process_single_run(raw, bids_path, run, args):
                 merged_df, final_annotations, still_needs_edit = merge_events_with_annotations(
                     original_events_df, second_updated_annotations, 
                     max_duration_diff=args.max_duration_diff, 
-                    min_annotation_duration=args.min_annotation_duration
+                    min_annotation_duration=args.min_annotation_duration,
+                    force_merge=args.force_merge
                 )
                 
                 if still_needs_edit:
@@ -3040,7 +3079,7 @@ def main():
         try:
             # Cargar datos raw (el run se detecta automáticamente)
             raw, bids_path, run = load_raw_data(
-                args.subject, args.session, args.task, args.acq
+                args.subject, args.session, args.task, args.acq, args.run
             )
             
             return process_single_run(raw, bids_path, run, args)

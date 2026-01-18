@@ -38,9 +38,45 @@
 # - Data Source: `./data/derivatives/merged_events/`
 
 # %%
+# %%
+import argparse
+import sys
+
+# Default values (fallback)
+subject = "18"
+session = "vr"
+task = "04"
+acquisition = "a"
+run = "005"
+interactive = True
+
+# Parse arguments if running as main script
+if __name__ == "__main__" and len(sys.argv) > 1:
+    parser = argparse.ArgumentParser(description="EEG Preprocessing for Campeones Analysis Project")
+    parser.add_argument("--subject", type=str, required=True, help="Subject ID (e.g. '18')")
+    parser.add_argument("--session", type=str, required=True, help="Session ID (e.g. 'vr')")
+    parser.add_argument("--task", type=str, required=True, help="Task ID (e.g. '04')")
+    parser.add_argument("--run", type=str, required=True, help="Run ID (e.g. '005')")
+    parser.add_argument("--acquisition", type=str, default="a", help="Acquisition parameter (default: 'a')")
+    parser.add_argument("--interactive", action="store_true", help="Show interactive plots (blocks execution)")
+    
+    args = parser.parse_args()
+    subject = args.subject
+    session = args.session
+    task = args.task
+    run = args.run
+    acquisition = args.acquisition
+    interactive = args.interactive
+
 import matplotlib
-matplotlib.use("Qt5Agg")  # mismo efecto que %matplotlib qt
-#  o  matplotlib.use("Agg")  si sólo quieres salvar figuras sin mostrarlas
+if interactive:
+    try:
+        matplotlib.use("Qt5Agg")
+    except:
+        print("Qt5Agg not available, using Agg")
+        matplotlib.use("Agg")
+else:
+    matplotlib.use("Agg")
 
 # Import necessary libraries for the preprocessing
 import os
@@ -80,12 +116,10 @@ cwd = os.getcwd()
 # Define the file path components for Campeones Analysis project
 raw_data_folder = "data/raw"
 
-subject = "18"
-session = "vr"
-task = "04"
-acquisition = "a"
-run = "005"
+# Variables already set by argparse or defaults above
 data = "eeg"
+print(f"Running preprocessing for: sub-{subject} ses-{session} task-{task} acq-{acquisition} run-{run}")
+print(f"Interactive mode: {interactive}")
 
 # Create a BIDSPath object pointing to raw data
 bids_path = BIDSPath(
@@ -549,7 +583,8 @@ else:
     log_preprocessing.log_detail("complete_annotation_coverage", True)
     log_preprocessing.log_detail("gaps_found", False)
 
-raw_filtered.plot(block=True)
+if interactive:
+    raw_filtered.plot(block=True)
 
 print("=== COMPLETE ANNOTATION COVERAGE IMPLEMENTED ===")
 print("Benefits:")
@@ -706,8 +741,9 @@ ica.exclude = to_exclude.tolist()
 # ica.plot_components(inst=epochs_clean, picks=range(15))
 
 # Plot the sources identified by ICA
-ica.plot_sources(raw_filtered, block=True, show=True)
-plt.show(block=True)
+if interactive:
+    ica.plot_sources(raw_filtered, block=True, show=True)
+    plt.show(block=True)
 
 # Add the ICA results to the report
 report.add_ica(ica, title="ICA", inst=raw_filtered)
