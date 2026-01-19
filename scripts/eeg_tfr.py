@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """
+
 EEG Time-Frequency Representation (TFR) Analysis Script with Event-Based Cleaning and Multi-Subject Support
 
 This script computes time-frequency decomposition using Morlet wavelets for preprocessed EEG data
