@@ -8,20 +8,18 @@
 # ## Processing Steps (following MNE best practices):
 # 
 # 1. **Load raw data** - BrainVision format (.vhdr, .vmrk, .eeg files)
-# 2. **Set electrode montage** - Apply electrode positions BEFORE any processing
-# 3. **Filtering** - Independent notch (3A) and band-pass (3B) blocks with verification (3C, 3D)
-# 4. **Motion artifact detection** - Using accelerometer data for head movement detection
-# 5. **Visual inspection of channels** - Identify and mark bad channels  
-# 6. **Interpolate bad channels & Re-reference** - Before ICA for optimal rank
-# 7. **Variable Duration Epoching** - Create individual epochs with baseline=(None, 0) + verification
-# 8. **Epoch Quality Assessment** - Amplitude-based rejection (adapted for small datasets)
-# 9. **Manual inspection of Epochs** - Visual inspection and manual rejection
-# 10. **ICA** - Independent Component Analysis with artifact detection from continuous data
-# 11. **Final cleaning** - Baseline already applied in epoch constructor
-# 12. **Final preprocessed epochs** - Interpolation and re-referencing verification
-# 13. **Save preprocessed data** - Export both continuous file (BIDS) and individual epochs
-# 14. **Optional analysis** - PSD plots
-# 15. **Generate reports** - HTML report with interactive plots
+# 2. **Filtering** - Independent notch (3A) and band-pass (3B) blocks with verification (3C, 3D)
+# 3. **Visual inspection of channels** - Identify and mark bad channels  
+# 4. **Set Annotations** - Load events from merged_events and mark gaps as 'bad'
+# 5. **ICA** - Independent Component Analysis on continuous data (excluding 'bad' segments)
+# 6. **Set electrode montage** - Apply electrode positions
+# 7. **Interpolate bad channels** - Using clean data after ICA
+# 8. **Re-reference** - To average reference (after interpolation)
+# 9. **Save preprocessed data** - Export continuous file (BIDS) with annotations
+# 10. **Generate reports** - HTML report with interactive plots and PSD analysis
+# 
+# Note: "Variable Duration Epochs" are supported by saving continuous data 
+# with precise annotations, allowing downstream analysis to slice as needed.
 # 
 # ## Key Features:
 # - **Variable Duration Support**: Each video stimulus can have different duration
@@ -803,28 +801,44 @@ montage = mne.channels.read_custom_montage(bvef_file_path)
 ## Apply the montage to your raw data
 raw_ica.set_montage(montage)
 
+# %%
+# Interpolate Chs 
+
+# Interpolate bad channels in the raw data after ICA application and Montage
+# It is best practice to interpolate, then re-reference
+print("Interpolating bad channels...")
+raw_interpolate = raw_ica.copy().interpolate_bads()
+
+# Log the interpolated channels
+log_preprocessing.log_detail("interpolated_channels", raw_ica.info["bads"])
+
 
 # Rereference the data to the grand average reference
+# Now using the interpolated data for a cleaner average reference
 raw_rereferenced, ref_data = mne.set_eeg_reference(
-    inst=raw_ica, ref_channels="average", copy=True
+    inst=raw_interpolate, ref_channels="average", copy=True
 )
 
 # Add the final preprocessed raw data to the report
 report.add_raw(
-    raw=raw_rereferenced, title="Raw data interpolated and rereferenced", psd=True
+    raw=raw_rereferenced, title="Interp + Reref", psd=True
 )
 
 # Log the rereferencing details
 log_preprocessing.log_detail("rereferenced_channels", "grand_average")
 
-#%%
-# Interpolate chs 
-
-# Interpolate bad channels in the raw data after ICA application
-raw_interpolate = raw_rereferenced.copy().interpolate_bads()
-
-# Log the interpolated channels
-log_preprocessing.log_detail("interpolated_channels", raw_ica.info["bads"])
+# For compatibility with downstream code, we'll call the final object raw_final
+# Note: The original code used raw_interpolate later, but we want the REREFERENCED data to be the final one.
+# So we must ensure downstream code uses raw_rereferenced (or we alias it).
+# Looking at downstream (line 824 in original was defining raw_interpolate from raw_rereferenced... wait)
+# Original: raw_rereferences (from raw_ica) -> raw_interpolate (from raw_rereferenced)
+# New: raw_interpolate (from raw_ica) -> raw_rereferenced (from raw_interpolate)
+# So 'raw_rereferenced' is now the final stage. 
+# We should check what the rest of the script uses.
+# The script uses 'raw_interpolate' for plotting (line 834) and saving (line 1147).
+# So we should assign raw_interpolate = raw_rereferenced at the end to maintain variable name compatibility,
+# OR update downstream. Use alias for safety.
+raw_interpolate = raw_rereferenced
 
 # Plot the final preprocessed data for visual inspection
 print("=== FINAL PREPROCESSED DATA VISUALIZATION ===")

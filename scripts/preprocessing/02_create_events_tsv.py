@@ -115,6 +115,8 @@ def parse_args():
                        help="ID de la tarea específica a procesar (ej: '01')")
     parser.add_argument("--acq", type=str,
                        help="Parámetro de adquisición (ej: 'a')")
+    parser.add_argument("--run", type=str,
+                        help="ID del run específico a procesar (ej: '006')")
     parser.add_argument("--all-runs", action="store_true",
                        help="Procesar todas las runs disponibles para cada sujeto")
     
@@ -1141,8 +1143,15 @@ def find_matching_eeg_file(bids_root, subject, session, task, acq=None, run=None
     if acq:
         # Asegurarse de que acq está en minúsculas
         pattern += f"_acq-{acq.lower()}"
-    # NO especificamos run - usamos wildcard para encontrar cualquier run
-    pattern += "_run-*_eeg.eeg"
+    
+    # Si se especifica run, usarlo en el patrón
+    if run:
+        # Asegurar formato de 3 dígitos
+        run_fmt = str(int(run)).zfill(3) if run.isdigit() else run
+        pattern += f"_run-{run_fmt}_eeg.eeg"
+    else:
+        # NO especificamos run - usamos wildcard para encontrar cualquier run
+        pattern += "_run-*_eeg.eeg"
     
     print(f"Buscando archivos con patrón: {pattern}")
     matching_files = list(eeg_dir.glob(pattern))
@@ -1276,7 +1285,7 @@ def process_subject(subject, session=None, task=None, acq=None, run=None):
     # 5. Encontrar y cargar el archivo raw correspondiente
     # NOTA: No pasamos 'run' porque se detecta automáticamente del archivo
     bids_root = repo_root / 'data' / 'raw'
-    eeg_file, eeg_info = find_matching_eeg_file(bids_root, subject, session, task, acq, run=None)
+    eeg_file, eeg_info = find_matching_eeg_file(bids_root, subject, session, task, acq, run=run)
     
     if eeg_file is None:
         print(f"No se pudo encontrar un archivo EEG adecuado")
@@ -1432,7 +1441,9 @@ def main():
         for task in tasks_to_process:
             for acq in acq_list:
                 print(f"Procesando sub-{subject} task-{task} acq-{acq}")
-                if process_subject(subject, args.session, task, acq, run=None):
+                # Si se especificó un run global, usarlo (pero solo si tiene sentido para esta tarea)
+                # En este script, args.run es opcional y se pasa tal cual
+                if process_subject(subject, args.session, task, acq, run=args.run):
                     successful_runs += 1
                 else:
                     failed_runs += 1
