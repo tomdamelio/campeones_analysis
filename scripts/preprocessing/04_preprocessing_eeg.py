@@ -56,7 +56,7 @@ if __name__ == "__main__" and len(sys.argv) > 1:
     parser.add_argument("--task", type=str, required=True, help="Task ID (e.g. '04')")
     parser.add_argument("--run", type=str, required=True, help="Run ID (e.g. '005')")
     parser.add_argument("--acquisition", type=str, default="a", help="Acquisition parameter (default: 'a')")
-    parser.add_argument("--interactive", action="store_true", help="Show interactive plots (blocks execution)")
+    parser.add_argument("--auto", action="store_true", help="Run automatically without interactive plots")
     
     args = parser.parse_args()
     subject = args.subject
@@ -64,7 +64,7 @@ if __name__ == "__main__" and len(sys.argv) > 1:
     task = args.task
     run = args.run
     acquisition = args.acquisition
-    interactive = args.interactive
+    interactive = not args.auto
 
 import matplotlib
 if interactive:
