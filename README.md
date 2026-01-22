@@ -30,22 +30,22 @@ To generate BIDS files from the original data in XDF format:
 
 ```bash
 # Process all available XDF files
-python -m src.campeones_analysis.physio.read_xdf
+micromamba run -n campeones python -m src.campeones_analysis.physio.read_xdf
 
 # Process a specific subject
-python -m src.campeones_analysis.physio.read_xdf --subject 01
+micromamba run -n campeones python -m src.campeones_analysis.physio.read_xdf --subject 01
 
 # Process a specific session
-python -m src.campeones_analysis.physio.read_xdf --subject 01 --session VR
+micromamba run -n campeones python -m src.campeones_analysis.physio.read_xdf --subject 01 --session VR
 
 # Test mode (process only the first XDF file found)
-python -m src.campeones_analysis.physio.read_xdf --test
+micromamba run -n campeones python -m src.campeones_analysis.physio.read_xdf --test
 
 # Enable detailed logging
-python -m src.campeones_analysis.physio.read_xdf --debug
+micromamba run -n campeones python -m src.campeones_analysis.physio.read_xdf --debug
 
 # Continue processing other files if one fails
-python -m src.campeones_analysis.physio.read_xdf --continue-on-error
+micromamba run -n campeones python -m src.campeones_analysis.physio.read_xdf --continue-on-error
 ```
 
 The original files must be placed in the structure:

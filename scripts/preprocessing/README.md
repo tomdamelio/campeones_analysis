@@ -27,25 +27,43 @@ Calcula duraciones precisas de estímulos visuales. Solo ejecutar si no existe `
 ### Paso 2: Eventos Iniciales
 **Script**: `02_create_events_tsv.py`
 ```bash
-micromamba run -n campeones python scripts/preprocessing/02_create_events_tsv.py --subjects XX --all-runs
+# Deber ser corrido para cada tarea
+micromamba run -n campeones python scripts/preprocessing/02_create_events_tsv.py --subjects 31 --task 01 --acq b
+micromamba run -n campeones python scripts/preprocessing/02_create_events_tsv.py --subjects 31 --task 02 --acq b
+micromamba run -n campeones python scripts/preprocessing/02_create_events_tsv.py --subjects 31 --task 03 --acq b
+micromamba run -n campeones python scripts/preprocessing/02_create_events_tsv.py --subjects 31 --task 04 --acq b
 ```
-Genera archivos `events.tsv` desde planillas de orden experimental.
+Genera archivos `events.tsv`.
 
-**NOTA**: El parámetro `--run` ya no es necesario. El script detecta automáticamente el run del archivo EEG.
+---
+
+### Paso 2.5: Verificación Manual (Recomendado)
+**Script**: `scripts/sanity_check/test_check_physiology_manual.py`
+
+Verifica visualmente los datos antes de continuar. Se debe correr para cada run específico.
+
+```bash
+micromamba run -n campeones python scripts/sanity_check/test_check_physiology_manual.py --subject 31 --task 01 --run 006 --acq b 
+
+micromamba run -n campeones python scripts/sanity_check/test_check_physiology_manual.py --subject 31 --task 02 --run 007 --acq b 
+
+micromamba run -n campeones python scripts/sanity_check/test_check_physiology_manual.py --subject 31 --task 03 --run 008 --acq b 
+
+micromamba run -n campeones python scripts/sanity_check/test_check_physiology_manual.py --subject 31 --task 04 --run 009 --acq b 
+```
 
 ---
 
 ### Paso 3: Detección de Marcadores
 **Script**: `03_detect_markers.py`
 ```bash
-# Procesar TODAS las combinaciones para un sujeto (comportamiento por defecto)
-micromamba run -n campeones python scripts/preprocessing/03_detect_markers.py --subject XX
+micromamba run -n campeones python scripts/preprocessing/03_detect_markers.py --subject 31 --session vr --task 01 --acq b
 
-# Filtrar por tarea específica
-micromamba run -n campeones python scripts/preprocessing/03_detect_markers.py --subject XX --task YY
+micromamba run -n campeones python scripts/preprocessing/03_detect_markers.py --subject 31 --session vr --task 02 --acq b
 
-# Especificar combinación exacta
-micromamba run -n campeones python scripts/preprocessing/03_detect_markers.py --subject XX --task YY --acq a
+micromamba run -n campeones python scripts/preprocessing/03_detect_markers.py --subject 31 --session vr --task 03 --acq b
+
+micromamba run -n campeones python scripts/preprocessing/03_detect_markers.py --subject 31 --session vr --task 04 --acq b
 ```
 Detecta marcadores audiovisuales y fusiona con eventos iniciales.
 
@@ -56,7 +74,7 @@ Detecta marcadores audiovisuales y fusiona con eventos iniciales.
 ### Paso 4: Preprocesamiento EEG
 **Script**: `04_preprocessing_eeg.py`
 
-**Script**: `04_preprocessing_eeg.py`
+
 
 Ahora soporta argumentos por línea de comandos, por lo que no es necesario editar el script.
 
