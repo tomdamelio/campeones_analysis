@@ -1,5 +1,6 @@
 # Modo de Corrección de Archivos - 03_detect_markers.py
 
+-
 ## Descripción
 
 El modo de corrección (`--correct-file`) permite editar manualmente archivos de eventos ya procesados por `03_detect_markers.py`. Esta funcionalidad es útil cuando:
