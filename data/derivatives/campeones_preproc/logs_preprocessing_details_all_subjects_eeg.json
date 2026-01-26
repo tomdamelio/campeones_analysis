@@ -1439,5 +1439,198 @@
                 ]
             }
         }
+    },
+    "37": {
+        "vr": {
+            "01_run-006": {
+                "info": "<Info | 11 non-empty values\n bads: []\n ch_names: Fp1, Fp2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T7, T8, P7, ...\n chs: 31 EEG, 1 ECG, 2 EOG, 7 misc, 1 Galvanic skin response, 1 Respiration monitoring channel, 1 Stimulus\n custom_ref_applied: False\n description: Anonymized using a time shift to preserve age at acquisition\n dig: 34 items (3 Cardinal, 31 EEG)\n experimenter: mne_anonymize\n highpass: 0.0 Hz\n lowpass: 125.0 Hz\n meas_date: 2026-01-22 21:01:08 UTC\n nchan: 44\n projs: []\n sfreq: 250.0 Hz\n subject_info: <subject_info | his_id: sub-37, sex: 0, hand: 0>\n>",
+                "pipeline_name": "campeones_preproc",
+                "derivatives_organization": "pipeline_specific",
+                "derivatives_root": "C:/Users/tdamelio/Desktop/campeones_analysis\\data\\derivatives",
+                "derivatives_pipeline_folder": "C:/Users/tdamelio/Desktop/campeones_analysis\\data\\derivatives\\campeones_preproc",
+                "bids_derivatives_compliant": true,
+                "pipeline_version": "1.0",
+                "pipeline_description": "CAMPEONES EEG preprocessing with variable duration epochs",
+                "notch_frequencies": [
+                    50,
+                    100
+                ],
+                "notch_method": "fir",
+                "notch_phase": "zero",
+                "notch_filter_independent": true,
+                "hpass_filter": 1.0,
+                "lpass_filter": 48.0,
+                "bandpass_method": "fir",
+                "bandpass_phase": "zero",
+                "bandpass_filter_independent": true,
+                "eeg_optimized_filtering": true,
+                "dc_offset_removal_enhanced": true,
+                "filter_order": "notch_then_bandpass_independent",
+                "filtering_approach": "separate_independent_blocks",
+                "psd_comparison_plots": 3,
+                "bad_channels": [],
+                "complete_annotation_coverage": true,
+                "merged_events_duration_s": 924.1201635295539,
+                "bad_segments_duration_s": 716.479836470446,
+                "merged_events_percentage": 56.328182587440814,
+                "bad_segments_percentage": 43.671817412559186,
+                "bad_segments_count": 8,
+                "annotation_strategy": "merged_events_plus_bad_gaps",
+                "ica_reject_by_annotation": true,
+                "ica_used_only_merged_events": true,
+                "ica_excluded_bad_segments": true,
+                "ica_components_excluded": [
+                    8,
+                    16,
+                    17,
+                    24,
+                    13,
+                    19,
+                    0,
+                    1,
+                    2,
+                    4,
+                    14,
+                    15,
+                    22,
+                    21,
+                    28,
+                    18
+                ],
+                "ica_method": "picard",
+                "ica_max_iter": "auto",
+                "ica_random_state": 42,
+                "iclabel_total_components": 31,
+                "iclabel_classifications": {
+                    "component_labels": {
+                        "ICA000": "eye blink",
+                        "ICA001": "eye blink",
+                        "ICA002": "eye blink",
+                        "ICA003": "brain",
+                        "ICA004": "eye blink",
+                        "ICA005": "brain",
+                        "ICA006": "brain",
+                        "ICA007": "brain",
+                        "ICA008": "muscle artifact",
+                        "ICA009": "brain",
+                        "ICA010": "brain",
+                        "ICA011": "other",
+                        "ICA012": "other",
+                        "ICA013": "muscle artifact",
+                        "ICA014": "brain",
+                        "ICA015": "eye blink",
+                        "ICA016": "muscle artifact",
+                        "ICA017": "eye blink",
+                        "ICA018": "other",
+                        "ICA019": "eye blink",
+                        "ICA020": "brain",
+                        "ICA021": "muscle artifact",
+                        "ICA022": "muscle artifact",
+                        "ICA023": "brain",
+                        "ICA024": "eye blink",
+                        "ICA025": "other",
+                        "ICA026": "brain",
+                        "ICA027": "other",
+                        "ICA028": "other",
+                        "ICA029": "brain",
+                        "ICA030": "brain"
+                    },
+                    "label_counts": {
+                        "eye blink": 8,
+                        "brain": 12,
+                        "muscle artifact": 5,
+                        "other": 6
+                    },
+                    "auto_exclude_candidates": 13,
+                    "brain_components": 12,
+                    "review_needed": 6
+                },
+                "iclabel_automatic_exclusions": [
+                    "ICA000",
+                    "ICA001",
+                    "ICA002",
+                    "ICA004",
+                    "ICA008",
+                    "ICA013",
+                    "ICA015",
+                    "ICA016",
+                    "ICA017",
+                    "ICA019",
+                    "ICA021",
+                    "ICA022",
+                    "ICA024"
+                ],
+                "iclabel_brain_components": [
+                    "ICA003",
+                    "ICA005",
+                    "ICA006",
+                    "ICA007",
+                    "ICA009",
+                    "ICA010",
+                    "ICA014",
+                    "ICA020",
+                    "ICA023",
+                    "ICA026",
+                    "ICA029",
+                    "ICA030"
+                ],
+                "iclabel_review_components": [
+                    "ICA011",
+                    "ICA012",
+                    "ICA018",
+                    "ICA025",
+                    "ICA027",
+                    "ICA028"
+                ],
+                "interpolated_channels": [],
+                "rereferenced_channels": "grand_average",
+                "individual_psds_generated": true,
+                "psd_annotation_types": [
+                    "video_luminance",
+                    "calm",
+                    "fixation",
+                    "video"
+                ],
+                "psd_frequency_range": "0-50 Hz",
+                "comparative_psd_generated": true,
+                "comparative_psd_conditions": [
+                    "video_luminance",
+                    "calm",
+                    "fixation",
+                    "video"
+                ],
+                "comparative_psd_data": {
+                    "calm": {
+                        "duration": 104.01597767827992,
+                        "n_channels": 32,
+                        "freq_range": "0.0-44.9 Hz"
+                    },
+                    "fixation": {
+                        "duration": 300.0160108140541,
+                        "n_channels": 32,
+                        "freq_range": "0.0-44.9 Hz"
+                    },
+                    "video": {
+                        "duration": 460.07572585608693,
+                        "n_channels": 32,
+                        "freq_range": "0.0-44.9 Hz"
+                    },
+                    "video_luminance": {
+                        "duration": 60.01244918113298,
+                        "n_channels": 32,
+                        "freq_range": "0.0-44.9 Hz"
+                    }
+                },
+                "comparative_psd_frequency_range": "1-45 Hz",
+                "final_preprocessing_completed": true,
+                "final_raw_data_saved": "C:\\Users\\tdamelio\\Desktop\\campeones_analysis\\data\\derivatives\\campeones_preproc\\sub-37\\ses-vr\\eeg\\sub-37_ses-vr_task-01_acq-b_run-006_desc-preproc_eeg.vhdr",
+                "preprocessing_steps_completed": [
+                    "filtering",
+                    "ica",
+                    "interpolation",
+                    "rereferencing"
+                ]
+            }
+        }
     }
 }
