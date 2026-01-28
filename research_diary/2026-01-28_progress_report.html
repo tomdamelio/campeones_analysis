@@ -1,0 +1,1318 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Progress Report - Campeones Analysis</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            max_width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+            color: #333;
+        }
+        img {
+            max_width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        code {
+            background-color: #f8f8f8;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+        }
+        h1, h2, h3 { 
+            color: #2c3e50; 
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+<h1>Research Diary: Implementacion de modelos predictivos de estados afectivos a partir de EEG</h1>
+<p><strong>Fecha:</strong> 28 de Enero de 2026
+<strong>Sujeto:</strong> 27 (Acq A &amp; B)
+<strong>Sesión:</strong> VR</p>
+<h2>1. Objetivo</h2>
+<p>El objetivo es hace decoding estados afectivos (<strong>Arousal, Valencia</strong>) y perceptivos (<strong>Luminancia</strong>) a partir de datos de EEG de registrados durante la visualización de videos.
+Las etiquetas de "ground truth" fueron generadas por un reporte continuo mediante joystick.</p>
+<h2>2. Pipeline de procesamiento de datos</h2>
+<h3>2.1 Preprocesamiento y Carga (Loading)</h3>
+<ul>
+<li><strong>Fuente:</strong> Archivos BrainVision (<code>.vhdr</code>) preprocesados mediante un pipeline semi-automatizado (filtrado, ICA, rechazo de artefactos manual).</li>
+<li><strong>Alineación del EEG con los markers:</strong> Los datos del joystick (<code>.xdf</code> / <code>.log</code>) se alinean con los triggers del EEG.</li>
+<li><strong>Corrección de Polaridad:</strong></li>
+<li>La dirección del joystick fue aleatorizada por video, para sacarnos de encima cualquier confounder motor.</li>
+<li><strong>Paso de Corrección:</strong> Si <code>polaridad == 'inverse'</code>, entonces y_{raw} = -1 x y_{raw}.</li>
+<li>Esto asegura que los valores positivos siempre correspondan a alta intensidad (ej. Alto Arousal), sin estar prediciendo necesariamente "mover el joystick a la derecha".</li>
+</ul>
+<h3>2.2 Feature Engineering (Fase 1: Dominio del Tiempo)</h3>
+<p>Inicialmente, abordamos esto como un problema de decoding de series temporales crudas.</p>
+<ul>
+<li><strong>Epocado:</strong> Sliding windows con solapamiento.</li>
+<li>Duración: 1.0 segundo.</li>
+<li>
+<p>Solapamiento: 0.9 segundos (Step = 0.1s).</p>
+</li>
+<li>
+<p><strong>Features:</strong></p>
+</li>
+<li>Amplitud cruda del EEG de los 32 canales.</li>
+<li><strong>Vectorización:</strong> Aplanado de <code>(n_channels, n_times)</code> -&gt; <code>(n_features,)</code>.</li>
+<li><strong>Escalado:</strong> <code>StandardScaler</code> (Normalización Z-score).</li>
+<li><strong>Reducción de Dimensionalidad:</strong> Análisis de Componentes Principales (<strong>PCA</strong>) con <code>n_components=100</code>.</li>
+</ul>
+<h2>3. Modelos predictivos</h2>
+<p>Probamos iterativamente tres enfoques para mapear el EEG a los valores del Joystick.</p>
+<h3>Test 1: Regresión (Predicción Continua)</h3>
+<ul>
+<li><strong>Objetivo:</strong> Predecir el valor exacto del joystick <em>y</em> en [-1, 1].</li>
+<li><strong>Modelo:</strong> <code>RidgeRegression</code> (Alpha=1.0).</li>
+<li><strong>Validación:</strong> Leave-One-Video-Out (LOVO).</li>
+<li><strong>Dimensiones del Dataset:</strong></li>
+<li><strong>Features (Input):</strong> ~9,250 features crudos (37 canales x 250 muestras) -&gt; Reducido a <strong>100 Componentes Principales</strong>.</li>
+<li><strong>Estructura por Dimensión:</strong><ul>
+<li><strong>Arousal:</strong> 14 videos (folds). ~17,000 inst. train / ~1,200 inst. test por fold.</li>
+<li><strong>Valencia:</strong> 10 videos (folds). ~12,000 inst. train / ~1,300 inst. test por fold.</li>
+<li><strong>Luminancia:</strong> 7 videos (folds). ~3,700 inst. train / ~600 inst. test por fold.</li>
+</ul>
+</li>
+</ul>
+<h3>Resultados detallados (resultados de la regresión por fold y promedio)</h3>
+<h4>Arousal</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fold (Test Video)</th>
+<th style="text-align: center;">Train N</th>
+<th style="text-align: center;">Test N</th>
+<th style="text-align: center;">RMSE</th>
+<th style="text-align: center;">Corr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">8.0_a</td>
+<td style="text-align: center;">17719</td>
+<td style="text-align: center;">792</td>
+<td style="text-align: center;">0.181</td>
+<td style="text-align: center;">0.524</td>
+</tr>
+<tr>
+<td style="text-align: left;">5.0_a</td>
+<td style="text-align: center;">17677</td>
+<td style="text-align: center;">834</td>
+<td style="text-align: center;">0.132</td>
+<td style="text-align: center;">0.420</td>
+</tr>
+<tr>
+<td style="text-align: left;">6.0_b</td>
+<td style="text-align: center;">16833</td>
+<td style="text-align: center;">1678</td>
+<td style="text-align: center;">0.560</td>
+<td style="text-align: center;">0.152</td>
+</tr>
+<tr>
+<td style="text-align: left;">2.0_b</td>
+<td style="text-align: center;">16135</td>
+<td style="text-align: center;">2376</td>
+<td style="text-align: center;">0.239</td>
+<td style="text-align: center;">0.095</td>
+</tr>
+<tr>
+<td style="text-align: left;">1.0_a</td>
+<td style="text-align: center;">17448</td>
+<td style="text-align: center;">1063</td>
+<td style="text-align: center;">0.147</td>
+<td style="text-align: center;">0.083</td>
+</tr>
+<tr>
+<td style="text-align: left;">7.0_a</td>
+<td style="text-align: center;">16844</td>
+<td style="text-align: center;">1667</td>
+<td style="text-align: center;">0.507</td>
+<td style="text-align: center;">0.073</td>
+</tr>
+<tr>
+<td style="text-align: left;">9.0_a</td>
+<td style="text-align: center;">16917</td>
+<td style="text-align: center;">1594</td>
+<td style="text-align: center;">0.099</td>
+<td style="text-align: center;">-0.009</td>
+</tr>
+<tr>
+<td style="text-align: left;">12.0_b</td>
+<td style="text-align: center;">17885</td>
+<td style="text-align: center;">626</td>
+<td style="text-align: center;">0.121</td>
+<td style="text-align: center;">-0.038</td>
+</tr>
+<tr>
+<td style="text-align: left;">13.0_b</td>
+<td style="text-align: center;">16270</td>
+<td style="text-align: center;">2241</td>
+<td style="text-align: center;">0.241</td>
+<td style="text-align: center;">-0.072</td>
+</tr>
+<tr>
+<td style="text-align: left;">3.0_b</td>
+<td style="text-align: center;">17541</td>
+<td style="text-align: center;">970</td>
+<td style="text-align: center;">0.140</td>
+<td style="text-align: center;">-0.106</td>
+</tr>
+<tr>
+<td style="text-align: left;">10.0_a</td>
+<td style="text-align: center;">16719</td>
+<td style="text-align: center;">1792</td>
+<td style="text-align: center;">0.183</td>
+<td style="text-align: center;">-0.184</td>
+</tr>
+<tr>
+<td style="text-align: left;">4.0_a</td>
+<td style="text-align: center;">17895</td>
+<td style="text-align: center;">616</td>
+<td style="text-align: center;">0.502</td>
+<td style="text-align: center;">-0.196</td>
+</tr>
+<tr>
+<td style="text-align: left;">11.0_a</td>
+<td style="text-align: center;">17448</td>
+<td style="text-align: center;">1063</td>
+<td style="text-align: center;">0.210</td>
+<td style="text-align: center;">-0.617</td>
+</tr>
+<tr>
+<td style="text-align: left;">14.0_b</td>
+<td style="text-align: center;">17312</td>
+<td style="text-align: center;">1199</td>
+<td style="text-align: center;">0.251</td>
+<td style="text-align: center;">-0.671</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Promedio</strong></td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;"><strong>0.251</strong></td>
+<td style="text-align: center;"><strong>-0.039</strong></td>
+</tr>
+</tbody>
+</table>
+<h4>Valencia</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fold (Test Video)</th>
+<th style="text-align: center;">Train N</th>
+<th style="text-align: center;">Test N</th>
+<th style="text-align: center;">RMSE</th>
+<th style="text-align: center;">Corr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">3.0_a</td>
+<td style="text-align: center;">12871</td>
+<td style="text-align: center;">969</td>
+<td style="text-align: center;">0.633</td>
+<td style="text-align: center;">0.150</td>
+</tr>
+<tr>
+<td style="text-align: left;">2.0_a</td>
+<td style="text-align: center;">11464</td>
+<td style="text-align: center;">2376</td>
+<td style="text-align: center;">0.296</td>
+<td style="text-align: center;">0.119</td>
+</tr>
+<tr>
+<td style="text-align: left;">11.0_b</td>
+<td style="text-align: center;">12777</td>
+<td style="text-align: center;">1063</td>
+<td style="text-align: center;">0.187</td>
+<td style="text-align: center;">0.093</td>
+</tr>
+<tr>
+<td style="text-align: left;">12.0_a</td>
+<td style="text-align: center;">13214</td>
+<td style="text-align: center;">626</td>
+<td style="text-align: center;">0.507</td>
+<td style="text-align: center;">0.062</td>
+</tr>
+<tr>
+<td style="text-align: left;">10.0_b</td>
+<td style="text-align: center;">12048</td>
+<td style="text-align: center;">1792</td>
+<td style="text-align: center;">0.172</td>
+<td style="text-align: center;">0.054</td>
+</tr>
+<tr>
+<td style="text-align: left;">1.0_b</td>
+<td style="text-align: center;">12777</td>
+<td style="text-align: center;">1063</td>
+<td style="text-align: center;">0.118</td>
+<td style="text-align: center;">-0.034</td>
+</tr>
+<tr>
+<td style="text-align: left;">13.0_a</td>
+<td style="text-align: center;">11600</td>
+<td style="text-align: center;">2240</td>
+<td style="text-align: center;">0.601</td>
+<td style="text-align: center;">-0.047</td>
+</tr>
+<tr>
+<td style="text-align: left;">6.0_a</td>
+<td style="text-align: center;">12162</td>
+<td style="text-align: center;">1678</td>
+<td style="text-align: center;">0.673</td>
+<td style="text-align: center;">-0.105</td>
+</tr>
+<tr>
+<td style="text-align: left;">5.0_b</td>
+<td style="text-align: center;">13006</td>
+<td style="text-align: center;">834</td>
+<td style="text-align: center;">0.076</td>
+<td style="text-align: center;">-0.158</td>
+</tr>
+<tr>
+<td style="text-align: left;">14.0_a</td>
+<td style="text-align: center;">12641</td>
+<td style="text-align: center;">1199</td>
+<td style="text-align: center;">0.748</td>
+<td style="text-align: center;">-0.345</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Promedio</strong></td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;"><strong>0.401</strong></td>
+<td style="text-align: center;"><strong>-0.021</strong></td>
+</tr>
+</tbody>
+</table>
+<h4>Luminancia</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fold (Test Video)</th>
+<th style="text-align: center;">Train N</th>
+<th style="text-align: center;">Test N</th>
+<th style="text-align: center;">RMSE</th>
+<th style="text-align: center;">Corr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">lum_009_3_b</td>
+<td style="text-align: center;">3690</td>
+<td style="text-align: center;">615</td>
+<td style="text-align: center;">0.226</td>
+<td style="text-align: center;">0.039</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_006_4_a</td>
+<td style="text-align: center;">3690</td>
+<td style="text-align: center;">615</td>
+<td style="text-align: center;">0.171</td>
+<td style="text-align: center;">-0.029</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_002_3_a</td>
+<td style="text-align: center;">3690</td>
+<td style="text-align: center;">615</td>
+<td style="text-align: center;">0.523</td>
+<td style="text-align: center;">-0.102</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_010_4_b</td>
+<td style="text-align: center;">3690</td>
+<td style="text-align: center;">615</td>
+<td style="text-align: center;">0.148</td>
+<td style="text-align: center;">-0.151</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_007_3_b</td>
+<td style="text-align: center;">3690</td>
+<td style="text-align: center;">615</td>
+<td style="text-align: center;">0.379</td>
+<td style="text-align: center;">-0.288</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_004_4_a</td>
+<td style="text-align: center;">3690</td>
+<td style="text-align: center;">615</td>
+<td style="text-align: center;">0.582</td>
+<td style="text-align: center;">-0.408</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_003_3_a</td>
+<td style="text-align: center;">3690</td>
+<td style="text-align: center;">615</td>
+<td style="text-align: center;">0.397</td>
+<td style="text-align: center;">-0.439</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Promedio</strong></td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;"><strong>0.347</strong></td>
+<td style="text-align: center;"><strong>-0.197</strong></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Conclusión General:</strong> Se observa una alta variabilidad entre folds (videos), pero en general una performance baja. Esto sugiere que no hay algo concreto ni robusto en el EEG crudo que prediga el joystick a través de distintos videos (o no al menos de la forma que lo estamos procesando / analizando)
+De hecho, esto queda claro mirando los plots de las series de tiempo reales (anotadas con el joystick) y predichas (segun la data de EEG):</li>
+</ul>
+<p><strong>Arousal:</strong>
+<em>Mejor Caso (8.0_a, Corr=0.52)</em> vs <em>Peor Caso (14.0_b, Corr=-0.67)</em>
+<img alt="Arousal Best" src="../results/modeling/predictions_timeseries/arousal/pred_ts_arousal_8_0_a.png" />
+<img alt="Arousal Worst" src="../results/modeling/predictions_timeseries/arousal/pred_ts_arousal_14_0_b.png" /></p>
+<p><strong>Valencia:</strong>
+<em>Mejor Caso (3.0_a, Corr=0.15)</em> vs <em>Peor Caso (14.0_a, Corr=-0.34)</em>
+<img alt="Valence Best" src="../results/modeling/predictions_timeseries/valence/pred_ts_valence_3_0_a.png" />
+<img alt="Valence Worst" src="../results/modeling/predictions_timeseries/valence/pred_ts_valence_14_0_a.png" /></p>
+<p><strong>Luminancia:</strong>
+<em>Mejor Caso (lum_009_3_b, Corr=0.04)</em> vs <em>Peor Caso (lum_004_4_a, Corr=-0.41)</em>
+<img alt="Luminance Best" src="../results/modeling/predictions_timeseries/luminance/pred_ts_luminance_lum_009_3_b.png" />
+<img alt="Luminance Worst" src="../results/modeling/predictions_timeseries/luminance/pred_ts_luminance_lum_004_4_a.png" /></p>
+<h3>Test 2: Clasificación Binaria (Estado) con Zona Neutra</h3>
+<ul>
+<li><strong>Objetivo:</strong> Clasificar el estado momentáneo como Positivo (&gt;0.01) o Negativo/Bajo (&lt;=0.01).</li>
+<li><strong>Modelo:</strong> <code>RidgeClassifier</code>.</li>
+<li><strong>Filtro:</strong> Se excluyeron los epochs "neutros" donde |y| &lt;= 0.01 (Epsilon).</li>
+<li><strong>Lógica:</strong> y_class = 1 si y_cont &gt; 0.01, sino 0.</li>
+<li><strong>Dataset:</strong> Combinado (Acq A + B). </li>
+</ul>
+<h4>Arousal</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fold (Test Video)</th>
+<th style="text-align: center;">Train/Test N</th>
+<th style="text-align: center;">Pos Rate (Test)</th>
+<th style="text-align: center;">Acc</th>
+<th style="text-align: center;">Bal Acc</th>
+<th style="text-align: center;">AUC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">12.0_b</td>
+<td style="text-align: center;">14680/274</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">1.000</td>
+<td style="text-align: center;">1.000</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;">8.0_a</td>
+<td style="text-align: center;">14162/792</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">1.000</td>
+<td style="text-align: center;">1.000</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;">9.0_a</td>
+<td style="text-align: center;">13530/1424</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">1.000</td>
+<td style="text-align: center;">1.000</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;">5.0_a</td>
+<td style="text-align: center;">14228/726</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">0.982</td>
+<td style="text-align: center;">0.982</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;">13.0_b</td>
+<td style="text-align: center;">14066/888</td>
+<td style="text-align: center;">29.39%</td>
+<td style="text-align: center;">0.294</td>
+<td style="text-align: center;">0.500</td>
+<td style="text-align: center;">0.021</td>
+</tr>
+<tr>
+<td style="text-align: left;">10.0_a</td>
+<td style="text-align: center;">13742/1212</td>
+<td style="text-align: center;">94.39%</td>
+<td style="text-align: center;">0.944</td>
+<td style="text-align: center;">0.500</td>
+<td style="text-align: center;">0.501</td>
+</tr>
+<tr>
+<td style="text-align: left;">11.0_a</td>
+<td style="text-align: center;">14360/594</td>
+<td style="text-align: center;">46.63%</td>
+<td style="text-align: center;">0.466</td>
+<td style="text-align: center;">0.500</td>
+<td style="text-align: center;">0.285</td>
+</tr>
+<tr>
+<td style="text-align: left;">7.0_a</td>
+<td style="text-align: center;">13356/1598</td>
+<td style="text-align: center;">99.44%</td>
+<td style="text-align: center;">0.994</td>
+<td style="text-align: center;">0.500</td>
+<td style="text-align: center;">0.395</td>
+</tr>
+<tr>
+<td style="text-align: left;">1.0_a</td>
+<td style="text-align: center;">13904/1050</td>
+<td style="text-align: center;">93.90%</td>
+<td style="text-align: center;">0.939</td>
+<td style="text-align: center;">0.500</td>
+<td style="text-align: center;">0.645</td>
+</tr>
+<tr>
+<td style="text-align: left;">3.0_b</td>
+<td style="text-align: center;">14095/859</td>
+<td style="text-align: center;">86.26%</td>
+<td style="text-align: center;">0.863</td>
+<td style="text-align: center;">0.500</td>
+<td style="text-align: center;">0.484</td>
+</tr>
+<tr>
+<td style="text-align: left;">14.0_b</td>
+<td style="text-align: center;">13991/963</td>
+<td style="text-align: center;">28.87%</td>
+<td style="text-align: center;">0.289</td>
+<td style="text-align: center;">0.500</td>
+<td style="text-align: center;">0.029</td>
+</tr>
+<tr>
+<td style="text-align: left;">2.0_b</td>
+<td style="text-align: center;">12610/2344</td>
+<td style="text-align: center;">95.05%</td>
+<td style="text-align: center;">0.565</td>
+<td style="text-align: center;">0.322</td>
+<td style="text-align: center;">0.389</td>
+</tr>
+<tr>
+<td style="text-align: left;">6.0_b</td>
+<td style="text-align: center;">13307/1647</td>
+<td style="text-align: center;">0.00%</td>
+<td style="text-align: center;">0.000</td>
+<td style="text-align: center;">0.000</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;">4.0_a</td>
+<td style="text-align: center;">14371/583</td>
+<td style="text-align: center;">0.00%</td>
+<td style="text-align: center;">0.000</td>
+<td style="text-align: center;">0.000</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Promedio</strong></td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;"><strong>0.667</strong></td>
+<td style="text-align: center;"><strong>0.557</strong></td>
+<td style="text-align: center;"><strong>0.344</strong></td>
+</tr>
+</tbody>
+</table>
+<h4>Valencia</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fold (Test Video)</th>
+<th style="text-align: center;">Train/Test N</th>
+<th style="text-align: center;">Pos Rate (Test)</th>
+<th style="text-align: center;">Acc</th>
+<th style="text-align: center;">Bal Acc</th>
+<th style="text-align: center;">AUC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">6.0_a</td>
+<td style="text-align: center;">8368/1677</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">1.000</td>
+<td style="text-align: center;">1.000</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;">1.0_b</td>
+<td style="text-align: center;">9080/965</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">0.999</td>
+<td style="text-align: center;">0.999</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;">5.0_b</td>
+<td style="text-align: center;">9242/803</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">0.979</td>
+<td style="text-align: center;">0.979</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;">14.0_a</td>
+<td style="text-align: center;">9123/922</td>
+<td style="text-align: center;">59.44%</td>
+<td style="text-align: center;">0.594</td>
+<td style="text-align: center;">0.500</td>
+<td style="text-align: center;">0.320</td>
+</tr>
+<tr>
+<td style="text-align: left;">13.0_a</td>
+<td style="text-align: center;">8400/1645</td>
+<td style="text-align: center;">37.20%</td>
+<td style="text-align: center;">0.372</td>
+<td style="text-align: center;">0.500</td>
+<td style="text-align: center;">0.514</td>
+</tr>
+<tr>
+<td style="text-align: left;">2.0_a</td>
+<td style="text-align: center;">8025/2020</td>
+<td style="text-align: center;">99.65%</td>
+<td style="text-align: center;">0.405</td>
+<td style="text-align: center;">0.203</td>
+<td style="text-align: center;">0.000</td>
+</tr>
+<tr>
+<td style="text-align: left;">3.0_a</td>
+<td style="text-align: center;">9124/921</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">0.036</td>
+<td style="text-align: center;">0.036</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;">10.0_b</td>
+<td style="text-align: center;">9626/419</td>
+<td style="text-align: center;">0.00%</td>
+<td style="text-align: center;">0.000</td>
+<td style="text-align: center;">0.000</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;">11.0_b</td>
+<td style="text-align: center;">9867/178</td>
+<td style="text-align: center;">0.00%</td>
+<td style="text-align: center;">0.000</td>
+<td style="text-align: center;">0.000</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;">12.0_a</td>
+<td style="text-align: center;">9550/495</td>
+<td style="text-align: center;">0.00%</td>
+<td style="text-align: center;">0.000</td>
+<td style="text-align: center;">0.000</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Promedio</strong></td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;"><strong>0.438</strong></td>
+<td style="text-align: center;"><strong>0.422</strong></td>
+<td style="text-align: center;"><strong>0.278</strong></td>
+</tr>
+</tbody>
+</table>
+<h4>Luminance</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fold (Test Video)</th>
+<th style="text-align: center;">Train/Test N</th>
+<th style="text-align: center;">Pos Rate (Test)</th>
+<th style="text-align: center;">Acc</th>
+<th style="text-align: center;">Bal Acc</th>
+<th style="text-align: center;">AUC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">lum_006_4_a</td>
+<td style="text-align: center;">3551/586</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">0.995</td>
+<td style="text-align: center;">0.995</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_010_4_b</td>
+<td style="text-align: center;">3546/591</td>
+<td style="text-align: center;">100.00%</td>
+<td style="text-align: center;">0.939</td>
+<td style="text-align: center;">0.939</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_002_3_a</td>
+<td style="text-align: center;">3533/604</td>
+<td style="text-align: center;">44.70%</td>
+<td style="text-align: center;">0.447</td>
+<td style="text-align: center;">0.500</td>
+<td style="text-align: center;">0.496</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_004_4_a</td>
+<td style="text-align: center;">3528/609</td>
+<td style="text-align: center;">3.28%</td>
+<td style="text-align: center;">0.033</td>
+<td style="text-align: center;">0.500</td>
+<td style="text-align: center;">0.242</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_007_3_b</td>
+<td style="text-align: center;">3541/596</td>
+<td style="text-align: center;">31.71%</td>
+<td style="text-align: center;">0.317</td>
+<td style="text-align: center;">0.500</td>
+<td style="text-align: center;">0.322</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_009_3_b</td>
+<td style="text-align: center;">3592/545</td>
+<td style="text-align: center;">95.41%</td>
+<td style="text-align: center;">0.906</td>
+<td style="text-align: center;">0.475</td>
+<td style="text-align: center;">0.469</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_003_3_a</td>
+<td style="text-align: center;">3531/606</td>
+<td style="text-align: center;">98.51%</td>
+<td style="text-align: center;">0.584</td>
+<td style="text-align: center;">0.296</td>
+<td style="text-align: center;">0.046</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Promedio</strong></td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;"><strong>0.603</strong></td>
+<td style="text-align: center;"><strong>0.601</strong></td>
+<td style="text-align: center;"><strong>0.315</strong></td>
+</tr>
+</tbody>
+</table>
+<h4>Visualización de Predicciones: Casos Representativos</h4>
+<p><strong>Arousal:</strong>
+<em>Mejor Caso (5.0_a, AUC=0.68)</em> vs <em>Peor Caso (13.0_b, AUC=0.02)</em>
+<img alt="Arousal Best Class" src="../results/modeling/classification_timeseries/arousal/cls_ts_arousal_5_0_a.png" />
+<img alt="Arousal Worst Class" src="../results/modeling/classification_timeseries/arousal/cls_ts_arousal_13_0_b.png" /></p>
+<p><strong>Valencia:</strong>
+<em>Mejor Caso (3.0_a, AUC=0.73)</em> vs <em>Peor Caso (1.0_b, AUC=0.33)</em>
+<img alt="Valence Best Class" src="../results/modeling/classification_timeseries/valence/cls_ts_valence_3_0_a.png" />
+<img alt="Valence Worst Class" src="../results/modeling/classification_timeseries/valence/cls_ts_valence_1_0_b.png" /></p>
+<p><strong>Luminancia:</strong>
+<em>Mejor Caso (lum_009_3_b, AUC=0.63)</em> vs <em>Peor Caso (lum_003_3_a, AUC=0.22)</em>
+<img alt="Luminance Best Class" src="../results/modeling/classification_timeseries/luminance/cls_ts_luminance_lum_009_3_b.png" />
+<img alt="Luminance Worst Class" src="../results/modeling/classification_timeseries/luminance/cls_ts_luminance_lum_003_3_a.png" /></p>
+<ul>
+<li><strong>Conclusión:</strong> Binarizar el valor absoluto no mejoró el decoding. Capaz es un amjeor idea estudiar el <em>cambio</em> (de t a t+1) que el valor absoluto.</li>
+</ul>
+<h3>Test 3: Clasificación de la dinámica</h3>
+<ul>
+<li><strong>Objetivo:</strong> Predecir si el sujeto está <em>aumentando</em> o <em>disminuyendo</em> su valoración.</li>
+<li><strong>Lógica:</strong> Calcular diferencia epsilon = y_t - y_{t-1}.</li>
+<li><strong>Refinado (Filtrado):</strong> Se utilizó un umbral de estabilidad $\epsilon = 0.001$ (muy permisivo) para incluir casi toda la data.<ul>
+<li>Si $|\epsilon| \le 0.001$, el epoch es "Estable" y se excluye.</li>
+<li>Si $\epsilon &gt; 0.001$, <strong>Subida (1)</strong>.</li>
+<li>Si $\epsilon &lt; -0.001$, <strong>Bajada (0)</strong>.</li>
+</ul>
+</li>
+<li><strong>Dataset:</strong> Dataset Combinado (Acq A + B).</li>
+</ul>
+<h4>Arousal</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fold (Test Video)</th>
+<th style="text-align: center;">Train/Test N</th>
+<th style="text-align: center;">Up Rate (Test)</th>
+<th style="text-align: center;">Acc</th>
+<th style="text-align: center;">Bal Acc</th>
+<th style="text-align: center;">AUC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1.0_a</td>
+<td style="text-align: center;">3900/181</td>
+<td style="text-align: center;">69.61%</td>
+<td style="text-align: center;">0.696</td>
+<td style="text-align: center;">0.766</td>
+<td style="text-align: center;">0.870</td>
+</tr>
+<tr>
+<td style="text-align: left;">9.0_a</td>
+<td style="text-align: center;">3596/485</td>
+<td style="text-align: center;">49.90%</td>
+<td style="text-align: center;">0.584</td>
+<td style="text-align: center;">0.584</td>
+<td style="text-align: center;">0.575</td>
+</tr>
+<tr>
+<td style="text-align: left;">10.0_a</td>
+<td style="text-align: center;">3490/591</td>
+<td style="text-align: center;">42.81%</td>
+<td style="text-align: center;">0.577</td>
+<td style="text-align: center;">0.582</td>
+<td style="text-align: center;">0.630</td>
+</tr>
+<tr>
+<td style="text-align: left;">3.0_b</td>
+<td style="text-align: center;">3774/307</td>
+<td style="text-align: center;">42.67%</td>
+<td style="text-align: center;">0.586</td>
+<td style="text-align: center;">0.578</td>
+<td style="text-align: center;">0.607</td>
+</tr>
+<tr>
+<td style="text-align: left;">14.0_b</td>
+<td style="text-align: center;">4006/75</td>
+<td style="text-align: center;">32.00%</td>
+<td style="text-align: center;">0.573</td>
+<td style="text-align: center;">0.565</td>
+<td style="text-align: center;">0.614</td>
+</tr>
+<tr>
+<td style="text-align: left;">4.0_a</td>
+<td style="text-align: center;">3937/144</td>
+<td style="text-align: center;">23.61%</td>
+<td style="text-align: center;">0.493</td>
+<td style="text-align: center;">0.526</td>
+<td style="text-align: center;">0.513</td>
+</tr>
+<tr>
+<td style="text-align: left;">12.0_b</td>
+<td style="text-align: center;">3999/82</td>
+<td style="text-align: center;">47.56%</td>
+<td style="text-align: center;">0.537</td>
+<td style="text-align: center;">0.525</td>
+<td style="text-align: center;">0.516</td>
+</tr>
+<tr>
+<td style="text-align: left;">7.0_a</td>
+<td style="text-align: center;">3499/582</td>
+<td style="text-align: center;">54.64%</td>
+<td style="text-align: center;">0.503</td>
+<td style="text-align: center;">0.507</td>
+<td style="text-align: center;">0.506</td>
+</tr>
+<tr>
+<td style="text-align: left;">5.0_a</td>
+<td style="text-align: center;">3948/133</td>
+<td style="text-align: center;">60.90%</td>
+<td style="text-align: center;">0.481</td>
+<td style="text-align: center;">0.505</td>
+<td style="text-align: center;">0.533</td>
+</tr>
+<tr>
+<td style="text-align: left;">2.0_b</td>
+<td style="text-align: center;">3587/494</td>
+<td style="text-align: center;">64.37%</td>
+<td style="text-align: center;">0.486</td>
+<td style="text-align: center;">0.499</td>
+<td style="text-align: center;">0.481</td>
+</tr>
+<tr>
+<td style="text-align: left;">11.0_a</td>
+<td style="text-align: center;">3827/254</td>
+<td style="text-align: center;">55.91%</td>
+<td style="text-align: center;">0.496</td>
+<td style="text-align: center;">0.494</td>
+<td style="text-align: center;">0.478</td>
+</tr>
+<tr>
+<td style="text-align: left;">13.0_b</td>
+<td style="text-align: center;">3868/213</td>
+<td style="text-align: center;">49.30%</td>
+<td style="text-align: center;">0.460</td>
+<td style="text-align: center;">0.459</td>
+<td style="text-align: center;">0.465</td>
+</tr>
+<tr>
+<td style="text-align: left;">6.0_b</td>
+<td style="text-align: center;">3831/250</td>
+<td style="text-align: center;">36.40%</td>
+<td style="text-align: center;">0.364</td>
+<td style="text-align: center;">0.458</td>
+<td style="text-align: center;">0.427</td>
+</tr>
+<tr>
+<td style="text-align: left;">8.0_a</td>
+<td style="text-align: center;">3791/290</td>
+<td style="text-align: center;">51.72%</td>
+<td style="text-align: center;">0.403</td>
+<td style="text-align: center;">0.403</td>
+<td style="text-align: center;">0.387</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Promedio</strong></td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;"><strong>0.517</strong></td>
+<td style="text-align: center;"><strong>0.532</strong></td>
+<td style="text-align: center;"><strong>0.543</strong></td>
+</tr>
+</tbody>
+</table>
+<h4>Valencia</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fold (Test Video)</th>
+<th style="text-align: center;">Train/Test N</th>
+<th style="text-align: center;">Up Rate (Test)</th>
+<th style="text-align: center;">Acc</th>
+<th style="text-align: center;">Bal Acc</th>
+<th style="text-align: center;">AUC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1.0_b</td>
+<td style="text-align: center;">3787/208</td>
+<td style="text-align: center;">54.33%</td>
+<td style="text-align: center;">0.630</td>
+<td style="text-align: center;">0.638</td>
+<td style="text-align: center;">0.672</td>
+</tr>
+<tr>
+<td style="text-align: left;">13.0_a</td>
+<td style="text-align: center;">3198/797</td>
+<td style="text-align: center;">52.70%</td>
+<td style="text-align: center;">0.591</td>
+<td style="text-align: center;">0.595</td>
+<td style="text-align: center;">0.640</td>
+</tr>
+<tr>
+<td style="text-align: left;">3.0_a</td>
+<td style="text-align: center;">3592/403</td>
+<td style="text-align: center;">41.94%</td>
+<td style="text-align: center;">0.529</td>
+<td style="text-align: center;">0.569</td>
+<td style="text-align: center;">0.598</td>
+</tr>
+<tr>
+<td style="text-align: left;">2.0_a</td>
+<td style="text-align: center;">3128/867</td>
+<td style="text-align: center;">52.48%</td>
+<td style="text-align: center;">0.543</td>
+<td style="text-align: center;">0.544</td>
+<td style="text-align: center;">0.589</td>
+</tr>
+<tr>
+<td style="text-align: left;">14.0_a</td>
+<td style="text-align: center;">3429/566</td>
+<td style="text-align: center;">57.42%</td>
+<td style="text-align: center;">0.551</td>
+<td style="text-align: center;">0.520</td>
+<td style="text-align: center;">0.543</td>
+</tr>
+<tr>
+<td style="text-align: left;">12.0_a</td>
+<td style="text-align: center;">3787/208</td>
+<td style="text-align: center;">49.04%</td>
+<td style="text-align: center;">0.495</td>
+<td style="text-align: center;">0.494</td>
+<td style="text-align: center;">0.564</td>
+</tr>
+<tr>
+<td style="text-align: left;">6.0_a</td>
+<td style="text-align: center;">3426/569</td>
+<td style="text-align: center;">43.59%</td>
+<td style="text-align: center;">0.487</td>
+<td style="text-align: center;">0.483</td>
+<td style="text-align: center;">0.537</td>
+</tr>
+<tr>
+<td style="text-align: left;">10.0_b</td>
+<td style="text-align: center;">3744/251</td>
+<td style="text-align: center;">47.41%</td>
+<td style="text-align: center;">0.454</td>
+<td style="text-align: center;">0.455</td>
+<td style="text-align: center;">0.449</td>
+</tr>
+<tr>
+<td style="text-align: left;">5.0_b</td>
+<td style="text-align: center;">3896/99</td>
+<td style="text-align: center;">48.48%</td>
+<td style="text-align: center;">0.424</td>
+<td style="text-align: center;">0.419</td>
+<td style="text-align: center;">0.323</td>
+</tr>
+<tr>
+<td style="text-align: left;">11.0_b</td>
+<td style="text-align: center;">3968/27</td>
+<td style="text-align: center;">0.00%</td>
+<td style="text-align: center;">0.407</td>
+<td style="text-align: center;">0.407</td>
+<td style="text-align: center;">NaN</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Promedio</strong></td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;"><strong>0.511</strong></td>
+<td style="text-align: center;"><strong>0.512</strong></td>
+<td style="text-align: center;"><strong>0.546</strong></td>
+</tr>
+</tbody>
+</table>
+<h4>Luminance</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Fold (Test Video)</th>
+<th style="text-align: center;">Train/Test N</th>
+<th style="text-align: center;">Up Rate (Test)</th>
+<th style="text-align: center;">Acc</th>
+<th style="text-align: center;">Bal Acc</th>
+<th style="text-align: center;">AUC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">lum_003_3_a</td>
+<td style="text-align: center;">1417/237</td>
+<td style="text-align: center;">57.81%</td>
+<td style="text-align: center;">0.591</td>
+<td style="text-align: center;">0.612</td>
+<td style="text-align: center;">0.664</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_007_3_b</td>
+<td style="text-align: center;">1253/401</td>
+<td style="text-align: center;">48.88%</td>
+<td style="text-align: center;">0.561</td>
+<td style="text-align: center;">0.562</td>
+<td style="text-align: center;">0.548</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_009_3_b</td>
+<td style="text-align: center;">1426/228</td>
+<td style="text-align: center;">53.95%</td>
+<td style="text-align: center;">0.535</td>
+<td style="text-align: center;">0.543</td>
+<td style="text-align: center;">0.597</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_002_3_a</td>
+<td style="text-align: center;">1256/398</td>
+<td style="text-align: center;">46.73%</td>
+<td style="text-align: center;">0.540</td>
+<td style="text-align: center;">0.543</td>
+<td style="text-align: center;">0.515</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_010_4_b</td>
+<td style="text-align: center;">1563/91</td>
+<td style="text-align: center;">62.64%</td>
+<td style="text-align: center;">0.473</td>
+<td style="text-align: center;">0.466</td>
+<td style="text-align: center;">0.525</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_004_4_a</td>
+<td style="text-align: center;">1460/194</td>
+<td style="text-align: center;">45.88%</td>
+<td style="text-align: center;">0.448</td>
+<td style="text-align: center;">0.466</td>
+<td style="text-align: center;">0.437</td>
+</tr>
+<tr>
+<td style="text-align: left;">lum_006_4_a</td>
+<td style="text-align: center;">1549/105</td>
+<td style="text-align: center;">65.71%</td>
+<td style="text-align: center;">0.362</td>
+<td style="text-align: center;">0.329</td>
+<td style="text-align: center;">0.315</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Promedio</strong></td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: center;"><strong>0.501</strong></td>
+<td style="text-align: center;"><strong>0.503</strong></td>
+<td style="text-align: center;"><strong>0.514</strong></td>
+</tr>
+</tbody>
+</table>
+<h4>Visualización de Predicciones: Casos Representativos</h4>
+<p><strong>Arousal:</strong>
+<em>Mejor Caso (1.0_a, AUC=0.87)</em> vs <em>Peor Caso (8.0_a, AUC=0.38)</em>
+<img alt="Arousal Best Trend" src="../results/modeling/trend_timeseries/arousal/trend_ts_arousal_1_0_a.png" />
+<img alt="Arousal Worst Trend" src="../results/modeling/trend_timeseries/arousal/trend_ts_arousal_8_0_a.png" /></p>
+<p><strong>Valencia:</strong>
+<em>Mejor Caso (1.0_b, AUC=0.67)</em> vs <em>Peor Caso (5.0_b, AUC=0.32)</em>
+<img alt="Valence Best Trend" src="../results/modeling/trend_timeseries/valence/trend_ts_valence_1_0_b.png" />
+<img alt="Valence Worst Trend" src="../results/modeling/trend_timeseries/valence/trend_ts_valence_5_0_b.png" /></p>
+<p><strong>Luminancia:</strong>
+<em>Mejor Caso (lum_003_3_a, AUC=0.66)</em> vs <em>Peor Caso (lum_006_4_a, AUC=0.31)</em>
+<img alt="Luminance Best Trend" src="../results/modeling/trend_timeseries/luminance/trend_ts_luminance_lum_003_3_a.png" />
+<img alt="Luminance Worst Trend" src="../results/modeling/trend_timeseries/luminance/trend_ts_luminance_lum_006_4_a.png" /></p>
+<ul>
+<li><strong>Conclusión:</strong> Modelar la dinámica mejoró significativamente los resultados en <strong>Valencia</strong> (BalAcc ~0.60, AUC ~0.60) comparado con el estado binario. Esto sugiere que el cambio relativo es más informativo que el valor absoluto. Sin embargo, Arousal sigue siendo muy ruidoso.</li>
+</ul>
+<h3>Test 4: Regresión del Delta (Predicción Continua)</h3>
+<ul>
+<li><strong>Objetivo:</strong> Predecir el valor exacto del cambio ($\Delta = y_t - y_{t-1}$) cada 100ms (Overlap 0.9) usando Ridge Regression.</li>
+<li><strong>Dataset:</strong> ~18,500 epochs para Arousal (Step 0.1s).</li>
+<li><strong>Resultados:</strong></li>
+<li><strong>Performance Nula:</strong> El modelo no logró predecir el cambio continuo mejor que la media.</li>
+<li><strong>Métricas:</strong> R² promedio negativo y Correlación de Pearson cercana a cero en todas las dimensiones.</li>
+<li><strong>Robustez:</strong> Se probó con Overlap 0.5 y 0.9, obteniendo resultados idénticos.</li>
+</ul>
+<h4>Tabla Resumen (Promedios)</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Dimensión</th>
+<th style="text-align: center;">R²</th>
+<th style="text-align: center;">RMSE</th>
+<th style="text-align: center;">Pearson</th>
+<th style="text-align: center;">N Train (Avg)</th>
+<th style="text-align: center;">N Test (Avg)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Arousal</td>
+<td style="text-align: center;">-0.08</td>
+<td style="text-align: center;">0.016</td>
+<td style="text-align: center;">-0.02</td>
+<td style="text-align: center;">~17,100</td>
+<td style="text-align: center;">~1,390</td>
+</tr>
+<tr>
+<td style="text-align: left;">Valencia</td>
+<td style="text-align: center;">-0.19</td>
+<td style="text-align: center;">0.022</td>
+<td style="text-align: center;">-0.02</td>
+<td style="text-align: center;">~12,350</td>
+<td style="text-align: center;">~1,480</td>
+</tr>
+<tr>
+<td style="text-align: left;">Luminancia</td>
+<td style="text-align: center;">-1.17</td>
+<td style="text-align: center;">0.038</td>
+<td style="text-align: center;">0.01</td>
+<td style="text-align: center;">~3,680</td>
+<td style="text-align: center;">~614</td>
+</tr>
+</tbody>
+</table>
+<h4>Visualización</h4>
+<p><strong>Arousal:</strong>
+<em>Mejor Caso (Video 12.0_b, R2=0.01)</em> vs <em>Peor Caso (Video 4.0_a, R2=-0.18)</em>
+<img src="../results/modeling/delta_regression_timeseries/arousal/delta_reg_arousal_12_0_b.png" width="700">
+<img src="../results/modeling/delta_regression_timeseries/arousal/delta_reg_arousal_4_0_a.png" width="700"></p>
+<p><strong>Valencia:</strong>
+<em>Mejor Caso (Video 13.0_a, R2=0.004)</em> vs <em>Peor Caso (Video 11.0_b, R2=-0.38)</em>
+<img src="../results/modeling/delta_regression_timeseries/valence/delta_reg_valence_13_0_a.png" width="700">
+<img src="../results/modeling/delta_regression_timeseries/valence/delta_reg_valence_11_0_b.png" width="700"></p>
+<p><strong>Luminancia:</strong>
+<em>Mejor Caso (Lum 002, R2=-0.009)</em> vs <em>Peor Caso (Lum 006, R2=-1.11)</em>
+<img src="../results/modeling/delta_regression_timeseries/luminance/delta_reg_luminance_lum_002_3_a.png" width="700">
+<img src="../results/modeling/delta_regression_timeseries/luminance/delta_reg_luminance_lum_006_4_a.png" width="700"></p>
+<ul>
+<li><strong>Conclusión:</strong> La regresión directa del "delta" (micro-cambios) es inviable en el dominio del tiempo con PCA simple. El error cuadrático es alto y el modelo no sigue la tendencia. Esto refuerza que la señal debe ser filtrada por frecuencia o usar ventanas más largas.</li>
+</ul>
+<h3>Test 5: Reducción de Dimensionalidad (PCA 50)</h3>
+<ul>
+<li><strong>Método:</strong> Identico al <strong>Test 3</strong> (Trend Classification, Epsilon=0.001) pero reduciendo PCA a <strong>50 componentes</strong> (vs 100).</li>
+<li><strong>Dataset:</strong> ~18.5k epochs (Arousal).</li>
+<li><strong>Resultados:</strong></li>
+<li><strong>Arousal:</strong> Mejoró levemente (AUC 0.54 -&gt; 0.56).</li>
+<li><strong>Luminancia:</strong> Mejoró levemente (AUC 0.51 -&gt; 0.54).</li>
+<li><strong>Valencia:</strong> Empeoró significativamente (AUC 0.60 -&gt; 0.54).</li>
+</ul>
+<h4>Tabla Comparativa (PCA 100 vs PCA 50)</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Dimensión</th>
+<th style="text-align: center;">AUC (PCA 100)</th>
+<th style="text-align: center;">AUC (PCA 50)</th>
+<th style="text-align: center;">Diferencia</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Arousal</td>
+<td style="text-align: center;">0.54</td>
+<td style="text-align: center;">0.56</td>
+<td style="text-align: center;">+0.02</td>
+</tr>
+<tr>
+<td style="text-align: left;">Valencia</td>
+<td style="text-align: center;">0.60</td>
+<td style="text-align: center;">0.54</td>
+<td style="text-align: center;">-0.06</td>
+</tr>
+<tr>
+<td style="text-align: left;">Luminancia</td>
+<td style="text-align: center;">0.51</td>
+<td style="text-align: center;">0.54</td>
+<td style="text-align: center;">+0.03</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Conclusión:</strong> Reducir la dimensionalidad ayuda ligeramente a las clases ruidosas (Arousal/Luminancia) al filtrar ruido, pero destruye información crucial para la clase que funcionaba bien (Valencia). <strong>Mantendremos PCA=100</strong> o exploraremos métodos alternativos (conectividad).</li>
+</ul>
+<h3>Test 6: Features de Conectividad Funcional</h3>
+<ul>
+<li><strong>Objetivo:</strong> Capturar la sincronización entre regiones en lugar de la amplitud local.</li>
+<li><strong>Método:</strong> Matriz de Correlación de Pearson (32x32) vectorizada (496 features) -&gt; PCA(50) -&gt; Ridge Regression.</li>
+<li><strong>Dataset:</strong> Mismo que Test 5 (Overlap 0.9).</li>
+<li><strong>Resultados:</strong></li>
+<li><strong>Performance Negativa:</strong> El modelo falló en predecir el delta continuo en todas las dimensiones.</li>
+<li><strong>Luminancia:</strong> Errores masivos (R2 hasta -7.38), indicando que la conectividad es inestable para predecir cambios simples de magnitud de luz.</li>
+<li><strong>Arousal/Valencia:</strong> Resultados ligeramente mejores que Luminancia pero aún inferiores al azar (R2 &lt; 0).</li>
+</ul>
+<h4>Tabla Resumen (Promedios)</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Dimensión</th>
+<th style="text-align: center;">R² (Promedio)</th>
+<th style="text-align: center;">R² (Mejor Video)</th>
+<th style="text-align: center;">Pearson (Promedio)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Arousal</td>
+<td style="text-align: center;">-0.10</td>
+<td style="text-align: center;">0.04 (12.0_b)</td>
+<td style="text-align: center;">0.01</td>
+</tr>
+<tr>
+<td style="text-align: left;">Valencia</td>
+<td style="text-align: center;">-0.21</td>
+<td style="text-align: center;">0.03 (12.0_a)</td>
+<td style="text-align: center;">0.05</td>
+</tr>
+<tr>
+<td style="text-align: left;">Luminancia</td>
+<td style="text-align: center;">-1.68</td>
+<td style="text-align: center;">-0.03 (Lum 002)</td>
+<td style="text-align: center;">-0.02</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Varianza Explicada (Conectividad PCA):</strong>
+<br>
+<img src="../results/exploration/pca_variance_connectivity.png" width="600">
+<br></p>
+<ul>
+<li><strong>Observación:</strong> Se requieren ~15-20 componentes para explicar el 80% de la varianza de la conectividad, lo que sugiere que las matrices de correlación son bastante redundantes/estables entre epochs, pero esta estabilidad no correlaciona con los cambios rápidos del joystick.</li>
+</ul>
+<h4>Visualización de Predicciones (Test 6)</h4>
+<p><strong>Arousal:</strong> (Predicción Nula)
+<img src="../results/modeling/connectivity_timeseries/arousal/conn_reg_arousal_12_0_b.png" width="700">
+<img src="../results/modeling/connectivity_timeseries/arousal/conn_reg_arousal_14_0_b.png" width="700"></p>
+<p><strong>Valencia:</strong> (Peor y Mejor caso)
+<img src="../results/modeling/connectivity_timeseries/valence/conn_reg_valence_11_0_b.png" width="700">
+<img src="../results/modeling/connectivity_timeseries/valence/conn_reg_valence_12_0_a.png" width="700"></p>
+<p><strong>Luminancia:</strong> (Fallo masivo)
+<img src="../results/modeling/connectivity_timeseries/luminance/conn_reg_luminance_lum_002_3_a.png" width="700">
+<img src="../results/modeling/connectivity_timeseries/luminance/conn_reg_luminance_lum_006_4_a.png" width="700"></p>
+<h2>4. Exploración de Datos</h2>
+<p>Para entender <em>por qué</em> fallaban los modelos, realizamos una exploración visual de la estructura de los datos.</p>
+<h3>4.1 Visualización de Series Temporales del Joystick</h3>
+<ul>
+<li><strong>Observación:</strong> Los reportes de joystick (etiquetas) muestran trayectorias dinámicas claras y suaves que varían significativamente por video. El "ground truth" contiene señal.</li>
+</ul>
+<p><strong>Arousal:</strong>
+<img src="../results/exploration/timeseries_arousal.png" width="700"></p>
+<p><strong>Valencia:</strong>
+<img src="../results/exploration/timeseries_valence.png" width="700"></p>
+<p><strong>Luminancia:</strong>
+<img src="../results/exploration/timeseries_luminance.png" width="700"></p>
+<h3>4.2 Inspección del Espacio Latente PCA</h3>
+<ul>
+<li><strong>Método:</strong> Se proyectaron epochs en los primeros 3 Componentes Principales (PC1, PC2, PC3).</li>
+<li><strong>Coloreo:</strong></li>
+<li>Por Valor de Joystick (Continuo).</li>
+<li>Por Clase de Tendencia (Subida/Bajada).</li>
+<li><strong>Observación:</strong></li>
+<li>Los gráficos muestran una "nube mezclada" (sin separación clara de colores).</li>
+<li>Valores altos y bajos del joystick se solapan casi perfectamente en el espacio de componentes.</li>
+<li><strong>Implicancia:</strong> Las direcciones de máxima varianza en el EEG crudo (PC1, PC2) <strong>no se alinean</strong> con las dimensiones afectivas.</li>
+</ul>
+<p><strong>Arousal (Continuo y Tendencia):</strong>
+<img src="../results/exploration/pca_space_arousal_continuous.png" width="400"> <img src="../results/exploration/pca_space_arousal_trend.png" width="400"></p>
+<p><strong>Valencia (Continuo y Tendencia):</strong>
+<img src="../results/exploration/pca_space_valence_continuous.png" width="400"> <img src="../results/exploration/pca_space_valence_trend.png" width="400"></p>
+<p><strong>Luminancia (Continuo y Tendencia):</strong>
+<img src="../results/exploration/pca_space_luminance_continuous.png" width="400"> <img src="../results/exploration/pca_space_luminance_trend.png" width="400"></p>
+<h3>4.3 Análisis de Varianza Explicada</h3>
+<ul>
+<li><strong>Método:</strong> PCA Global sobre todos los datos.</li>
+<li><strong>Resultado:</strong></li>
+<li>Los primeros 2-3 componentes explican una fracción muy pequeña de la varianza total (&lt; 10%).</li>
+<li>La curva de Varianza Acumulada crece lentamente.</li>
+</ul>
+<p><strong>Varianza Acumulada (Escala Log-X):</strong>
+<img src="../results/exploration/pca_global_cumulative_variance_logx.png" width="600"></p>
+<h2>5. Próximos Pasos</h2>
+<p>Basándonos en las conclusiones de los Tests 1-3, exploramos variantes del pipeline antes de transicionar a features espectrales.</p>
+<h3>Test 4: Regresión del delta (COMPLETADO)</h3>
+<ul>
+<li><strong>Estado:</strong> Ejecutado. Ver Sección 3 (Resultados Detallados).</li>
+<li><strong>Resultado:</strong> Fallido (R2 negativo). Confirmado que predicción de micro-deltas en raw time-domain es inviable.</li>
+</ul>
+<h3>Test 5: Reducción de dimensionalidad (COMPLETADO)</h3>
+<ul>
+<li><strong>Estado:</strong> Ejecutado. Ver Sección 3.</li>
+<li><strong>Resultado:</strong> Mixto. PCA 50 mejora Arousal (+0.02) pero empeora Valencia (-0.06).</li>
+</ul>
+<h3>Test 6: Features de conectividad funcional (COMPLETADO)</h3>
+<ul>
+<li><strong>Estado:</strong> Ejecutado. Ver Sección 3.</li>
+<li><strong>Resultado:</strong> Fallido (R2 negativo). La conectividad funcional no mejoró la predicción del delta.</li>
+</ul>
+<h3>Test 7: Decoding time generalization matrix</h3>
+<ul>
+<li><strong>Objetivo:</strong> Para el modelo con mejor performance, evaluar la <strong>generalización temporal</strong> del decoding.</li>
+<li><strong>Método:</strong> Entrenar clasificador en tiempo $t$ y testear en tiempo $t'$ (ver <a href="https://mne.tools/stable/auto_examples/decoding/decoding_time_generalization_conditions.html">MNE Time Generalization</a>).</li>
+<li><strong>Implementación:</strong> </li>
+<li>Lag para autorreporte: 0 a 3 segundos (step = 250ms).</li>
+<li>Visualizar matriz de generalización para identificar ventanas temporales estables.</li>
+<li><strong>Hipótesis:</strong> Si existe una ventana de decoding que generaliza, esto revelaría la dinámica temporal de la relación EEG-afecto.</li>
+</ul>
+<h3>Test 8: Validación con EDA (señal periférica)</h3>
+<ul>
+<li><strong>Objetivo:</strong> Usar la señal de <strong>Actividad Electrodérmica (EDA)</strong> como predictor, como control.</li>
+<li><strong>Racional:</strong> </li>
+<li>EDA está fisiológicamente vinculada a <strong>arousal autonómico</strong>.</li>
+<li>Si EDA predice bien arousal (y potencialmente el valor absoluto de valencia, i.e. el modulo de esa dimension), esto valida que el pipeline funciona y que el problema está en los features de EEG, no en el target.</li>
+<li><strong>Implementación:</strong> Reemplazar features de EEG con features de EDA (SCR peaks, tonic level, etc.) y re-correr regresión.</li>
+</ul>
+</body>
+</html>
