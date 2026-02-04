@@ -308,14 +308,13 @@ De hecho, esto queda claro mirando los plots de las series de tiempo reales (ano
 
 - **Conclusión:** Reducir la dimensionalidad ayuda ligeramente a las clases ruidosas (Arousal/Luminancia) al filtrar ruido, pero destruye información crucial para la clase que funcionaba bien (Valencia). **Mantendremos PCA=100** o exploraremos métodos alternativos (conectividad).
 
-### Test 6: Features de Conectividad Funcional
-- **Objetivo:** Capturar la sincronización entre regiones en lugar de la amplitud local.
-- **Método:** Matriz de Correlación de Pearson (32x32) vectorizada (496 features) -> PCA(50) -> Ridge Regression.
+### Test 6: Features de Conectividad Funcional (Covarianza)
+- **Objetivo:** Capturar la sincronización entre regiones preservando la información de potencia.
+- **Justificación:** Vectorizar la señal cruda asume consistencia de fase inexistente. La correlación normaliza el power, perdiendo información de intensidad relevante para la predicción. La covarianza captura tanto las interacciones entre canales como la potencia de la señal (diagonal).
+- **Método:** Matriz de Covarianza (32x32) vectorizada (Triangular superior + Diagonal = 528 features) -> PCA(50) -> Ridge Regression.
 - **Dataset:** Mismo que Test 5 (Overlap 0.9).
 - **Resultados:**
-  - **Performance Negativa:** El modelo falló en predecir el delta continuo en todas las dimensiones.
-  - **Luminancia:** Errores masivos (R2 hasta -7.38), indicando que la conectividad es inestable para predecir cambios simples de magnitud de luz.
-  - **Arousal/Valencia:** Resultados ligeramente mejores que Luminancia pero aún inferiores al azar (R2 < 0).
+  - *En proceso de cálculo...*
 
 #### Tabla Resumen (Promedios)
 | Dimensión | R² (Promedio) | R² (Mejor Video) | Pearson (Promedio) |
@@ -433,6 +432,15 @@ Basándonos en las conclusiones de los Tests 1-3, exploramos variantes del pipel
 ### Test 7: Decoding time generalization matrix (COMPLETADO)
 - **Estado:** Ejecutado. Ver Sección 3.
 - **Resultado:** Matrices con poco poder predictivo. Classic PCA muestra ligera estructura diagonal en Valencia, Connectivity (PCA 100) es ruido.
+
+**Guía de Interpretación:**
+- **Eje Y ($t_{train}$):** Tiempo en el que se entrenó el clasificador.
+- **Eje X ($t_{test}$):** Tiempo en el que se evaluó el clasificador.
+- **Diagonal Principal (Línea ascendente):** Performance estándar ($t_{train} = t_{test}$). Si hay señal, debería verse una línea roja/amarilla definida.
+- **Fuera de la Diagonal:** Generalización temporal.
+  - **Bloque Cuadrado:** La representación neuronal es estable (el modelo entrenado en $t_1$ funciona bien en $t_2$).
+  - **Solo Diagonal:** La representación cambia rápidamente (dinámica transitoria).
+  - **Nada (Azul):** El modelo no generaliza o no aprendió nada (Performance de azar = 0.5, en blanco).
 
 ### Test 8: Validación con EDA (señal periférica)
 - **Objetivo:** Usar la señal de **Actividad Electrodérmica (EDA)** como predictor, como control.

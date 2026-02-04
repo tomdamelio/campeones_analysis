@@ -1242,6 +1242,30 @@ De hecho, esto queda claro mirando los plots de las series de tiempo reales (ano
 <p><strong>Luminancia:</strong> (Fallo masivo)
 <img src="../results/modeling/connectivity_timeseries/luminance/conn_reg_luminance_lum_002_3_a.png" width="700">
 <img src="../results/modeling/connectivity_timeseries/luminance/conn_reg_luminance_lum_006_4_a.png" width="700"></p>
+<h3>Test 7: Decoding Time Generalization Matrix</h3>
+<ul>
+<li><strong>Objetivo:</strong> Evaluar la dinámica y estabilidad temporal del decoding. Entrenar en tiempo $t$ y probar en tiempo $t'$.</li>
+<li><strong>Dataset:</strong> ~18.5k epochs (Step 0.1s). Train/Test split: 80%/20% (por Videos).</li>
+<li><strong>Variantes:</strong></li>
+<li><strong>A:</strong> PCA-100 Classic (Features de Amplitud).</li>
+<li><strong>B:</strong> PCA-100 Connectivity (Features de Correlación Upper-Triangle).</li>
+<li><strong>Resultados (Valencia):</strong></li>
+<li><strong>Classic:</strong> Estructura diagonal difusa. El decoding es bajo (~0.5 - 0.55 AUC) y no muestra una generalización robusta fuera del instante de entrenamiento.</li>
+<li><strong>Connectivity:</strong> Ruido. No hay estructura.</li>
+</ul>
+<h4>Visualización (Valencia)</h4>
+<p><strong>Classic PCA-100 vs Connectivity PCA-100:</strong>
+<img src="../results/modeling/time_generalization/valence/tg_matrix_classic.png" width="500">
+<img src="../results/modeling/time_generalization/valence/tg_matrix_connectivity.png" width="500"></p>
+<h4>Visualización (Arousal)</h4>
+<p><strong>Classic PCA-100 vs Connectivity PCA-100:</strong>
+<img src="../results/modeling/time_generalization/arousal/tg_matrix_classic.png" width="500">
+<img src="../results/modeling/time_generalization/arousal/tg_matrix_connectivity.png" width="500"></p>
+<ul>
+<li><strong>Conclusión General:</strong></li>
+<li>La regresión directa del Delta, ya sea por amplitud o conectividad, no tiene señal suficiente.</li>
+<li>La única señal prometedora fue la <strong>Clasificación de Tendencia (Test 3) en Valencia</strong>, que alcanzó ~60% AUC. Sin embargo, esto es límite.</li>
+</ul>
 <h2>4. Exploración de Datos</h2>
 <p>Para entender <em>por qué</em> fallaban los modelos, realizamos una exploración visual de la estructura de los datos.</p>
 <h3>4.1 Visualización de Series Temporales del Joystick</h3>
@@ -1297,15 +1321,19 @@ De hecho, esto queda claro mirando los plots de las series de tiempo reales (ano
 <li><strong>Estado:</strong> Ejecutado. Ver Sección 3.</li>
 <li><strong>Resultado:</strong> Fallido (R2 negativo). La conectividad funcional no mejoró la predicción del delta.</li>
 </ul>
-<h3>Test 7: Decoding time generalization matrix</h3>
+<h3>Test 7: Decoding time generalization matrix (COMPLETADO)</h3>
 <ul>
-<li><strong>Objetivo:</strong> Para el modelo con mejor performance, evaluar la <strong>generalización temporal</strong> del decoding.</li>
-<li><strong>Método:</strong> Entrenar clasificador en tiempo $t$ y testear en tiempo $t'$ (ver <a href="https://mne.tools/stable/auto_examples/decoding/decoding_time_generalization_conditions.html">MNE Time Generalization</a>).</li>
-<li><strong>Implementación:</strong> </li>
-<li>Lag para autorreporte: 0 a 3 segundos (step = 250ms).</li>
-<li>Visualizar matriz de generalización para identificar ventanas temporales estables.</li>
-<li><strong>Hipótesis:</strong> Si existe una ventana de decoding que generaliza, esto revelaría la dinámica temporal de la relación EEG-afecto.</li>
+<li><strong>Estado:</strong> Ejecutado. Ver Sección 3.</li>
+<li><strong>Resultado:</strong> Matrices con poco poder predictivo. Classic PCA muestra ligera estructura diagonal en Valencia, Connectivity (PCA 100) es ruido.</li>
 </ul>
+<p><strong>Guía de Interpretación:</strong>
+- <strong>Eje Y ($t_{train}$):</strong> Tiempo en el que se entrenó el clasificador.
+- <strong>Eje X ($t_{test}$):</strong> Tiempo en el que se evaluó el clasificador.
+- <strong>Diagonal Principal (Línea ascendente):</strong> Performance estándar ($t_{train} = t_{test}$). Si hay señal, debería verse una línea roja/amarilla definida.
+- <strong>Fuera de la Diagonal:</strong> Generalización temporal.
+  - <strong>Bloque Cuadrado:</strong> La representación neuronal es estable (el modelo entrenado en $t_1$ funciona bien en $t_2$).
+  - <strong>Solo Diagonal:</strong> La representación cambia rápidamente (dinámica transitoria).
+  - <strong>Nada (Azul):</strong> El modelo no generaliza o no aprendió nada (Performance de azar = 0.5, en blanco).</p>
 <h3>Test 8: Validación con EDA (señal periférica)</h3>
 <ul>
 <li><strong>Objetivo:</strong> Usar la señal de <strong>Actividad Electrodérmica (EDA)</strong> como predictor, como control.</li>

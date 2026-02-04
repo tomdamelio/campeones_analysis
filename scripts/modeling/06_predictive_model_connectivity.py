@@ -90,9 +90,9 @@ def run_pipeline():
             current_idx = 0
             prev_y_val = None 
             
-            # Pre-calculate indices for upper triangle (excluding diagonal)
+            # Pre-calculate indices for upper triangle (INCLUDING DIAGONAL for Variance/Power)
             n_channels = len(eeg_picks)
-            triu_indices = np.triu_indices(n_channels, k=1)
+            triu_indices = np.triu_indices(n_channels, k=0)
             
             video_epochs = []
             
@@ -101,16 +101,17 @@ def run_pipeline():
                 joy_window = joy_data[current_idx : current_idx + n_samples_epoch]
                 
                 # --- CONNECTIVITY FEATURE EXTRACTION ---
-                # Pearson Correlation Matrix (Channels x Channels)
+                # Covariance Matrix (Channels x Channels)
+                # We use Covariance to preserve signal power (diagonal) and channel interaction magnitude.
                 with np.errstate(invalid='ignore'):
-                    corr_matrix = np.corrcoef(eeg_window)
+                    cov_matrix = np.cov(eeg_window)
                 
                 # Handle NaNs (due to flat signals)
-                if np.isnan(corr_matrix).any():
-                    corr_matrix = np.nan_to_num(corr_matrix, nan=0.0)
+                if np.isnan(cov_matrix).any():
+                    cov_matrix = np.nan_to_num(cov_matrix, nan=0.0)
                 
-                # Flatten Upper Triangle
-                connectivity_features = corr_matrix[triu_indices]
+                # Flatten Upper Triangle (including diagonal)
+                connectivity_features = cov_matrix[triu_indices]
                 # ---------------------------------------
                 
                 y_val = np.mean(joy_window)
