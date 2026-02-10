@@ -33,6 +33,8 @@ EPOCH_DURATION = 1.0
 EPOCH_OVERLAP = 0.9
 LAGS = np.arange(0, 3.25, 0.25) # 0 to 3s steps of 250ms
 
+from config import EEG_CHANNELS
+
 def run_pipeline():
     print(f"Starting TIME GENERALIZATION (Lag) pipeline for Subject {SUBJECT}")
     
@@ -99,8 +101,8 @@ def run_pipeline():
             n_samples_epoch = int(EPOCH_DURATION * sfreq)
             n_step_samples = int(step * sfreq)
             
-            eeg_picks = mne.pick_types(preproc_data.info, eeg=True, eog=False)
-            eeg_data = video_data.get_data(picks=eeg_picks)
+            eeg_channels_present = [ch for ch in EEG_CHANNELS if ch in preproc_data.ch_names]
+            eeg_data = video_data.get_data(picks=eeg_channels_present)
             
             current_idx = 0
             n_samples_video_end = int(duration * sfreq)
@@ -109,7 +111,7 @@ def run_pipeline():
             else: vid_id_str = f"lum_{run_id}_{i}_{acq}"
 
             # Pre-calc Upper Triangle indices
-            n_ch = len(eeg_picks)
+            n_ch = len(eeg_channels_present)
             triu_indices = np.triu_indices(n_ch, k=1)
             
             video_epochs = []

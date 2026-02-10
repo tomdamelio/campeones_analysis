@@ -38,6 +38,8 @@ XDF_PATH = os.path.join(BASE_PATH, 'data', 'sourcedata', 'xdf')
 EPOCH_DURATION = 1.0
 EPOCH_OVERLAP = 0.9
 
+from config import EEG_CHANNELS
+
 def run_pipeline():
     all_epochs_data = [] # List to hold (X, y, meta)
     
@@ -106,8 +108,8 @@ def run_pipeline():
             
             n_samples = video_data.n_times
             
-            eeg_picks = mne.pick_types(preproc_data.info, eeg=True, eog=False, stim=False, misc=False)
-            eeg_data = video_data.get_data(picks=eeg_picks) 
+            eeg_channels_present = [ch for ch in EEG_CHANNELS if ch in preproc_data.ch_names]
+            eeg_data = video_data.get_data(picks=eeg_channels_present) 
             
             current_idx = 0
             prev_y_val = None # Track previous epoch value

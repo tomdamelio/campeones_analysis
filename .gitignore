@@ -26,7 +26,9 @@ venv/
 *.mp4
 *.mp3
 *.wav
+*.png
 *.tsv
+*.csv
 *.json
 
 # External data storage - ignore most things in data/

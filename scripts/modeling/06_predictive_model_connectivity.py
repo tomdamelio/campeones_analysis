@@ -32,6 +32,8 @@ XDF_PATH = os.path.join(BASE_PATH, 'data', 'sourcedata', 'xdf')
 EPOCH_DURATION = 1.0
 EPOCH_OVERLAP = 0.9 # High density
 
+from config import EEG_CHANNELS
+
 def run_pipeline():
     all_epochs_data = [] 
     
@@ -84,14 +86,14 @@ def run_pipeline():
             n_samples_epoch = int(EPOCH_DURATION * sfreq)
             n_step_samples = int(step * sfreq)
             
-            eeg_picks = mne.pick_types(preproc_data.info, eeg=True, eog=False)
-            eeg_data = video_data.get_data(picks=eeg_picks) 
+            eeg_channels_present = [ch for ch in EEG_CHANNELS if ch in preproc_data.ch_names]
+            eeg_data = video_data.get_data(picks=eeg_channels_present) 
             
             current_idx = 0
             prev_y_val = None 
             
             # Pre-calculate indices for upper triangle (INCLUDING DIAGONAL for Variance/Power)
-            n_channels = len(eeg_picks)
+            n_channels = len(eeg_channels_present)
             triu_indices = np.triu_indices(n_channels, k=0)
             
             video_epochs = []
