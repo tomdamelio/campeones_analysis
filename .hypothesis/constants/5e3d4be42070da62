@@ -1,0 +1,4 @@
+# file: C:\Users\tdamelio\Desktop\campeones_analysis\scripts\modeling\10_luminance_base_model.py
+# hypothesis_version: 6.151.6
+
+[0.0, 1e-09, 0.7, 100, 150, '--', '=', 'Acq', 'Agg', 'BestAlpha', 'Epoch', 'Luminance', 'Model', 'Pearson r', 'PearsonR', 'Pred', 'RESULTS SUMMARY', 'RMSE', 'Spearman ρ', 'SpearmanRho', 'Subject', 'Test Video', 'TestSize', 'TestVideo', 'TrainSize', 'True', 'X', '__main__', 'acq', 'base', 'block', 'data', 'derivatives', 'duration', 'eeg', 'id', 'merged_events', 'null_distribution', 'observed_r', 'onset', 'p_value', 'red', 'ridge__alpha', 'run_id', 'sfreq', 'steelblue', 'stim_id', 'task', 'test_video', 'trial_type', 'video_id', 'video_identifier', 'video_luminance', 'x', 'y', 'y_pred', 'y_true']

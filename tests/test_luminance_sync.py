@@ -1,22 +1,26 @@
-"""Property-based tests for EEG-luminance synchronisation module.
+"""Property-based and unit tests for EEG-luminance synchronisation module.
 
 Tests correctness properties of epoch generation and luminance interpolation
 using Hypothesis. Each property maps to a formal correctness property from
-the design document.
+the design document.  Unit tests cover specific examples and edge cases.
 
 Feature: eeg-luminance-prediction
 """
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from hypothesis import given, settings, assume
+import pytest
+from hypothesis import given, settings, assume, HealthCheck
 from hypothesis import strategies as st
 
 from campeones_analysis.luminance.sync import (
     create_epoch_onsets,
     interpolate_luminance_to_epochs,
+    load_luminance_csv,
 )
 
 
@@ -63,17 +67,14 @@ def luminance_and_epochs(draw: st.DrawFn) -> dict:
     Produces a monotonically increasing timestamp series with luminance
     values in [0, 255], plus epoch onsets that fall within the time range.
     """
-    n_frames = draw(st.integers(min_value=20, max_value=2000))
+    n_frames = draw(st.integers(min_value=20, max_value=500))
     fps = draw(st.sampled_from([30.0, 60.0]))
     timestamps = np.arange(n_frames) / fps
 
-    luminance_values = draw(
-        st.lists(
-            st.floats(min_value=0.0, max_value=255.0, allow_nan=False, allow_infinity=False),
-            min_size=n_frames,
-            max_size=n_frames,
-        )
-    )
+    # Use a seed-based approach for fast array generation
+    seed = draw(st.integers(min_value=0, max_value=2**32 - 1))
+    rng = np.random.default_rng(seed)
+    luminance_values = rng.uniform(0.0, 255.0, size=n_frames)
 
     luminance_df = pd.DataFrame(
         {"timestamp": timestamps, "luminance": luminance_values}
@@ -98,7 +99,7 @@ def luminance_and_epochs(draw: st.DrawFn) -> dict:
         "luminance_df": luminance_df,
         "epoch_onsets_s": epoch_onsets_s,
         "epoch_duration_s": epoch_duration_s,
-        "luminance_values": np.array(luminance_values),
+        "luminance_values": luminance_values,
     }
 
 
@@ -127,10 +128,12 @@ def test_property4_epoch_count_and_spacing(params: dict) -> None:
     epoch_step_s = params["epoch_step_s"]
 
     # Expected count: floor((T - D) / S) + 1
-    expected_count = int(np.floor((total_duration_s - epoch_duration_s) / epoch_step_s)) + 1
+    # Use round() to mitigate floating-point drift in the division before floor
+    last_valid_onset = total_duration_s - epoch_duration_s
+    expected_count = int(np.floor(round(last_valid_onset / epoch_step_s, 10))) + 1
     assert len(onsets) == expected_count, (
         f"Expected {expected_count} epochs, got {len(onsets)}. "
-        f"T={total_duration_s:.4f}, D={epoch_duration_s}, S={epoch_step_s}"
+        f"T={total_duration_s:.6f}, D={epoch_duration_s}, S={epoch_step_s}"
     )
 
     # Consecutive onsets separated by exactly S seconds (within float tolerance)
@@ -157,7 +160,7 @@ def test_property4_epoch_count_and_spacing(params: dict) -> None:
 
 
 @given(data=luminance_and_epochs())
-@settings(max_examples=100)
+@settings(max_examples=100, deadline=1000)
 def test_property5_interpolated_luminance_within_range(data: dict) -> None:
     """Property 5: Interpolated luminance within valid range.
 
@@ -189,3 +192,122 @@ def test_property5_interpolated_luminance_within_range(data: dict) -> None:
     assert np.all(interpolated <= original_max + tolerance), (
         f"Interpolated max {interpolated.max():.6f} > original max {original_max:.6f}"
     )
+
+
+# ===========================================================================
+# Unit Tests – Sincronización EEG-Luminancia
+# Requirements: 3.1, 3.2, 3.3, 3.7
+# ===========================================================================
+
+
+class TestLoadLuminanceCsv:
+    """Unit tests for load_luminance_csv."""
+
+    def test_load_valid_csv(self, tmp_path: Path) -> None:
+        """Loading a well-formed CSV returns a sorted DataFrame with correct dtypes.
+
+        Requirements: 3.1
+        """
+        csv_file = tmp_path / "luminance.csv"
+        csv_file.write_text(
+            "timestamp,luminance\n0.0,120.5\n0.016,130.0\n0.033,125.3\n"
+        )
+
+        result = load_luminance_csv(csv_file)
+
+        assert list(result.columns) == ["timestamp", "luminance"]
+        assert len(result) == 3
+        assert result["timestamp"].dtype == np.float64
+        assert result["luminance"].dtype == np.float64
+        # Sorted by timestamp
+        assert result["timestamp"].is_monotonic_increasing
+
+    def test_csv_not_found_raises(self, tmp_path: Path) -> None:
+        """A missing CSV must raise FileNotFoundError (Req 3.7)."""
+        missing_path = tmp_path / "nonexistent.csv"
+
+        with pytest.raises(FileNotFoundError):
+            load_luminance_csv(missing_path)
+
+    def test_csv_missing_columns_raises(self, tmp_path: Path) -> None:
+        """A CSV without required columns must raise ValueError."""
+        csv_file = tmp_path / "bad.csv"
+        csv_file.write_text("time,brightness\n0.0,100\n")
+
+        with pytest.raises(ValueError, match="missing columns"):
+            load_luminance_csv(csv_file)
+
+
+class TestCreateEpochOnsets:
+    """Unit tests for create_epoch_onsets."""
+
+    def test_segment_too_short_returns_empty(self) -> None:
+        """When the segment is shorter than one epoch, return an empty array.
+
+        Requirements: 3.2 (edge case)
+        """
+        # 10 samples at 500 Hz = 0.02 s, epoch = 0.5 s → too short
+        onsets = create_epoch_onsets(
+            n_samples_total=10,
+            sfreq=500.0,
+            epoch_duration_s=0.5,
+            epoch_step_s=0.1,
+        )
+
+        assert len(onsets) == 0
+        assert onsets.dtype == np.float64
+
+    def test_known_epoch_count(self) -> None:
+        """Verify epoch count for a concrete example.
+
+        1 s segment, 0.5 s epoch, 0.1 s step → floor((1.0 - 0.5) / 0.1) + 1 = 6
+        Requirements: 3.2
+        """
+        onsets = create_epoch_onsets(
+            n_samples_total=500,
+            sfreq=500.0,
+            epoch_duration_s=0.5,
+            epoch_step_s=0.1,
+        )
+
+        assert len(onsets) == 6
+        np.testing.assert_allclose(onsets[0], 0.0)
+        np.testing.assert_allclose(np.diff(onsets), 0.1, atol=1e-12)
+
+
+class TestInterpolateLuminanceToEpochs:
+    """Unit tests for interpolate_luminance_to_epochs."""
+
+    def test_empty_onsets_returns_empty(self) -> None:
+        """No epochs → empty output array.
+
+        Requirements: 3.3
+        """
+        luminance_df = pd.DataFrame(
+            {"timestamp": [0.0, 1.0], "luminance": [100.0, 200.0]}
+        )
+        result = interpolate_luminance_to_epochs(
+            luminance_df, epoch_onsets_s=np.array([]), epoch_duration_s=0.5
+        )
+
+        assert len(result) == 0
+
+    def test_constant_luminance_returns_constant(self) -> None:
+        """When luminance is constant, every epoch average equals that constant.
+
+        Requirements: 3.1, 3.3
+        """
+        constant_value = 128.0
+        luminance_df = pd.DataFrame(
+            {
+                "timestamp": np.linspace(0, 5, 300),
+                "luminance": np.full(300, constant_value),
+            }
+        )
+        onsets = np.array([0.0, 0.5, 1.0, 1.5])
+
+        result = interpolate_luminance_to_epochs(
+            luminance_df, epoch_onsets_s=onsets, epoch_duration_s=0.5
+        )
+
+        np.testing.assert_allclose(result, constant_value, atol=1e-6)

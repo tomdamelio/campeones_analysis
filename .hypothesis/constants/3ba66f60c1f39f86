@@ -1,0 +1,4 @@
+# file: C:\Users\tdamelio\Desktop\campeones_analysis\scripts\modeling\08_explore_luminance.py
+# hypothesis_version: 6.151.6
+
+[0.0, 0.5, 0.8, 2.0, 150, 260, '\nGenerating plots...', '--', '=', 'Luminance (0–255)', 'Time (s)', '__main__', 'darkorange', 'duration_s', 'exploration', 'gray', 'green', 'luminance', 'max', 'mean', 'min', 'std', 'tight', 'timestamp', 'Δ Luminance']

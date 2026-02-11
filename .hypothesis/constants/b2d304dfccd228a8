@@ -1,0 +1,4 @@
+# file: C:\Users\tdamelio\Desktop\campeones_analysis\scripts\modeling\09_verify_luminance_markers.py
+# hypothesis_version: 6.151.6
+
+[100, '=', 'N/A', '__main__', 'acq', 'block', 'csv_filename', 'data', 'derivatives', 'dimension', 'duration', 'eeg', 'event_duration', 'event_onset', 'event_stim_id', 'events', 'id', 'luminance', 'match_status', 'merged_events', 'ok', 'onset', 'resolved_video_id', 'run_id', 'stim_file', 'stim_id', 'task', 'trial_type', 'verification', 'video_luminance', '✓', '✗']

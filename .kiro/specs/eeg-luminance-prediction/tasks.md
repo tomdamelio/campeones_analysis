@@ -20,57 +20,57 @@ Implementación incremental de 5 scripts de modelado (08-12) con lógica reutili
     - Exponer API pública en `__init__.py`
     - _Requirements: 6.1_
 
-- [-] 2. Módulo de sincronización EEG-Luminancia
+- [x] 2. Módulo de sincronización EEG-Luminancia
   - [x] 2.1 Implementar `src/campeones_analysis/luminance/sync.py`
     - `load_luminance_csv(csv_path) -> pd.DataFrame`
     - `create_epoch_onsets(n_samples_total, sfreq, epoch_duration_s, epoch_step_s) -> np.ndarray`
     - `interpolate_luminance_to_epochs(luminance_df, epoch_onsets_s, epoch_duration_s) -> np.ndarray`
     - Funciones puras, type hints, Google docstrings
     - _Requirements: 3.1, 3.2, 3.3_
-  - [-] 2.2 Escribir property tests para sincronización (`tests/test_luminance_sync.py`)
+  - [x] 2.2 Escribir property tests para sincronización (`tests/test_luminance_sync.py`)
     - **Property 4: Conteo y espaciado de épocas generadas**
     - **Validates: Requirements 3.2**
     - **Property 5: Luminancia interpolada dentro de rango válido**
     - **Validates: Requirements 3.1, 3.3**
-  - [ ] 2.3 Escribir unit tests para sincronización (`tests/test_luminance_sync.py`)
+  - [x] 2.3 Escribir unit tests para sincronización (`tests/test_luminance_sync.py`)
     - Test de carga de CSV con formato correcto
     - Edge case: segmento EEG demasiado corto para generar épocas
     - Edge case: CSV de luminancia no encontrado (Req 3.7)
     - _Requirements: 3.1, 3.2, 3.3, 3.7_
 
-- [ ] 3. Script de exploración de luminancia
-  - [ ] 3.1 Implementar `scripts/modeling/08_explore_luminance.py`
+- [x] 3. Script de exploración de luminancia
+  - [x] 3.1 Implementar `scripts/modeling/08_explore_luminance.py`
     - Cargar los 4 CSVs de luminancia (videos 3, 7, 9, 12) usando `load_luminance_csv`
     - Generar plots de series de tiempo crudas (un subplot por video)
     - Calcular y plotear diferencias temporales (diff t vs t+1)
     - Imprimir estadísticas descriptivas (media, std, min, max, duración)
     - Guardar figuras en `results/modeling/luminance/exploration/`
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
-  - [ ]* 3.2 Escribir property tests para exploración (`tests/test_luminance_explore.py`)
+  - [x] 3.2 Escribir property tests para exploración (`tests/test_luminance_explore.py`)
     - **Property 1: La serie de diferencias temporales tiene longitud N-1**
     - **Validates: Requirements 1.2**
     - **Property 2: Invariantes de estadísticas descriptivas de luminancia**
     - **Validates: Requirements 1.4**
 
-- [ ] 4. Script de verificación de marcas de estímulos
-  - [ ] 4.1 Implementar `scripts/modeling/09_verify_luminance_markers.py`
+- [x] 4. Script de verificación de marcas de estímulos
+  - [x] 4.1 Implementar `scripts/modeling/09_verify_luminance_markers.py`
     - Para cada run de sub-27 (Acq A y B), cargar eventos TSV y Order Matrix
     - Filtrar eventos con trial_type `video_luminance`
     - Cruzar con video_id de Order Matrix para determinar mapeo
     - Detectar y reportar discrepancias
     - Generar CSV de reporte consolidado en `results/modeling/luminance/verification/`
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
-  - [ ]* 4.2 Escribir property test para filtrado de eventos (`tests/test_luminance_explore.py`)
+  - [x] 4.2 Escribir property test para filtrado de eventos (`tests/test_luminance_explore.py`)
     - **Property 3: Filtrado de eventos video_luminance**
     - **Validates: Requirements 2.1**
 
-- [ ] 5. Checkpoint - Verificar exploración y marcas
+- [x] 5. Checkpoint - Verificar exploración y marcas
   - Ejecutar scripts 08 y 09, verificar que los plots y reportes se generan correctamente
   - Revisar el reporte de verificación de marcas para identificar discrepancias
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Modelo predictivo base con luminancia real
-  - [ ] 6.1 Implementar `scripts/modeling/10_luminance_base_model.py`
+- [x] 6. Modelo predictivo base con luminancia real
+  - [x] 6.1 Implementar `scripts/modeling/10_luminance_base_model.py`
     - Cargar EEG preprocesado, eventos, Order Matrix por cada run
     - Identificar segmentos video_luminance y resolver video_id correspondiente
     - Cropear EEG al segmento de video, cargar CSV de luminancia correspondiente
@@ -80,20 +80,20 @@ Implementación incremental de 5 scripts de modelado (08-12) con lógica reutili
     - Leave-One-Video-Out CV con métricas: Pearson r, Spearman ρ, RMSE
     - Guardar resultados CSV y plots en `results/modeling/luminance/base/`
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 6.1, 6.2, 6.3, 6.4_
-  - [ ]* 6.2 Escribir property test para CV splitting (`tests/test_luminance_pipeline.py`)
+  - [x] 6.2 Escribir property test para CV splitting (`tests/test_luminance_pipeline.py`)
     - **Property 6: Correctitud del split Leave-One-Video-Out**
     - **Validates: Requirements 3.5, 4.4, 5.4**
-  - [ ]* 6.3 Escribir property test para determinismo (`tests/test_luminance_pipeline.py`)
+  - [x] 6.3 Escribir property test para determinismo (`tests/test_luminance_pipeline.py`)
     - **Property 11: Determinismo del pipeline con semilla fija**
     - **Validates: Requirements 6.2**
 
-- [ ] 7. Módulo de features espectrales y TDE
-  - [ ] 7.1 Implementar `src/campeones_analysis/luminance/features.py`
+- [x] 7. Módulo de features espectrales y TDE
+  - [x] 7.1 Implementar `src/campeones_analysis/luminance/features.py`
     - `extract_bandpower(eeg_epoch, sfreq, bands) -> np.ndarray` usando scipy.signal.welch
     - `apply_time_delay_embedding(feature_matrix, window_half) -> np.ndarray`
     - Funciones puras, type hints, Google docstrings
     - _Requirements: 4.1, 4.3, 5.1, 5.2_
-  - [ ]* 7.2 Escribir property tests para features (`tests/test_luminance_features.py`)
+  - [x] 7.2 Escribir property tests para features (`tests/test_luminance_features.py`)
     - **Property 7: Invariantes de extracción de bandpower**
     - **Validates: Requirements 4.1, 4.3**
     - **Property 9: Forma y contenido del Time Delay Embedding**
@@ -101,11 +101,11 @@ Implementación incremental de 5 scripts de modelado (08-12) con lógica reutili
     - **Property 10: Reducción de dimensionalidad por PCA**
     - **Validates: Requirements 5.3**
 
-- [ ] 8. Checkpoint - Verificar módulos core
+- [x] 8. Checkpoint - Verificar módulos core
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 9. Modelo con features espectrales en ROI posterior
-  - [ ] 9.1 Implementar `scripts/modeling/11_luminance_spectral_model.py`
+- [x] 9. Modelo con features espectrales en ROI posterior
+  - [x] 9.1 Implementar `scripts/modeling/11_luminance_spectral_model.py`
     - Mismo flujo que script 10 pero usando `extract_bandpower` en ROI_Posterior
     - Seleccionar canales de ROI_Posterior (intersección con disponibles)
     - Features: bandpower (n_bands × n_channels_roi) por época
@@ -113,16 +113,16 @@ Implementación incremental de 5 scripts de modelado (08-12) con lógica reutili
     - Leave-One-Video-Out CV, métricas, plots comparativos con modelo base
     - Guardar resultados en `results/modeling/luminance/spectral/`
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
-  - [ ]* 9.2 Escribir property test para selección de canales ROI (`tests/test_luminance_pipeline.py`)
+  - [x] 9.2 Escribir property test para selección de canales ROI (`tests/test_luminance_pipeline.py`)
     - **Property 8: Selección de canales ROI es subconjunto válido**
     - **Validates: Requirements 4.2**
 
-- [ ] 10. Modelo con TDE + PCA
-  - [ ] 10.1 Implementar `scripts/modeling/12_luminance_tde_model.py`
+- [x] 10. Modelo con TDE + PCA
+  - [x] 10.1 Implementar `scripts/modeling/12_luminance_tde_model.py`
     - Mismo flujo que script 11 pero aplicando TDE sobre features espectrales
     - `apply_time_delay_embedding` con window_half=10 sobre la secuencia de features
-    - PCA inmediato post-TDE (n_components=50) para reducir dimensionalidad
-    - Pipeline: StandardScaler → PCA(50) → Ridge(alpha=1.0)
+    - PCA inmediato post-TDE (n_components=) para reducir dimensionalidad
+    - Pipeline: StandardScaler → PCA(100) → Ridge(alpha=1.0)
     - Leave-One-Video-Out CV, métricas, plots comparativos con modelo espectral
     - Guardar resultados en `results/modeling/luminance/tde/`
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_

@@ -1,0 +1,4 @@
+# file: C:\Users\tdamelio\Desktop\campeones_analysis\scripts\modeling\config_luminance.py
+# hypothesis_version: 6.151.6
+
+[0.1, 0.4, 0.5, 1.0, 4.0, 8.0, 13.0, 30.0, 45.0, 100, '002', '003', '004', '006', '007', '009', '01', '010', '02', '03', '04', '27', 'CP1', 'CP2', 'CP5', 'CP6', 'O1', 'O2', 'P3', 'P4', 'P7', 'P8', 'Pz', 'a', 'acq', 'alpha', 'b', 'beta', 'block', 'block1', 'block2', 'block3', 'block4', 'campeones_preproc', 'data', 'delta', 'derivatives', 'gamma', 'id', 'luminance', 'modeling', 'results', 'sourcedata', 'stimuli', 'task', 'theta', 'vr', 'xdf']
