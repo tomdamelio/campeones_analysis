@@ -21,18 +21,18 @@ Implementación incremental de 5 scripts de modelado (08-12) con lógica reutili
     - _Requirements: 6.1_
 
 - [-] 2. Módulo de sincronización EEG-Luminancia
-  - [-] 2.1 Implementar `src/campeones_analysis/luminance/sync.py`
+  - [x] 2.1 Implementar `src/campeones_analysis/luminance/sync.py`
     - `load_luminance_csv(csv_path) -> pd.DataFrame`
     - `create_epoch_onsets(n_samples_total, sfreq, epoch_duration_s, epoch_step_s) -> np.ndarray`
     - `interpolate_luminance_to_epochs(luminance_df, epoch_onsets_s, epoch_duration_s) -> np.ndarray`
     - Funciones puras, type hints, Google docstrings
     - _Requirements: 3.1, 3.2, 3.3_
-  - [ ]* 2.2 Escribir property tests para sincronización (`tests/test_luminance_sync.py`)
+  - [-] 2.2 Escribir property tests para sincronización (`tests/test_luminance_sync.py`)
     - **Property 4: Conteo y espaciado de épocas generadas**
     - **Validates: Requirements 3.2**
     - **Property 5: Luminancia interpolada dentro de rango válido**
     - **Validates: Requirements 3.1, 3.3**
-  - [ ]* 2.3 Escribir unit tests para sincronización (`tests/test_luminance_sync.py`)
+  - [ ] 2.3 Escribir unit tests para sincronización (`tests/test_luminance_sync.py`)
     - Test de carga de CSV con formato correcto
     - Edge case: segmento EEG demasiado corto para generar épocas
     - Edge case: CSV de luminancia no encontrado (Req 3.7)

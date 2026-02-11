@@ -25,5 +25,6 @@ dependencies:
   - ipympl
   - ipywidgets
   - pip
+  - hypothesis
   - pip:
     - glhmm
