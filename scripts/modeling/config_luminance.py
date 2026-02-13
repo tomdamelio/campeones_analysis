@@ -62,7 +62,7 @@ TDE_PCA_COMPONENTS: int = 50
 PCA_COMPONENTS: int = 100
 RIDGE_ALPHA: float = 1.0
 RIDGE_ALPHA_GRID: list[float] = [0.01, 0.1, 1.0, 10.0, 100.0]
-N_PERMUTATIONS: int = 100
+N_PERMUTATIONS: int = 0
 RANDOM_SEED: int = 42
 
 # ---------------------------------------------------------------------------
