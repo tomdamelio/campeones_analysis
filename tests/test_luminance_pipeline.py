@@ -324,7 +324,7 @@ def test_property8_roi_channel_selection(data: tuple[list[str], list[str]]) -> N
 from mne.decoding import Vectorizer
 from sklearn.decomposition import PCA
 from sklearn.linear_model import Ridge
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, LeaveOneGroupOut
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -343,22 +343,29 @@ def grid_search_data(draw: st.DrawFn) -> dict:
     """Generate synthetic training data for grid search alpha selection testing.
 
     Produces 2-D feature matrices and continuous targets with enough samples
-    for 3-fold inner CV across the alpha grid.
+    and group labels for LeaveOneGroupOut inner CV.
     """
     n_features = draw(st.integers(min_value=3, max_value=20))
-    # Need at least 3 samples per fold × 3 folds = 9 minimum for inner CV
-    n_train = draw(st.integers(min_value=15, max_value=80))
+    n_groups = draw(st.integers(min_value=2, max_value=5))
+    # At least 5 samples per group to ensure meaningful splits
+    samples_per_group = draw(st.integers(min_value=5, max_value=20))
+    n_train = n_groups * samples_per_group
     seed = draw(st.integers(min_value=0, max_value=2**31 - 1))
 
     rng = np.random.default_rng(seed)
     X_train = rng.standard_normal((n_train, n_features))
     y_train = rng.standard_normal(n_train)
+    groups = np.repeat(np.arange(n_groups), samples_per_group)
 
-    pca_components = min(10, n_features, n_train)
+    # In LeaveOneGroupOut, the smallest training split has
+    # (n_groups - 1) * samples_per_group samples.
+    min_inner_train = (n_groups - 1) * samples_per_group
+    pca_components = min(10, n_features, min_inner_train)
 
     return {
         "X_train": X_train,
         "y_train": y_train,
+        "groups": groups,
         "seed": seed,
         "pca_components": pca_components,
     }
@@ -367,12 +374,11 @@ def grid_search_data(draw: st.DrawFn) -> dict:
 @given(data=grid_search_data())
 @settings(max_examples=100, deadline=10000)
 def test_property3_grid_search_alpha_selection(data: dict) -> None:
-    """Property 3: Grid search selects alpha from the configured grid.
+    """Property 3: GridSearchCV selects alpha from the configured grid.
 
-    For any training feature matrix and target vector with sufficient
-    samples, after running GridSearchCV with RIDGE_ALPHA_GRID, the
-    selected best_params_["ridge__alpha"] must be a member of
-    RIDGE_ALPHA_GRID.
+    For any training feature matrix and target vector with group labels,
+    after fitting GridSearchCV with LeaveOneGroupOut and RIDGE_ALPHA_GRID,
+    the selected best alpha must be a member of RIDGE_ALPHA_GRID.
 
     **Validates: Requirements 3.2**
     """
@@ -383,17 +389,16 @@ def test_property3_grid_search_alpha_selection(data: dict) -> None:
     pipeline = make_pipeline(
         StandardScaler(),
         PCA(n_components=pca_components, random_state=seed),
-        Ridge(random_state=seed),
+        Ridge(),
     )
-
     grid_search = GridSearchCV(
         pipeline,
         param_grid={"ridge__alpha": RIDGE_ALPHA_GRID},
-        cv=3,
+        cv=LeaveOneGroupOut(),
         scoring="neg_mean_squared_error",
         refit=True,
     )
-    grid_search.fit(data["X_train"], data["y_train"])
+    grid_search.fit(data["X_train"], data["y_train"], groups=data["groups"])
 
     best_alpha = grid_search.best_params_["ridge__alpha"]
     assert best_alpha in RIDGE_ALPHA_GRID, (
@@ -454,7 +459,7 @@ def test_property11_pipeline_determinism(data: dict) -> None:
             Vectorizer(),
             StandardScaler(),
             PCA(n_components=pca_components, random_state=seed),
-            Ridge(alpha=1.0, random_state=seed),
+            Ridge(alpha=1.0),
         )
         pipeline.fit(data["X_train"], data["y_train"])
         y_pred = pipeline.predict(data["X_test"])

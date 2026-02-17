@@ -1,0 +1,4 @@
+# file: C:\Users\tdamelio\Desktop\campeones_analysis\scripts\modeling\11_luminance_spectral_model.py
+# hypothesis_version: 6.151.6
+
+[0.0, 1e-09, 0.35, 0.7, 100, 150, '--', '.json', '=', 'Acq', 'Agg', 'Base (Raw EEG)', 'BestAlpha', 'DataType', 'Description', 'Epoch', 'Luminance', 'Metric Value', 'Model', 'Pearson r', 'PearsonR', 'Pred', 'RESULTS SUMMARY', 'RMSE', 'Spearman ρ', 'SpearmanRho', 'Spectral (ROI)', 'Subject', 'Test Video', 'TestSize', 'TestVideo', 'TrainPearsonR', 'TrainSize', 'True', 'Units', 'X', '__main__', 'acq', 'base', 'block', 'darkorange', 'data', 'derivatives', 'dimensionless', 'duration', 'eeg', 'epochs', 'float', 'id', 'integer', 'merged_events', 'null_distribution', 'observed_r', 'onset', 'p_value', 'red', 'ridgecv', 'run_id', 'sfreq', 'spectral', 'steelblue', 'stim_id', 'string', 'task', 'test_video', 'trial_type', 'utf-8', 'video_id', 'video_identifier', 'video_luminance', 'w', 'x', 'y', 'y_pred', 'y_true', 'z-score units']

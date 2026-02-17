@@ -1,0 +1,4 @@
+# file: C:\Users\tdamelio\Desktop\campeones_analysis\scripts\modeling\14_explore_target_distributions.py
+# hypothesis_version: 6.151.6
+
+[1000.0, 'Agg', 'Random seed: %d', 'WARNING', '__main__', 'acq', 'block', 'data', 'derivatives', 'dimension', 'direct', 'distributions', 'duration', 'eeg', 'events_df', 'events_path', 'exploration', 'id', 'inverse', 'joystick_x', 'luminance', 'merged_events', 'onset', 'order_emojis_slider', 'order_matrix_df', 'order_matrix_path', 'real_luminance', 'run_config', 'run_id', 'sfreq', 'task', 'trial_type', 'value', 'video', 'video_id', 'video_identifier', 'video_luminance']

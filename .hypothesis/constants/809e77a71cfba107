@@ -1,0 +1,4 @@
+# file: C:\Users\tdamelio\Desktop\campeones_analysis\scripts\modeling\13_luminance_raw_tde_model.py
+# hypothesis_version: 6.151.6
+
+[0.0, 1e-09, 100, '=', 'Acq', 'Agg', 'BestAlpha', 'Model', 'PearsonR', 'RESULTS SUMMARY', 'RMSE', 'SpearmanRho', 'Subject', 'TestSize', 'TestVideo', 'TrainSize', 'X', '__main__', 'acq', 'block', 'data', 'derivatives', 'duration', 'eeg', 'id', 'merged_events', 'null_distribution', 'observed_r', 'onset', 'p_value', 'raw_tde', 'ridge__alpha', 'run_id', 'sfreq', 'stim_id', 'task', 'test_video', 'trial_type', 'video_id', 'video_identifier', 'video_luminance', 'y', 'y_pred', 'y_true']

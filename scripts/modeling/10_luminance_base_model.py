@@ -1,11 +1,11 @@
-"""Base predictive model: raw EEG → luminance.
+"""Base predictive model: raw EEG (posterior ROI) → luminance.
 
-Loads preprocessed EEG, identifies video_luminance segments via merged events
-and Order Matrix, crops EEG to each segment, generates overlapping epochs
-(500 ms / 400 ms overlap), vectorises raw EEG as features (X), and uses
-interpolated physical luminance as target (y).
+Loads preprocessed EEG, identifies video_luminance segments via merged events,
+crops EEG to each segment, generates overlapping epochs (500 ms / 400 ms
+overlap), vectorises raw EEG from the posterior ROI as features (X), and uses
+epoch-average physical luminance as target (y).
 
-Pipeline: Vectorizer → StandardScaler → PCA(100) → Ridge(α=1.0)
+Pipeline: Vectorizer → StandardScaler → PCA(100) → Ridge (GridSearchCV + LeaveOneGroupOut)
 Evaluation: Leave-One-Video-Out CV with Pearson r, Spearman ρ, RMSE.
 
 Results are saved to ``results/modeling/luminance/base/``.
@@ -15,6 +15,7 @@ Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 6.1, 6.2, 6.3, 6.4
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
 from pathlib import Path
@@ -28,8 +29,8 @@ from mne.decoding import Vectorizer
 from scipy.stats import pearsonr, spearmanr
 from sklearn.decomposition import PCA
 from sklearn.linear_model import Ridge
-from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import make_scorer, mean_squared_error
+from sklearn.model_selection import GridSearchCV, LeaveOneGroupOut
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -45,16 +46,15 @@ from config_luminance import (
     LUMINANCE_CSV_MAP,
     N_PERMUTATIONS,
     PCA_COMPONENTS,
+    POSTERIOR_CHANNELS,
     PROJECT_ROOT,
     RANDOM_SEED,
     RESULTS_PATH,
-    RIDGE_ALPHA,
     RIDGE_ALPHA_GRID,
     RUNS_CONFIG,
     SESSION,
     STIMULI_PATH,
     SUBJECT,
-    XDF_PATH,
 )
 
 from campeones_analysis.luminance.normalization import zscore_per_video
@@ -73,8 +73,24 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Path resolution helpers (reused from 09_verify_luminance_markers.py)
+# Custom Spearman scorer for GridSearchCV alpha selection
 # ---------------------------------------------------------------------------
+
+
+def _spearman_scorer(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Compute Spearman rank correlation for use as a sklearn scorer.
+
+    Args:
+        y_true: Ground-truth target values.
+        y_pred: Predicted target values.
+
+    Returns:
+        Spearman ρ between y_true and y_pred.
+    """
+    return float(spearmanr(y_true, y_pred).correlation)
+
+
+spearman_scoring = make_scorer(_spearman_scorer)
 
 
 def _resolve_events_path(run_config: dict) -> Path | None:
@@ -143,23 +159,36 @@ def _resolve_eeg_path(run_config: dict) -> Path | None:
     return vhdr_path if vhdr_path.exists() else None
 
 
-def _resolve_order_matrix_path(run_config: dict) -> Path | None:
-    """Build the Order Matrix .xlsx path for a run.
+# ---------------------------------------------------------------------------
+# ROI channel selection
+# ---------------------------------------------------------------------------
+
+
+def select_roi_channels(
+    available_channels: list[str],
+    roi_channels: list[str],
+) -> list[str]:
+    """Select ROI channels that exist in the available EEG channels.
+
+    Returns the intersection of *roi_channels* and *available_channels*,
+    preserving the order defined in *roi_channels*.  Logs a warning for
+    any ROI channel not found.
 
     Args:
-        run_config: Dictionary with keys ``acq``, ``block``.
+        available_channels: Channel names present in the EEG recording.
+        roi_channels: Desired ROI channel names.
 
     Returns:
-        Path to the Order Matrix Excel file, or ``None`` if not found.
+        List of channel names present in both lists.
     """
-    acq = run_config["acq"].upper()
-    block = run_config["block"]
-    order_matrix_path = (
-        XDF_PATH
-        / f"sub-{SUBJECT}"
-        / f"order_matrix_{SUBJECT}_{acq}_{block}_VR.xlsx"
-    )
-    return order_matrix_path if order_matrix_path.exists() else None
+    available_set = set(available_channels)
+    selected: list[str] = []
+    for channel in roi_channels:
+        if channel in available_set:
+            selected.append(channel)
+        else:
+            logger.warning("ROI channel %s not found in EEG, skipping.", channel)
+    return selected
 
 
 # ---------------------------------------------------------------------------
@@ -225,24 +254,26 @@ def extract_luminance_epochs_for_run(
     run_config: dict,
     eeg_raw: mne.io.Raw,
     events_df: pd.DataFrame,
-    order_matrix_df: pd.DataFrame,
+    roi_channels: list[str],
+    epoch_duration_s: float = EPOCH_DURATION_S,
+    epoch_step_s: float = EPOCH_STEP_S,
 ) -> list[dict]:
     """Extract synchronised EEG–luminance epochs for one run.
 
     Identifies the ``video_luminance`` event, resolves the corresponding
     video_id via stim_id encoding (stim_id = 100 + video_id), loads the
     luminance CSV, crops EEG to the video segment, and generates overlapping
-    epochs with interpolated luminance targets.
+    epochs with epoch-average luminance targets.
 
     Args:
         run_config: Run metadata dict (id, acq, task, block).
         eeg_raw: Loaded MNE Raw object (preprocessed EEG).
         events_df: Events DataFrame for this run.
-        order_matrix_df: Order Matrix DataFrame for this block.
+        roi_channels: List of ROI channel names present in the EEG.
 
     Returns:
-        List of epoch entry dicts with keys: X, y, video_id,
-        video_identifier, run_id, acq.
+        List of epoch entry dicts with keys: X (2-D array, channels × samples),
+        y, video_id, video_identifier, run_id, acq.
 
     Requirements: 3.1, 3.2, 3.3, 3.7
     """
@@ -259,9 +290,6 @@ def extract_luminance_epochs_for_run(
         return []
 
     sfreq = eeg_raw.info["sfreq"]
-    eeg_channels_present = [
-        ch for ch in EEG_CHANNELS if ch in eeg_raw.ch_names
-    ]
 
     epoch_entries: list[dict] = []
 
@@ -308,15 +336,15 @@ def extract_luminance_epochs_for_run(
             )
             continue
 
-        eeg_data = video_eeg.get_data(picks=eeg_channels_present)
+        eeg_data = video_eeg.get_data(picks=roi_channels)
         n_samples_segment = eeg_data.shape[1]
 
         # Generate epoch onsets
         epoch_onsets = create_epoch_onsets(
             n_samples_total=n_samples_segment,
             sfreq=sfreq,
-            epoch_duration_s=EPOCH_DURATION_S,
-            epoch_step_s=EPOCH_STEP_S,
+            epoch_duration_s=epoch_duration_s,
+            epoch_step_s=epoch_step_s,
         )
 
         if len(epoch_onsets) == 0:
@@ -331,11 +359,11 @@ def extract_luminance_epochs_for_run(
         luminance_targets = interpolate_luminance_to_epochs(
             luminance_df=luminance_df,
             epoch_onsets_s=epoch_onsets,
-            epoch_duration_s=EPOCH_DURATION_S,
+            epoch_duration_s=epoch_duration_s,
         )
 
         # Build epoch entries
-        n_samples_epoch = int(EPOCH_DURATION_S * sfreq)
+        n_samples_epoch = int(epoch_duration_s * sfreq)
         video_identifier = f"{video_id}_{acq}"
 
         for idx, onset in enumerate(epoch_onsets):
@@ -357,6 +385,89 @@ def extract_luminance_epochs_for_run(
             )
 
     return epoch_entries
+
+
+def _write_results_json_sidecar(json_path: Path) -> None:
+    """Write a BIDS-compliant JSON data dictionary for the results CSV.
+
+    Args:
+        json_path: Destination path for the JSON sidecar file.
+    """
+    data_dictionary: dict[str, dict[str, str]] = {
+        "Subject": {
+            "Description": "Subject identifier (BIDS entity, zero-padded)",
+            "DataType": "string",
+        },
+        "Acq": {
+            "Description": "Acquisition label (a or b) for the test fold video",
+            "DataType": "string",
+        },
+        "Model": {
+            "Description": "Model identifier (always 'base' for this pipeline)",
+            "DataType": "string",
+        },
+        "TestVideo": {
+            "Description": (
+                "Video identifier held out as the test set in LOVO-CV "
+                "(format: videoID_acq)"
+            ),
+            "DataType": "string",
+        },
+        "TrainSize": {
+            "Description": "Number of training epochs in this fold",
+            "DataType": "integer",
+            "Units": "epochs",
+        },
+        "TestSize": {
+            "Description": "Number of test epochs in this fold",
+            "DataType": "integer",
+            "Units": "epochs",
+        },
+        "TrainPearsonR": {
+            "Description": (
+                "Pearson correlation coefficient between predicted and "
+                "actual z-scored luminance on the training set (for "
+                "overfitting diagnostics)"
+            ),
+            "DataType": "float",
+            "Units": "dimensionless",
+        },
+        "PearsonR": {
+            "Description": (
+                "Pearson correlation coefficient between predicted and "
+                "actual z-scored luminance on the test fold"
+            ),
+            "DataType": "float",
+            "Units": "dimensionless",
+        },
+        "SpearmanRho": {
+            "Description": (
+                "Spearman rank correlation coefficient between predicted "
+                "and actual z-scored luminance on the test fold"
+            ),
+            "DataType": "float",
+            "Units": "dimensionless",
+        },
+        "RMSE": {
+            "Description": (
+                "Root mean squared error between predicted and actual "
+                "z-scored luminance on the test fold"
+            ),
+            "DataType": "float",
+            "Units": "z-score units",
+        },
+        "BestAlpha": {
+            "Description": (
+                "Best Ridge regularization alpha selected by "
+                "GridSearchCV (Spearman ρ scoring) with "
+                "LeaveOneGroupOut for this fold"
+            ),
+            "DataType": "float",
+            "Units": "dimensionless",
+        },
+    }
+    with open(json_path, "w", encoding="utf-8") as file_handle:
+        json.dump(data_dictionary, file_handle, indent=2, ensure_ascii=False)
 
 
 # ---------------------------------------------------------------------------
@@ -439,29 +550,55 @@ def plot_predictions_per_fold(
 # ---------------------------------------------------------------------------
 
 
-def run_pipeline() -> None:
+def run_pipeline(epoch_duration_override: float | None = None) -> None:
     """Execute the base luminance prediction pipeline.
+
+    Args:
+        epoch_duration_override: If provided, overrides the configured
+            EPOCH_DURATION_S.  EPOCH_STEP_S is kept at 100 ms
+            (overlap = duration − 100 ms).
 
     Steps:
         1. Set random seed for reproducibility.
-        2. For each run, load EEG + events + Order Matrix, extract epochs.
-        3. Run Leave-One-Video-Out CV with Vectorizer → Scaler → PCA → Ridge.
-        4. Save results CSV and plots.
+        2. Determine ROI channels (posterior / occipital).
+        3. For each run, load EEG + events, extract epochs from ROI.
+        4. Run Leave-One-Video-Out CV with Vectorizer → Scaler → PCA → Ridge.
+        5. Save results CSV, JSON sidecar, and plots.
 
     Requirements: 3.4, 3.5, 3.6, 6.1, 6.2, 6.3, 6.4
     """
+    # Allow epoch duration override from CLI
+    if epoch_duration_override is not None:
+        active_epoch_duration = epoch_duration_override
+        active_epoch_step = 0.1  # fixed 100 ms step (overlap = duration − 100 ms)
+    else:
+        active_epoch_duration = EPOCH_DURATION_S
+        active_epoch_step = EPOCH_STEP_S
+
+    epoch_ms_tag = f"{int(active_epoch_duration * 1000)}ms"
+
     np.random.seed(RANDOM_SEED)
     print(f"Random seed: {RANDOM_SEED}")
 
     print("=" * 60)
-    print(f"10 — Base Luminance Model (sub-{SUBJECT})")
+    print(f"10 — Base Luminance Model (sub-{SUBJECT}) — epoch={epoch_ms_tag}")
     print("=" * 60)
 
-    output_dir = RESULTS_PATH / "base"
+    output_dir = RESULTS_PATH / "base" / epoch_ms_tag
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------
-    # 1. Collect epochs across all runs
+    # 1. Determine ROI channels
+    # ------------------------------------------------------------------
+    roi_channels = select_roi_channels(EEG_CHANNELS, POSTERIOR_CHANNELS)
+    print(f"ROI channels ({len(roi_channels)}): {roi_channels}")
+
+    if not roi_channels:
+        print("ERROR: No ROI channels found in EEG. Exiting.")
+        return
+
+    # ------------------------------------------------------------------
+    # 2. Collect epochs across all runs
     # ------------------------------------------------------------------
     all_epochs: list[dict] = []
 
@@ -475,17 +612,12 @@ def run_pipeline() -> None:
         # Resolve paths
         vhdr_path = _resolve_eeg_path(run_config)
         if vhdr_path is None:
-            print(f"  WARNING: EEG file not found, skipping.")
+            print("  WARNING: EEG file not found, skipping.")
             continue
 
         events_path = _resolve_events_path(run_config)
         if events_path is None:
-            print(f"  WARNING: Events TSV not found, skipping.")
-            continue
-
-        order_matrix_path = _resolve_order_matrix_path(run_config)
-        if order_matrix_path is None:
-            print(f"  WARNING: Order Matrix not found, skipping.")
+            print("  WARNING: Events TSV not found, skipping.")
             continue
 
         # Load data
@@ -495,15 +627,17 @@ def run_pipeline() -> None:
         print(f"  Events: {events_path.name}")
         events_df = pd.read_csv(events_path, sep="\t")
 
-        print(f"  Order Matrix: {order_matrix_path.name}")
-        order_matrix_df = pd.read_excel(order_matrix_path)
+        # Resolve actual ROI channels for this recording
+        recording_roi = select_roi_channels(eeg_raw.ch_names, POSTERIOR_CHANNELS)
 
         # Extract epochs
         run_epochs = extract_luminance_epochs_for_run(
             run_config=run_config,
             eeg_raw=eeg_raw,
             events_df=events_df,
-            order_matrix_df=order_matrix_df,
+            roi_channels=recording_roi,
+            epoch_duration_s=active_epoch_duration,
+            epoch_step_s=active_epoch_step,
         )
         print(f"  Epochs extracted: {len(run_epochs)}")
         all_epochs.extend(run_epochs)
@@ -514,13 +648,13 @@ def run_pipeline() -> None:
         return
 
     # ------------------------------------------------------------------
-    # 2. Z-score normalization per video
+    # 3. Z-score normalization per video
     # ------------------------------------------------------------------
     all_epochs = zscore_per_video(all_epochs)
     print("Z-score normalization applied per video.")
 
     # ------------------------------------------------------------------
-    # 3. Leave-One-Video-Out CV
+    # 4. Leave-One-Video-Out CV
     # ------------------------------------------------------------------
     folds = leave_one_video_out_split(all_epochs)
     print(f"Number of CV folds: {len(folds)}")
@@ -539,28 +673,33 @@ def run_pipeline() -> None:
             f"train={X_train.shape[0]} | test={X_test.shape[0]}"
         )
 
-        # Pipeline: Vectorizer → StandardScaler → PCA → Ridge (GridSearchCV)
+        # Pipeline: Vectorizer → StandardScaler → PCA → Ridge
+        # Alpha selected via GridSearchCV (Spearman ρ scoring) with
+        # LeaveOneGroupOut on training videos to prevent data leakage.
+        groups_train = np.array([e["video_identifier"] for e in train_entries])
         pipeline = make_pipeline(
             Vectorizer(),
             StandardScaler(),
             PCA(n_components=PCA_COMPONENTS, random_state=RANDOM_SEED),
-            Ridge(random_state=RANDOM_SEED),
+            Ridge(),
         )
-
         grid_search = GridSearchCV(
             pipeline,
             param_grid={"ridge__alpha": RIDGE_ALPHA_GRID},
-            cv=3,
-            scoring="neg_mean_squared_error",
+            cv=LeaveOneGroupOut(),
+            scoring=spearman_scoring,
             refit=True,
         )
-        grid_search.fit(X_train, y_train)
+        grid_search.fit(X_train, y_train, groups=groups_train)
         y_pred = grid_search.predict(X_test)
+        y_pred_train = grid_search.predict(X_train)
         best_alpha = grid_search.best_params_["ridge__alpha"]
 
         metrics = evaluate_fold(y_test, y_pred)
+        train_metrics = evaluate_fold(y_train, y_pred_train)
         print(
-            f"    Pearson r={metrics['PearsonR']:.4f} | "
+            f"    Train r={train_metrics['PearsonR']:.4f} | "
+            f"Test r={metrics['PearsonR']:.4f} | "
             f"Spearman ρ={metrics['SpearmanRho']:.4f} | "
             f"RMSE={metrics['RMSE']:.4f} | "
             f"BestAlpha={best_alpha}"
@@ -574,6 +713,7 @@ def run_pipeline() -> None:
                 "TestVideo": test_video,
                 "TrainSize": len(y_train),
                 "TestSize": len(y_test),
+                "TrainPearsonR": train_metrics["PearsonR"],
                 **metrics,
                 "BestAlpha": best_alpha,
             }
@@ -588,59 +728,73 @@ def run_pipeline() -> None:
         )
 
     # ------------------------------------------------------------------
-    # 4. Permutation test
+    # 5. Permutation test
     # ------------------------------------------------------------------
-    def _build_and_evaluate(epoch_entries: list[dict]) -> float:
-        """Evaluate mean Pearson r across LOVO_CV folds for permutation test."""
-        perm_folds = leave_one_video_out_split(epoch_entries)
-        pearson_values: list[float] = []
-        for perm_train, perm_test, _ in perm_folds:
-            perm_X_train = np.array([e["X"] for e in perm_train])
-            perm_y_train = np.array([e["y"] for e in perm_train])
-            perm_X_test = np.array([e["X"] for e in perm_test])
-            perm_y_test = np.array([e["y"] for e in perm_test])
+    if N_PERMUTATIONS > 0:
 
-            perm_pipeline = make_pipeline(
-                Vectorizer(),
-                StandardScaler(),
-                PCA(n_components=PCA_COMPONENTS, random_state=RANDOM_SEED),
-                Ridge(alpha=RIDGE_ALPHA, random_state=RANDOM_SEED),
-            )
-            perm_pipeline.fit(perm_X_train, perm_y_train)
-            perm_y_pred = perm_pipeline.predict(perm_X_test)
-            fold_metrics = evaluate_fold(perm_y_test, perm_y_pred)
-            pearson_values.append(fold_metrics["PearsonR"])
-        return float(np.mean(pearson_values))
+        def _build_and_evaluate(epoch_entries: list[dict]) -> float:
+            """Evaluate mean Pearson r across LOVO_CV folds for permutation test."""
+            perm_folds = leave_one_video_out_split(epoch_entries)
+            pearson_values: list[float] = []
+            for perm_train, perm_test, _ in perm_folds:
+                perm_X_train = np.array([e["X"] for e in perm_train])
+                perm_y_train = np.array([e["y"] for e in perm_train])
+                perm_X_test = np.array([e["X"] for e in perm_test])
+                perm_y_test = np.array([e["y"] for e in perm_test])
 
-    print(f"\nRunning permutation test ({N_PERMUTATIONS} iterations)...")
-    perm_results = run_permutation_test(
-        epoch_entries=all_epochs,
-        build_and_evaluate_fn=_build_and_evaluate,
-        n_permutations=N_PERMUTATIONS,
-        random_seed=RANDOM_SEED,
-    )
-    print(
-        f"  Observed r: {perm_results['observed_r']:.4f} | "
-        f"p-value: {perm_results['p_value']:.4f}"
-    )
+                perm_groups_train = np.array(
+                    [e["video_identifier"] for e in perm_train]
+                )
+                perm_pipeline = make_pipeline(
+                    Vectorizer(),
+                    StandardScaler(),
+                    PCA(n_components=PCA_COMPONENTS, random_state=RANDOM_SEED),
+                    Ridge(),
+                )
+                perm_grid = GridSearchCV(
+                    perm_pipeline,
+                    param_grid={"ridge__alpha": RIDGE_ALPHA_GRID},
+                    cv=LeaveOneGroupOut(),
+                    scoring=spearman_scoring,
+                    refit=True,
+                )
+                perm_grid.fit(perm_X_train, perm_y_train, groups=perm_groups_train)
+                perm_y_pred = perm_grid.predict(perm_X_test)
+                fold_metrics = evaluate_fold(perm_y_test, perm_y_pred)
+                pearson_values.append(fold_metrics["PearsonR"])
+            return float(np.mean(pearson_values))
 
-    # Save permutation results
-    np.savez(
-        output_dir / f"sub-{SUBJECT}_base_model_permutation.npz",
-        null_distribution=perm_results["null_distribution"],
-        observed_r=perm_results["observed_r"],
-        p_value=perm_results["p_value"],
-    )
-    plot_permutation_histogram(
-        null_distribution=perm_results["null_distribution"],
-        observed_r=perm_results["observed_r"],
-        p_value=perm_results["p_value"],
-        output_path=output_dir / f"sub-{SUBJECT}_base_model_permutation_hist.png",
-    )
-    print(f"  Permutation results saved to: {output_dir}")
+        print(f"\nRunning permutation test ({N_PERMUTATIONS} iterations)...")
+        perm_results = run_permutation_test(
+            epoch_entries=all_epochs,
+            build_and_evaluate_fn=_build_and_evaluate,
+            n_permutations=N_PERMUTATIONS,
+            random_seed=RANDOM_SEED,
+        )
+        print(
+            f"  Observed r: {perm_results['observed_r']:.4f} | "
+            f"p-value: {perm_results['p_value']:.4f}"
+        )
+
+        np.savez(
+            output_dir / f"sub-{SUBJECT}_base_model_permutation.npz",
+            null_distribution=perm_results["null_distribution"],
+            observed_r=perm_results["observed_r"],
+            p_value=perm_results["p_value"],
+        )
+        plot_permutation_histogram(
+            null_distribution=perm_results["null_distribution"],
+            observed_r=perm_results["observed_r"],
+            p_value=perm_results["p_value"],
+            output_path=output_dir
+            / f"sub-{SUBJECT}_base_model_permutation_hist.png",
+        )
+        print(f"  Permutation results saved to: {output_dir}")
+    else:
+        print("\nPermutation test skipped (N_PERMUTATIONS=0).")
 
     # ------------------------------------------------------------------
-    # 5. Summary and save
+    # 6. Summary and save
     # ------------------------------------------------------------------
     results_df = pd.DataFrame(results_list)
     print("\n" + "=" * 60)
@@ -648,7 +802,8 @@ def run_pipeline() -> None:
     print("=" * 60)
     print(results_df.to_string(index=False))
     print(
-        f"\nMean Pearson r: {results_df['PearsonR'].mean():.4f}"
+        f"\nMean Train r: {results_df['TrainPearsonR'].mean():.4f}"
+        f" | Mean Test r: {results_df['PearsonR'].mean():.4f}"
         f" | Mean Spearman ρ: {results_df['SpearmanRho'].mean():.4f}"
         f" | Mean RMSE: {results_df['RMSE'].mean():.4f}"
     )
@@ -657,6 +812,10 @@ def run_pipeline() -> None:
     csv_path = output_dir / f"sub-{SUBJECT}_base_model_results.csv"
     results_df.to_csv(csv_path, index=False)
     print(f"\nResults CSV saved: {csv_path}")
+
+    json_sidecar_path = csv_path.with_suffix(".json")
+    _write_results_json_sidecar(json_sidecar_path)
+    print(f"JSON data dictionary saved: {json_sidecar_path}")
 
     # Save plots
     plot_cv_results(results_df, output_dir)
@@ -669,5 +828,15 @@ def run_pipeline() -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Base luminance model")
+    parser.add_argument(
+        "--epoch-duration",
+        type=float,
+        default=None,
+        help="Epoch duration in seconds (default: use config value)",
+    )
+    args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
-    run_pipeline()
+    run_pipeline(epoch_duration_override=args.epoch_duration)

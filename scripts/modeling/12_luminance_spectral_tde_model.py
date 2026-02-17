@@ -1,15 +1,25 @@
-"""Spectral model: band-power features from posterior ROI → luminance.
+"""Spectral TDE model: TDE on continuous spectral power → luminance.
 
-Same pipeline flow as 10_luminance_base_model.py but replaces raw EEG
-vectorisation with spectral band-power extraction over the posterior /
-occipital ROI.  Features per epoch: (n_bands × n_channels_roi).
+Pipeline identical to Script 13 (raw TDE) except the input representation:
+instead of raw EEG amplitude, we use multitaper time-frequency band-power
+in 5 canonical frequency bands.  This isolates the effect of the input
+space (raw waveform vs spectral power) while keeping every other pipeline
+step identical.
 
-Pipeline: StandardScaler → PCA(100) → Ridge(α=1.0)
-Evaluation: Leave-One-Video-Out CV with Pearson r, Spearman ρ, RMSE.
+Pipeline per video segment:
+    1. Crop preprocessed EEG to video_luminance segment (ROI channels only)
+    2. Compute multitaper time-frequency representation → average power in
+       each of 5 bands (delta, theta, alpha, beta, gamma) per channel,
+       yielding a continuous spectral time-series of shape
+       ``(n_samples, n_channels × n_bands)``
+    3. Apply TDE on the continuous spectral time-series
+    4. PCA on TDE-expanded matrix → N component time-series
+    5. Summarise each epoch: mean + variance per PCA component → 2N features
+    6. Pair epochs with interpolated luminance targets
 
-Results are saved to ``results/modeling/luminance/spectral/``.
-
-Requirements: 4.1, 4.2, 4.3, 4.4, 4.5
+Evaluation: Leave-One-Video-Out CV with StandardScaler → Ridge
+(GridSearchCV + LeaveOneGroupOut for alpha selection).
+Results saved to ``results/modeling/luminance/tde/``.
 """
 
 from __future__ import annotations
@@ -24,6 +34,7 @@ import matplotlib.pyplot as plt
 import mne
 import numpy as np
 import pandas as pd
+from mne.time_frequency import tfr_array_multitaper
 from scipy.stats import pearsonr, spearmanr
 from sklearn.decomposition import PCA
 from sklearn.linear_model import Ridge
@@ -43,7 +54,6 @@ from config_luminance import (
     EXPERIMENTAL_VIDEOS,
     LUMINANCE_CSV_MAP,
     N_PERMUTATIONS,
-    PCA_COMPONENTS,
     POSTERIOR_CHANNELS,
     PROJECT_ROOT,
     RANDOM_SEED,
@@ -54,10 +64,12 @@ from config_luminance import (
     SPECTRAL_BANDS,
     STIMULI_PATH,
     SUBJECT,
+    TDE_PCA_COMPONENTS,
+    TDE_WINDOW_HALF,
     XDF_PATH,
 )
 
-from campeones_analysis.luminance.features import extract_bandpower
+from campeones_analysis.luminance.features import apply_time_delay_embedding
 from campeones_analysis.luminance.normalization import zscore_per_video
 from campeones_analysis.luminance.permutation import (
     plot_permutation_histogram,
@@ -95,7 +107,7 @@ spearman_scoring = make_scorer(_spearman_scorer)
 
 
 # ---------------------------------------------------------------------------
-# Path resolution helpers (shared with 10_luminance_base_model.py)
+# Path resolution helpers (shared with scripts 10–13)
 # ---------------------------------------------------------------------------
 
 
@@ -163,25 +175,6 @@ def _resolve_eeg_path(run_config: dict) -> Path | None:
     return vhdr_path if vhdr_path.exists() else None
 
 
-def _resolve_order_matrix_path(run_config: dict) -> Path | None:
-    """Build the Order Matrix .xlsx path for a run.
-
-    Args:
-        run_config: Dictionary with keys ``acq``, ``block``.
-
-    Returns:
-        Path to the Order Matrix Excel file, or ``None`` if not found.
-    """
-    acq = run_config["acq"].upper()
-    block = run_config["block"]
-    order_matrix_path = (
-        XDF_PATH
-        / f"sub-{SUBJECT}"
-        / f"order_matrix_{SUBJECT}_{acq}_{block}_VR.xlsx"
-    )
-    return order_matrix_path if order_matrix_path.exists() else None
-
-
 # ---------------------------------------------------------------------------
 # ROI channel selection
 # ---------------------------------------------------------------------------
@@ -193,9 +186,7 @@ def select_roi_channels(
 ) -> list[str]:
     """Select ROI channels that exist in the available EEG channels.
 
-    Returns the intersection of *roi_channels* and *available_channels*,
-    preserving the order defined in *roi_channels*.  Logs a warning for
-    any ROI channel not found.
+    Returns the intersection preserving the order defined in *roi_channels*.
 
     Args:
         available_channels: Channel names present in the EEG recording.
@@ -215,7 +206,7 @@ def select_roi_channels(
 
 
 # ---------------------------------------------------------------------------
-# Pure computation helpers (reused from base model)
+# Pure computation helpers (identical to Script 13)
 # ---------------------------------------------------------------------------
 
 
@@ -225,12 +216,10 @@ def leave_one_video_out_split(
     """Generate Leave-One-Video-Out CV folds.
 
     Args:
-        epoch_entries: List of epoch dicts, each with a ``video_identifier``
-            key used for grouping.
+        epoch_entries: List of epoch dicts with ``video_identifier`` key.
 
     Returns:
-        List of ``(train_entries, test_entries, test_video_id)`` tuples,
-        one per unique video identifier.
+        List of ``(train_entries, test_entries, test_video_id)`` tuples.
     """
     unique_videos = sorted(set(entry["video_identifier"] for entry in epoch_entries))
     folds: list[tuple[list[dict], list[dict], str]] = []
@@ -269,11 +258,218 @@ def evaluate_fold(
 
 
 # ---------------------------------------------------------------------------
-# Epoch extraction with spectral features
+# Spectral power extraction (THE key difference vs Script 13)
 # ---------------------------------------------------------------------------
 
 
-def extract_spectral_epochs_for_run(
+def compute_continuous_bandpower(
+    eeg_data: np.ndarray,
+    sfreq: float,
+    bands: dict[str, tuple[float, float]],
+    n_cycles_min: float = 2.0,
+) -> np.ndarray:
+    """Compute continuous band-power via multitaper time-frequency analysis.
+
+    For each channel, computes the multitaper TFR at the centre frequency
+    of each band, then averages power within each band.  This produces a
+    time-resolved spectral representation at the same temporal resolution
+    as the original EEG signal.
+
+    The number of cycles per frequency is set to ``max(n_cycles_min,
+    freq / 2)`` to balance temporal and spectral resolution, following
+    MNE defaults for multitaper TFR.
+
+    Args:
+        eeg_data: Raw EEG array of shape ``(n_channels, n_samples)``.
+        sfreq: Sampling frequency in Hz.
+        bands: Mapping of band name to ``(freq_min, freq_max)`` in Hz.
+        n_cycles_min: Minimum number of cycles for the lowest frequency.
+
+    Returns:
+        2-D array of shape ``(n_samples, n_channels * n_bands)`` with
+        band-power values.  Column ordering is channel-major: all bands
+        for channel 0, then all bands for channel 1, etc.  This matches
+        the convention used by ``extract_bandpower`` in Script 11.
+    """
+    n_channels, n_samples = eeg_data.shape
+    band_names = list(bands.keys())
+    n_bands = len(band_names)
+
+    # Build frequency grid: sample each band at ~1 Hz resolution
+    freqs_list: list[float] = []
+    band_indices: list[tuple[int, int]] = []  # (start_idx, end_idx) per band
+    for band_name in band_names:
+        freq_min, freq_max = bands[band_name]
+        band_freqs = np.arange(freq_min, freq_max + 0.5, 1.0)
+        band_freqs = band_freqs[(band_freqs >= freq_min) & (band_freqs <= freq_max)]
+        start_idx = len(freqs_list)
+        freqs_list.extend(band_freqs.tolist())
+        end_idx = len(freqs_list)
+        band_indices.append((start_idx, end_idx))
+
+    freqs = np.array(freqs_list)
+    n_cycles = np.maximum(n_cycles_min, freqs / 2.0)
+
+    # tfr_array_multitaper expects (n_epochs, n_channels, n_samples)
+    data_4d = eeg_data[np.newaxis, :, :]  # (1, n_channels, n_samples)
+
+    # Compute TFR: output shape (1, n_channels, n_freqs, n_samples)
+    tfr_power = tfr_array_multitaper(
+        data_4d,
+        sfreq=sfreq,
+        freqs=freqs,
+        n_cycles=n_cycles,
+        output="power",
+        verbose=False,
+    )
+    # Remove epoch dimension → (n_channels, n_freqs, n_samples)
+    tfr_power = tfr_power[0]
+
+    # Average power within each band → (n_channels, n_bands, n_samples)
+    bandpower_continuous = np.empty(
+        (n_channels, n_bands, n_samples), dtype=np.float64
+    )
+    for band_idx, (start, end) in enumerate(band_indices):
+        bandpower_continuous[:, band_idx, :] = tfr_power[:, start:end, :].mean(
+            axis=1
+        )
+
+    # Reshape to (n_samples, n_channels * n_bands) — channel-major ordering
+    # For channel c, band b: column index = c * n_bands + b
+    result = bandpower_continuous.transpose(2, 0, 1)  # (n_samples, n_ch, n_bands)
+    result = result.reshape(n_samples, n_channels * n_bands)
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# TDE on continuous spectral time-series
+# ---------------------------------------------------------------------------
+
+
+def apply_tde_on_continuous_spectral(
+    eeg_data: np.ndarray,
+    sfreq: float,
+    bands: dict[str, tuple[float, float]],
+    window_half: int,
+) -> np.ndarray:
+    """Apply TDE on continuous spectral band-power representation.
+
+    This is the spectral counterpart of Script 13's
+    ``apply_tde_on_continuous_signal``.  Instead of operating on raw EEG
+    amplitudes, it first transforms the signal into a continuous
+    band-power representation via multitaper TFR, then applies TDE.
+
+    Args:
+        eeg_data: Raw EEG array of shape ``(n_channels, n_samples)``.
+        sfreq: Sampling frequency in Hz.
+        bands: Mapping of band name to ``(freq_min, freq_max)`` in Hz.
+        window_half: Half-width of the TDE embedding window.
+
+    Returns:
+        2-D array of shape
+        ``(n_samples - 2 * window_half,
+          n_channels * n_bands * (2 * window_half + 1))``
+        containing the TDE-expanded spectral feature matrix.
+    """
+    spectral_timeseries = compute_continuous_bandpower(eeg_data, sfreq, bands)
+    tde_expanded: np.ndarray = apply_time_delay_embedding(
+        spectral_timeseries, window_half
+    )
+    return tde_expanded
+
+
+# ---------------------------------------------------------------------------
+# PCA reduction and epoching helpers (identical to Script 13)
+# ---------------------------------------------------------------------------
+
+
+def _apply_pca_to_tde_matrix(
+    tde_matrix: np.ndarray,
+    n_components: int,
+    random_seed: int,
+) -> np.ndarray:
+    """Reduce TDE-expanded features to principal component time-series.
+
+    Fits PCA on the TDE-expanded matrix and returns the transformed data.
+    If the requested number of components exceeds the matrix dimensions,
+    it is automatically reduced to ``min(n_rows, n_cols)``.
+
+    Args:
+        tde_matrix: 2-D array of shape ``(n_valid_timepoints, n_tde_features)``.
+        n_components: Desired number of principal components.
+        random_seed: Random seed for PCA reproducibility.
+
+    Returns:
+        2-D array of shape ``(n_valid_timepoints, actual_n_components)``.
+    """
+    n_rows, n_cols = tde_matrix.shape
+    actual_components = min(n_components, n_rows, n_cols)
+    pca = PCA(n_components=actual_components, random_state=random_seed)
+    pca_timeseries: np.ndarray = pca.fit_transform(tde_matrix)
+    return pca_timeseries
+
+
+def _epoch_pca_timeseries(
+    pca_timeseries: np.ndarray,
+    sfreq: float,
+    epoch_duration_s: float,
+    epoch_step_s: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Epoch PCA time-series and summarise each epoch with mean + variance.
+
+    Identical to Script 13's ``_epoch_pca_timeseries``.
+
+    Args:
+        pca_timeseries: 2-D array ``(n_valid_timepoints, n_components)``.
+        sfreq: Sampling frequency in Hz.
+        epoch_duration_s: Duration of each epoch in seconds.
+        epoch_step_s: Step between consecutive epoch onsets in seconds.
+
+    Returns:
+        Tuple of ``(epoch_features, epoch_onsets_s)`` where:
+        - ``epoch_features``: 2-D array ``(n_epochs, 2 * n_components)``.
+        - ``epoch_onsets_s``: 1-D array of epoch onset times in seconds.
+    """
+    n_valid_timepoints = pca_timeseries.shape[0]
+
+    epoch_onsets_s = create_epoch_onsets(
+        n_samples_total=n_valid_timepoints,
+        sfreq=sfreq,
+        epoch_duration_s=epoch_duration_s,
+        epoch_step_s=epoch_step_s,
+    )
+
+    if len(epoch_onsets_s) == 0:
+        return np.empty((0, 0), dtype=np.float64), epoch_onsets_s
+
+    n_samples_per_epoch = int(epoch_duration_s * sfreq)
+    epoch_features_list: list[np.ndarray] = []
+
+    for onset_s in epoch_onsets_s:
+        sample_start = int(round(onset_s * sfreq))
+        sample_end = sample_start + n_samples_per_epoch
+        if sample_end > n_valid_timepoints:
+            break
+        epoch_window = pca_timeseries[sample_start:sample_end, :]
+        epoch_mean = epoch_window.mean(axis=0)
+        epoch_var = epoch_window.var(axis=0)
+        epoch_features_list.append(np.concatenate([epoch_mean, epoch_var]))
+
+    if not epoch_features_list:
+        return np.empty((0, 0), dtype=np.float64), epoch_onsets_s
+
+    epoch_features = np.stack(epoch_features_list, axis=0)
+    epoch_onsets_s = epoch_onsets_s[: len(epoch_features_list)]
+    return epoch_features, epoch_onsets_s
+
+
+# ---------------------------------------------------------------------------
+# Spectral TDE epoch extraction (main feature extraction function)
+# ---------------------------------------------------------------------------
+
+
+def extract_spectral_tde_epochs_for_run(
     run_config: dict,
     eeg_raw: mne.io.Raw,
     events_df: pd.DataFrame,
@@ -281,28 +477,28 @@ def extract_spectral_epochs_for_run(
     epoch_duration_s: float = EPOCH_DURATION_S,
     epoch_step_s: float = EPOCH_STEP_S,
 ) -> list[dict]:
-    """Extract EEG epochs with band-power features from the posterior ROI.
+    """Extract spectral-TDE + PCA epochs for all luminance video segments.
 
-    Identifies ``video_luminance`` events, resolves the corresponding
-    video_id via stim_id encoding (stim_id = 100 + video_id), loads the
-    luminance CSV, crops EEG to the video segment, generates overlapping
-    epochs, and computes spectral band-power features over the ROI channels.
+    Identical pipeline to Script 13's ``extract_raw_tde_epochs_for_run``
+    except step 2 computes multitaper band-power before TDE instead of
+    using raw EEG amplitudes.
 
     Args:
-        run_config: Run metadata dict (id, acq, task, block).
+        run_config: Run metadata dict with keys ``id``, ``acq``, ``task``,
+            ``block``.
         eeg_raw: Loaded MNE Raw object (preprocessed EEG).
         events_df: Events DataFrame for this run.
         roi_channels: List of ROI channel names present in the EEG.
+        epoch_duration_s: Duration of each epoch in seconds.
+        epoch_step_s: Step between consecutive epoch onsets in seconds.
 
     Returns:
-        List of epoch entry dicts with keys: X (1-D band-power vector),
-        y, video_id, video_identifier, run_id, acq.
-
-    Requirements: 3.1, 3.2, 3.3, 3.7, 4.1, 4.2, 4.3
+        List of epoch entry dicts with keys: ``X``, ``y``, ``video_id``,
+        ``video_identifier``, ``run_id``, ``acq``.
     """
-    run_id = run_config["id"]
-    acq = run_config["acq"]
-    sfreq = eeg_raw.info["sfreq"]
+    run_id: str = run_config["id"]
+    acq: str = run_config["acq"]
+    sfreq: float = eeg_raw.info["sfreq"]
 
     luminance_events = events_df[
         events_df["trial_type"] == "video_luminance"
@@ -315,100 +511,162 @@ def extract_spectral_epochs_for_run(
     epoch_entries: list[dict] = []
 
     for _, event_row in luminance_events.iterrows():
-        stim_id = int(event_row["stim_id"])
-        video_id = stim_id - 100
-        onset_s = float(event_row["onset"])
-        duration_s = float(event_row["duration"])
-
-        csv_filename = LUMINANCE_CSV_MAP.get(video_id)
-        if csv_filename is None:
-            logger.warning(
-                "Run %s: video_id %d not in LUMINANCE_CSV_MAP, skipping.",
-                run_id,
-                video_id,
-            )
-            continue
-
-        csv_path = STIMULI_PATH / csv_filename
-        try:
-            luminance_df = load_luminance_csv(csv_path)
-        except FileNotFoundError:
-            logger.warning(
-                "Run %s: luminance CSV not found: %s, skipping segment.",
-                run_id,
-                csv_path,
-            )
-            continue
-
-        # Crop EEG to the video segment
-        t_start = onset_s
-        t_stop = onset_s + duration_s
-        try:
-            video_eeg = eeg_raw.copy().crop(tmin=t_start, tmax=t_stop)
-        except ValueError as exc:
-            logger.warning(
-                "Run %s: could not crop EEG [%.2f, %.2f]: %s",
-                run_id,
-                t_start,
-                t_stop,
-                exc,
-            )
-            continue
-
-        eeg_data = video_eeg.get_data(picks=roi_channels)
-        n_samples_segment = eeg_data.shape[1]
-
-        epoch_onsets = create_epoch_onsets(
-            n_samples_total=n_samples_segment,
+        segment_epochs = _process_single_video_segment(
+            event_row=event_row,
+            run_id=run_id,
+            acq=acq,
+            eeg_raw=eeg_raw,
+            roi_channels=roi_channels,
             sfreq=sfreq,
             epoch_duration_s=epoch_duration_s,
             epoch_step_s=epoch_step_s,
         )
-
-        if len(epoch_onsets) == 0:
-            logger.warning(
-                "Run %s: segment too short for epochs (video_id=%d).",
-                run_id,
-                video_id,
-            )
-            continue
-
-        luminance_targets = interpolate_luminance_to_epochs(
-            luminance_df=luminance_df,
-            epoch_onsets_s=epoch_onsets,
-            epoch_duration_s=epoch_duration_s,
-        )
-
-        n_samples_epoch = int(epoch_duration_s * sfreq)
-        video_identifier = f"{video_id}_{acq}"
-
-        for idx, onset in enumerate(epoch_onsets):
-            sample_start = int(round(onset * sfreq))
-            sample_end = sample_start + n_samples_epoch
-            if sample_end > n_samples_segment:
-                break
-
-            eeg_window = eeg_data[:, sample_start:sample_end]
-            bandpower_vector = extract_bandpower(
-                eeg_window, sfreq, SPECTRAL_BANDS
-            )
-
-            epoch_entries.append(
-                {
-                    "X": bandpower_vector,
-                    "y": float(luminance_targets[idx]),
-                    "video_id": video_id,
-                    "video_identifier": video_identifier,
-                    "run_id": run_id,
-                    "acq": acq,
-                }
-            )
+        epoch_entries.extend(segment_epochs)
 
     return epoch_entries
 
 
+def _process_single_video_segment(
+    event_row: pd.Series,
+    run_id: str,
+    acq: str,
+    eeg_raw: mne.io.Raw,
+    roi_channels: list[str],
+    sfreq: float,
+    epoch_duration_s: float = EPOCH_DURATION_S,
+    epoch_step_s: float = EPOCH_STEP_S,
+) -> list[dict]:
+    """Process a single video_luminance segment through the spectral-TDE pipeline.
+
+    Steps mirror Script 13's ``_process_single_video_segment`` exactly,
+    with the only difference being step 2: multitaper band-power instead
+    of raw signal.
+
+    Args:
+        event_row: A single row from the events DataFrame.
+        run_id: Run identifier string.
+        acq: Acquisition label.
+        eeg_raw: Loaded MNE Raw object.
+        roi_channels: ROI channel names present in the EEG.
+        sfreq: Sampling frequency in Hz.
+        epoch_duration_s: Duration of each epoch in seconds.
+        epoch_step_s: Step between consecutive epoch onsets in seconds.
+
+    Returns:
+        List of epoch entry dicts for this segment (may be empty).
+    """
+    stim_id = int(event_row["stim_id"])
+    video_id = stim_id - 100
+    onset_s = float(event_row["onset"])
+    duration_s = float(event_row["duration"])
+
+    csv_filename = LUMINANCE_CSV_MAP.get(video_id)
+    if csv_filename is None:
+        logger.warning(
+            "Run %s: video_id %d not in LUMINANCE_CSV_MAP, skipping.",
+            run_id,
+            video_id,
+        )
+        return []
+
+    csv_path = STIMULI_PATH / csv_filename
+    try:
+        luminance_df = load_luminance_csv(csv_path)
+    except FileNotFoundError:
+        logger.warning(
+            "Run %s: luminance CSV not found: %s, skipping segment.",
+            run_id,
+            csv_path,
+        )
+        return []
+
+    # --- Step 1: Crop EEG to segment, ROI channels only ---
+    t_start = onset_s
+    t_stop = onset_s + duration_s
+    try:
+        video_eeg = eeg_raw.copy().crop(tmin=t_start, tmax=t_stop)
+    except ValueError as exc:
+        logger.warning(
+            "Run %s: could not crop EEG [%.2f, %.2f]: %s",
+            run_id,
+            t_start,
+            t_stop,
+            exc,
+        )
+        return []
+
+    eeg_data = video_eeg.get_data(picks=roi_channels)
+
+    # --- Step 2: Spectral TDE (band-power + TDE on continuous signal) ---
+    window_half = TDE_WINDOW_HALF
+    min_samples_for_tde = 2 * window_half + 1
+    if eeg_data.shape[1] < min_samples_for_tde:
+        logger.warning(
+            "Run %s: segment too short for TDE (video_id=%d, "
+            "n_samples=%d, need>=%d).",
+            run_id,
+            video_id,
+            eeg_data.shape[1],
+            min_samples_for_tde,
+        )
+        return []
+
+    tde_matrix = apply_tde_on_continuous_spectral(
+        eeg_data, sfreq, SPECTRAL_BANDS, window_half
+    )
+
+    # --- Step 3: Apply PCA ---
+    pca_timeseries = _apply_pca_to_tde_matrix(
+        tde_matrix, n_components=TDE_PCA_COMPONENTS, random_seed=RANDOM_SEED
+    )
+
+    # --- Step 4: Epoch PCA time-series ---
+    epoch_features, epoch_onsets_s = _epoch_pca_timeseries(
+        pca_timeseries,
+        sfreq=sfreq,
+        epoch_duration_s=epoch_duration_s,
+        epoch_step_s=epoch_step_s,
+    )
+
+    if epoch_features.shape[0] == 0:
+        logger.warning(
+            "Run %s: segment too short for epochs after TDE border "
+            "removal (video_id=%d). Skipping.",
+            run_id,
+            video_id,
+        )
+        return []
+
+    # --- Step 5: Pair with luminance targets ---
+    border_offset_s = window_half / sfreq
+    luminance_epoch_onsets_s = epoch_onsets_s + border_offset_s
+
+    luminance_targets = interpolate_luminance_to_epochs(
+        luminance_df=luminance_df,
+        epoch_onsets_s=luminance_epoch_onsets_s,
+        epoch_duration_s=epoch_duration_s,
+    )
+
+    # --- Build epoch entries ---
+    video_identifier = f"{video_id}_{acq}"
+    segment_entries: list[dict] = []
+    for idx in range(epoch_features.shape[0]):
+        segment_entries.append(
+            {
+                "X": epoch_features[idx],
+                "y": float(luminance_targets[idx]),
+                "video_id": video_id,
+                "video_identifier": video_identifier,
+                "run_id": run_id,
+                "acq": acq,
+            }
+        )
+
+    return segment_entries
+
+
 # ---------------------------------------------------------------------------
-# Plotting
+# Plotting functions
 # ---------------------------------------------------------------------------
 
 
@@ -431,7 +689,9 @@ def plot_cv_results(
     for ax, metric, title in zip(axes, metrics, titles):
         ax.bar(results_df["TestVideo"], results_df[metric], color="darkorange")
         mean_val = results_df[metric].mean()
-        ax.axhline(mean_val, color="red", linestyle="--", label=f"Mean={mean_val:.4f}")
+        ax.axhline(
+            mean_val, color="red", linestyle="--", label=f"Mean={mean_val:.4f}"
+        )
         ax.set_xlabel("Test Video")
         ax.set_ylabel(title)
         ax.set_title(f"{title} per Fold")
@@ -439,14 +699,14 @@ def plot_cv_results(
         ax.tick_params(axis="x", rotation=45)
 
     fig.suptitle(
-        f"Spectral Model (Band-Power ROI → Luminance) — sub-{SUBJECT}",
+        f"Spectral TDE Model (Multitaper + TDE + PCA → Luminance) — sub-{SUBJECT}",
         fontsize=14,
     )
     plt.tight_layout()
     fig.savefig(
-        output_dir / f"sub-{SUBJECT}_spectral_model_cv_results.png", dpi=150
+        output_dir / f"sub-{SUBJECT}_tde_model_cv_results.png", dpi=150
     )
-    plt.close(fig)
+    plt.close("all")
 
 
 def plot_predictions_per_fold(
@@ -474,59 +734,79 @@ def plot_predictions_per_fold(
         ax.legend(fontsize=8)
 
     fig.suptitle(
-        f"Predictions — Spectral Model — sub-{SUBJECT}",
+        f"Predictions — Spectral TDE Model — sub-{SUBJECT}",
         fontsize=14,
     )
     plt.tight_layout()
     fig.savefig(
-        output_dir / f"sub-{SUBJECT}_spectral_model_predictions.png", dpi=150
+        output_dir / f"sub-{SUBJECT}_tde_model_predictions.png", dpi=150
     )
-    plt.close(fig)
+    plt.close("all")
 
 
-def plot_comparison_with_base(
-    spectral_df: pd.DataFrame,
+def plot_comparison_with_raw_tde(
+    results_df: pd.DataFrame,
     output_dir: Path,
 ) -> None:
-    """Plot comparison of spectral model vs base model metrics.
-
-    Loads the base model results CSV (if available) and generates a
-    grouped bar chart comparing Pearson r, Spearman ρ, and RMSE.
+    """Plot comparison of spectral TDE model vs raw TDE model metrics.
 
     Args:
-        spectral_df: Spectral model results DataFrame.
+        results_df: Spectral TDE model results DataFrame.
         output_dir: Directory to save the figure.
     """
-    base_csv = RESULTS_PATH / "base" / f"sub-{SUBJECT}_base_model_results.csv"
-    if not base_csv.exists():
-        logger.warning("Base model results not found at %s, skipping comparison.", base_csv)
+    raw_tde_csv = (
+        RESULTS_PATH / "raw_tde" / f"sub-{SUBJECT}_raw_tde_model_results.csv"
+    )
+    if not raw_tde_csv.exists():
+        logger.warning(
+            "Raw TDE model results not found at %s, skipping comparison.",
+            raw_tde_csv,
+        )
         return
 
-    base_df = pd.read_csv(base_csv)
+    raw_tde_df = pd.read_csv(raw_tde_csv)
 
     metrics = ["PearsonR", "SpearmanRho", "RMSE"]
     labels = ["Pearson r", "Spearman ρ", "RMSE"]
 
-    base_means = [base_df[metric].mean() for metric in metrics]
-    spectral_means = [spectral_df[metric].mean() for metric in metrics]
+    spectral_means = [results_df[metric].mean() for metric in metrics]
+    raw_means = [raw_tde_df[metric].mean() for metric in metrics]
 
     x_positions = np.arange(len(metrics))
     bar_width = 0.35
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.bar(x_positions - bar_width / 2, base_means, bar_width, label="Base (Raw EEG)", color="steelblue")
-    ax.bar(x_positions + bar_width / 2, spectral_means, bar_width, label="Spectral (ROI)", color="darkorange")
+    ax.bar(
+        x_positions - bar_width / 2,
+        spectral_means,
+        bar_width,
+        label="Spectral TDE (script 12)",
+        color="darkorange",
+    )
+    ax.bar(
+        x_positions + bar_width / 2,
+        raw_means,
+        bar_width,
+        label="Raw TDE (script 13)",
+        color="steelblue",
+    )
 
     ax.set_xticks(x_positions)
     ax.set_xticklabels(labels)
     ax.set_ylabel("Metric Value")
-    ax.set_title(f"Base vs Spectral Model — sub-{SUBJECT}")
+    ax.set_title(f"Spectral TDE vs Raw TDE Model — sub-{SUBJECT}")
     ax.legend()
     plt.tight_layout()
     fig.savefig(
-        output_dir / f"sub-{SUBJECT}_base_vs_spectral_comparison.png", dpi=150
+        output_dir / f"sub-{SUBJECT}_spectral_tde_vs_raw_tde_comparison.png",
+        dpi=150,
     )
-    plt.close(fig)
+    plt.close("all")
+
+
+# ---------------------------------------------------------------------------
+# JSON data dictionary sidecar (BIDS compliance)
+# ---------------------------------------------------------------------------
 
 
 def _write_results_json_sidecar(json_path: Path) -> None:
@@ -545,7 +825,7 @@ def _write_results_json_sidecar(json_path: Path) -> None:
             "DataType": "string",
         },
         "Model": {
-            "Description": "Model identifier (always 'spectral' for this pipeline)",
+            "Description": "Model identifier (always 'spectral_tde' for this pipeline)",
             "DataType": "string",
         },
         "TestVideo": {
@@ -613,26 +893,30 @@ def _write_results_json_sidecar(json_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Main pipeline
+# Pipeline orchestration
 # ---------------------------------------------------------------------------
 
 
 def run_pipeline(epoch_duration_override: float | None = None) -> None:
-    """Execute the spectral luminance prediction pipeline.
+    """Execute the spectral-TDE luminance prediction pipeline.
 
     Args:
         epoch_duration_override: If provided, overrides the configured
             EPOCH_DURATION_S.  EPOCH_STEP_S is kept at 100 ms
             (overlap = duration − 100 ms).
 
-    Steps:
-        1. Set random seed for reproducibility.
-        2. Determine ROI channels (intersection with available EEG channels).
-        3. For each run, load EEG + events, extract spectral epochs.
-        4. Run Leave-One-Video-Out CV with Scaler → Ridge.
-        5. Save results CSV, plots, and comparison with base model.
+    Identical to Script 13's ``run_pipeline`` except the feature extraction
+    uses multitaper band-power instead of raw EEG amplitudes.
 
-    Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 6.1, 6.2, 6.3, 6.4
+    Steps:
+        1. Set random seed for reproducibility and log it.
+        2. Determine ROI channels from the configured posterior set.
+        3. For each run, load EEG + events, extract spectral-TDE + PCA epochs.
+        4. Z-score normalize luminance targets per video group.
+        5. Run Leave-One-Video-Out CV with StandardScaler → Ridge
+           (GridSearchCV + LeaveOneGroupOut for alpha selection).
+        6. Run permutation test if configured.
+        7. Save results CSV, plots, and comparison with raw TDE model.
     """
     if epoch_duration_override is not None:
         active_epoch_duration = epoch_duration_override
@@ -647,29 +931,35 @@ def run_pipeline(epoch_duration_override: float | None = None) -> None:
     print(f"Random seed: {RANDOM_SEED}")
 
     print("=" * 60)
-    print(f"11 — Spectral Luminance Model (sub-{SUBJECT}) — epoch={epoch_ms_tag}")
+    print(f"12 — Spectral TDE Luminance Model (sub-{SUBJECT}) — epoch={epoch_ms_tag}")
     print("=" * 60)
 
-    output_dir = RESULTS_PATH / "spectral" / epoch_ms_tag
+    output_dir = RESULTS_PATH / "tde" / epoch_ms_tag
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------
     # 1. Determine ROI channels
     # ------------------------------------------------------------------
     roi_channels = select_roi_channels(EEG_CHANNELS, POSTERIOR_CHANNELS)
-    n_features_per_epoch = len(roi_channels) * len(SPECTRAL_BANDS)
+    n_bands = len(SPECTRAL_BANDS)
+    n_spectral_features = len(roi_channels) * n_bands
+    window_size = 2 * TDE_WINDOW_HALF + 1
+    n_tde_features = n_spectral_features * window_size
     print(f"ROI channels ({len(roi_channels)}): {roi_channels}")
-    print(f"Spectral bands: {list(SPECTRAL_BANDS.keys())}")
-    print(f"Features per epoch: {n_features_per_epoch}")
+    print(f"Spectral bands ({n_bands}): {list(SPECTRAL_BANDS.keys())}")
+    print(f"Spectral features per time-point: {n_spectral_features}")
+    print(f"TDE window: ±{TDE_WINDOW_HALF} → {window_size} time-points")
+    print(f"TDE-expanded features per time-point: {n_tde_features}")
+    print(f"PCA components: {TDE_PCA_COMPONENTS}")
 
     if not roi_channels:
         print("ERROR: No ROI channels found in EEG. Exiting.")
         return
 
     # ------------------------------------------------------------------
-    # 2. Collect spectral epochs across all runs
+    # 2. Collect spectral-TDE + PCA epochs across all runs
     # ------------------------------------------------------------------
-    all_epochs: list[dict] = []
+    all_epoch_entries: list[dict] = []
 
     for run_config in RUNS_CONFIG:
         run_label = (
@@ -696,10 +986,9 @@ def run_pipeline(epoch_duration_override: float | None = None) -> None:
         print(f"  Events: {events_path.name}")
         events_df = pd.read_csv(events_path, sep="\t")
 
-        # Resolve actual ROI channels for this recording
         recording_roi = select_roi_channels(eeg_raw.ch_names, POSTERIOR_CHANNELS)
 
-        run_epochs = extract_spectral_epochs_for_run(
+        run_epochs = extract_spectral_tde_epochs_for_run(
             run_config=run_config,
             eeg_raw=eeg_raw,
             events_df=events_df,
@@ -707,45 +996,44 @@ def run_pipeline(epoch_duration_override: float | None = None) -> None:
             epoch_duration_s=active_epoch_duration,
             epoch_step_s=active_epoch_step,
         )
-        print(f"  Epochs extracted: {len(run_epochs)}")
-        all_epochs.extend(run_epochs)
+        print(f"  Spectral-TDE epochs extracted: {len(run_epochs)}")
+        all_epoch_entries.extend(run_epochs)
 
-    print(f"\nTotal epochs collected: {len(all_epochs)}")
-    if not all_epochs:
-        print("No epochs generated. Exiting.")
+    print(f"\nTotal spectral-TDE epochs collected: {len(all_epoch_entries)}")
+    if not all_epoch_entries:
+        print("ERROR: No epochs generated across all runs. Exiting.")
         return
 
     # ------------------------------------------------------------------
     # 3. Z-score normalization per video
     # ------------------------------------------------------------------
-    all_epochs = zscore_per_video(all_epochs)
+    all_epoch_entries = zscore_per_video(all_epoch_entries)
     print("Z-score normalization applied per video.")
 
     # ------------------------------------------------------------------
     # 4. Leave-One-Video-Out CV
     # ------------------------------------------------------------------
-    folds = leave_one_video_out_split(all_epochs)
+    folds = leave_one_video_out_split(all_epoch_entries)
     print(f"Number of CV folds: {len(folds)}")
 
     results_list: list[dict] = []
     fold_predictions: list[dict] = []
 
     for train_entries, test_entries, test_video in folds:
-        X_train = np.array([e["X"] for e in train_entries])
-        y_train = np.array([e["y"] for e in train_entries])
-        X_test = np.array([e["X"] for e in test_entries])
-        y_test = np.array([e["y"] for e in test_entries])
+        X_train = np.array([entry["X"] for entry in train_entries])
+        y_train = np.array([entry["y"] for entry in train_entries])
+        X_test = np.array([entry["X"] for entry in test_entries])
+        y_test = np.array([entry["y"] for entry in test_entries])
 
         print(
             f"\n  Fold: test={test_video} | "
-            f"train={X_train.shape[0]} | test={X_test.shape[0]}"
+            f"train={X_train.shape[0]} ({X_train.shape[1]} features) | "
+            f"test={X_test.shape[0]}"
         )
 
         # Pipeline: StandardScaler → Ridge
         # Alpha selected via GridSearchCV (Spearman ρ scoring) with
         # LeaveOneGroupOut on training videos to prevent data leakage.
-        # No PCA needed — with only 55 features (5 bands × 11 channels),
-        # Ridge regularization handles multicollinearity directly.
         groups_train = np.array([e["video_identifier"] for e in train_entries])
         pipeline = make_pipeline(
             StandardScaler(),
@@ -777,7 +1065,7 @@ def run_pipeline(epoch_duration_override: float | None = None) -> None:
             {
                 "Subject": SUBJECT,
                 "Acq": test_entries[0]["acq"],
-                "Model": "spectral",
+                "Model": "spectral_tde",
                 "TestVideo": test_video,
                 "TrainSize": len(y_train),
                 "TestSize": len(y_test),
@@ -801,7 +1089,7 @@ def run_pipeline(epoch_duration_override: float | None = None) -> None:
     if N_PERMUTATIONS > 0:
 
         def _build_and_evaluate(epoch_entries: list[dict]) -> float:
-            """Evaluate mean Pearson r across LOVO_CV folds for permutation test."""
+            """Evaluate mean Pearson r across LOVO-CV folds for permutation test."""
             perm_folds = leave_one_video_out_split(epoch_entries)
             pearson_values: list[float] = []
             for perm_train, perm_test, _ in perm_folds:
@@ -832,7 +1120,7 @@ def run_pipeline(epoch_duration_override: float | None = None) -> None:
 
         print(f"\nRunning permutation test ({N_PERMUTATIONS} iterations)...")
         perm_results = run_permutation_test(
-            epoch_entries=all_epochs,
+            epoch_entries=all_epoch_entries,
             build_and_evaluate_fn=_build_and_evaluate,
             n_permutations=N_PERMUTATIONS,
             random_seed=RANDOM_SEED,
@@ -843,7 +1131,7 @@ def run_pipeline(epoch_duration_override: float | None = None) -> None:
         )
 
         np.savez(
-            output_dir / f"sub-{SUBJECT}_spectral_model_permutation.npz",
+            output_dir / f"sub-{SUBJECT}_tde_model_permutation.npz",
             null_distribution=perm_results["null_distribution"],
             observed_r=perm_results["observed_r"],
             p_value=perm_results["p_value"],
@@ -853,7 +1141,7 @@ def run_pipeline(epoch_duration_override: float | None = None) -> None:
             observed_r=perm_results["observed_r"],
             p_value=perm_results["p_value"],
             output_path=output_dir
-            / f"sub-{SUBJECT}_spectral_model_permutation_hist.png",
+            / f"sub-{SUBJECT}_tde_model_permutation_hist.png",
         )
         print(f"  Permutation results saved to: {output_dir}")
     else:
@@ -874,7 +1162,7 @@ def run_pipeline(epoch_duration_override: float | None = None) -> None:
         f" | Mean RMSE: {results_df['RMSE'].mean():.4f}"
     )
 
-    csv_path = output_dir / f"sub-{SUBJECT}_spectral_model_results.csv"
+    csv_path = output_dir / f"sub-{SUBJECT}_tde_model_results.csv"
     results_df.to_csv(csv_path, index=False)
     print(f"\nResults CSV saved: {csv_path}")
 
@@ -884,18 +1172,22 @@ def run_pipeline(epoch_duration_override: float | None = None) -> None:
 
     plot_cv_results(results_df, output_dir)
     plot_predictions_per_fold(fold_predictions, output_dir)
-    plot_comparison_with_base(results_df, output_dir)
+    plot_comparison_with_raw_tde(results_df, output_dir)
     print(f"Plots saved to: {output_dir}")
 
     print("\n" + "=" * 60)
-    print("Spectral model pipeline complete.")
+    print("Spectral TDE model pipeline complete.")
     print("=" * 60)
 
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Spectral luminance model")
+    parser = argparse.ArgumentParser(description="Spectral TDE luminance model")
     parser.add_argument(
         "--epoch-duration",
         type=float,

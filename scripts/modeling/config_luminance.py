@@ -17,9 +17,9 @@ from config import EEG_CHANNELS
 # ---------------------------------------------------------------------------
 # Epoch windowing
 # ---------------------------------------------------------------------------
-EPOCH_DURATION_S: float = 1.0  # 1 s
-EPOCH_OVERLAP_S: float = 0.9  # 900 ms overlap
-EPOCH_STEP_S: float = 0.1  # 100 ms step
+EPOCH_DURATION_S: float = 0.5  # 500 ms
+EPOCH_OVERLAP_S: float = 0.4  # overlap = duration − 100 ms
+EPOCH_STEP_S: float = 0.1  # always 100 ms step
 
 # ---------------------------------------------------------------------------
 # ROI – Posterior / Occipital electrodes
@@ -61,7 +61,7 @@ TDE_PCA_COMPONENTS: int = 50
 # ---------------------------------------------------------------------------
 PCA_COMPONENTS: int = 100
 RIDGE_ALPHA: float = 1.0
-RIDGE_ALPHA_GRID: list[float] = [0.01, 0.1, 1.0, 10.0, 100.0]
+RIDGE_ALPHA_GRID: list[float] = [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
 N_PERMUTATIONS: int = 0
 RANDOM_SEED: int = 42
 

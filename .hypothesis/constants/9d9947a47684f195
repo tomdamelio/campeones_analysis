@@ -1,0 +1,4 @@
+# file: C:\Users\tdamelio\Desktop\campeones_analysis\scripts\modeling\13_luminance_raw_tde_model.py
+# hypothesis_version: 6.151.6
+
+[0.0, 1e-09, 'Agg', 'PearsonR', 'RMSE', 'SpearmanRho', '__main__', 'acq', 'block', 'data', 'derivatives', 'eeg', 'id', 'merged_events', 'task', 'video_identifier']
