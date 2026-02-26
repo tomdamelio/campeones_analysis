@@ -104,3 +104,37 @@ def apply_time_delay_embedding(
         embedded[idx] = feature_matrix[idx : idx + window_size].ravel()
 
     return embedded
+
+
+def compute_epoch_covariance(
+    pca_epoch: np.ndarray,
+) -> np.ndarray:
+    """Compute full covariance matrix of PCA components and extract upper triangle.
+
+    Captures phase coherence and lag relationships between PCA components
+    within an epoch window. The upper triangle (including diagonal) is
+    flattened into a 1-D feature vector, replacing the simpler mean+variance
+    summary used in the original script 13.
+
+    For ``n_components`` PCA components, the output vector has length
+    ``n_components * (n_components + 1) // 2``.  For example, with 50
+    components this yields 1275 features vs 100 with mean+variance.
+
+    Args:
+        pca_epoch: 2-D array of shape ``(n_samples_in_epoch, n_components)``
+            containing PCA time-series for one epoch.  Requires at least 2
+            samples to compute a meaningful covariance.
+
+    Returns:
+        1-D array of shape ``(n_components * (n_components + 1) // 2,)``
+        containing the upper triangle (including diagonal) of the
+        ``(n_components, n_components)`` covariance matrix.
+
+    References:
+        Requirements 4.3, 4.4.
+    """
+    cov_matrix = np.cov(pca_epoch.T)
+    # np.cov returns a scalar for 1-component input; normalise to 2-D
+    cov_matrix = np.atleast_2d(cov_matrix)
+    upper_triangle_indices = np.triu_indices(cov_matrix.shape[0])
+    return cov_matrix[upper_triangle_indices]

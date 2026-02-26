@@ -1,0 +1,4 @@
+# file: C:\Users\tdamelio\Desktop\campeones_analysis\src\campeones_analysis\luminance\qa.py
+# hypothesis_version: 6.151.6
+
+[100.0, 150, 'Channel', 'Epoch index', 'RdYlGn_r', 'Rejection label', 'auto', 'channel_names', 'n_epochs_rejected', 'n_epochs_total', 'nearest', 'reject_log', 'rejection_pct']

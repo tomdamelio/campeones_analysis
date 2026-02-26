@@ -66,6 +66,50 @@ N_PERMUTATIONS: int = 0
 RANDOM_SEED: int = 42
 
 # ---------------------------------------------------------------------------
+# Active models for comparison report (Req 6.3)
+# Spectral TDE excluded per supervisor evaluation.
+# ---------------------------------------------------------------------------
+ACTIVE_MODELS: list[str] = [
+    "base",
+    "raw_tde",
+    "raw_tde_cov",
+    "shuffle_baseline",
+    "mean_baseline",
+    "delta_luminance",
+    "change_classifier",
+]
+
+# ---------------------------------------------------------------------------
+# Target normalization (Req 7b.5)
+# Default: raw luminance (0–255). Set True to z-score per video.
+# ---------------------------------------------------------------------------
+TARGET_ZSCORE: bool = True
+
+# ---------------------------------------------------------------------------
+# Delta luminance target (Req 8.4)
+# Default: raw delta. Set True to z-score normalize delta per video.
+# ---------------------------------------------------------------------------
+DELTA_ZSCORE: bool = False
+
+# ---------------------------------------------------------------------------
+# Change classifier threshold (Req 9.6)
+# Absolute delta luminance above which an epoch is labeled as 'change' (1).
+# ---------------------------------------------------------------------------
+CHANGE_THRESHOLD: float = 5.0
+
+# ---------------------------------------------------------------------------
+# ERP analysis parameters (Req 10.1, 10.2)
+# ---------------------------------------------------------------------------
+ERP_N_CHANGES: int = 50  # Top N moments of largest absolute luminance change
+ERP_TMIN: float = -0.2  # Pre-change window (seconds)
+ERP_TMAX: float = 0.8  # Post-change window (seconds)
+
+# ---------------------------------------------------------------------------
+# Shuffle baseline iterations (Req 2.5)
+# ---------------------------------------------------------------------------
+N_SHUFFLE_ITERATIONS: int = 100
+
+# ---------------------------------------------------------------------------
 # Paths – all relative to project root
 # ---------------------------------------------------------------------------
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]

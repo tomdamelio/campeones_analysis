@@ -32,10 +32,11 @@ def _(mo):
         **Sujeto:** sub-27 &nbsp;|&nbsp; **Sesión:** VR &nbsp;|&nbsp;
         **Paradigma:** Visualización pasiva de videos con variación de luminancia
 
-        Este reporte compara cuatro modelos de regresión que predicen la
+        Este reporte compara todos los modelos activos que predicen la
         luminancia física del estímulo visual a partir de señales EEG
-        preprocesadas. Todos los modelos usan **Leave-One-Video-Out
-        Cross-Validation (LOVO-CV)** con **Ridge Regression**.
+        preprocesadas. Incluye modelos de regresión (Ridge) y un
+        clasificador binario de cambio/estabilidad. Todos los modelos
+        usan **Leave-One-Video-Out Cross-Validation (LOVO-CV)**.
 
         La selección del hiperparámetro de regularización $\alpha$ se
         realiza mediante **GridSearchCV** con **LeaveOneGroupOut** como
@@ -58,6 +59,8 @@ def _(mo):
 
 @app.cell
 def _():
+    import json as json_mod
+    import sys
     from pathlib import Path
 
     import matplotlib.pyplot as plt
@@ -68,25 +71,73 @@ def _():
     PROJECT_ROOT = Path(__file__).resolve().parents[2]
     RESULTS_PATH = PROJECT_ROOT / "results" / "modeling" / "luminance"
     STIMULI_PATH = PROJECT_ROOT / "stimuli" / "luminance"
+    COMPARISON_PATH = RESULTS_PATH / "comparison"
+
+    # Import ACTIVE_MODELS from config (Req 6.3)
+    sys.path.insert(0, str(PROJECT_ROOT / "scripts" / "modeling"))
+    from config_luminance import ACTIVE_MODELS
 
     # Epoch durations to compare
     EPOCH_TAGS = ["500ms", "1000ms"]
 
-    # Model definitions: label → (subdir, csv_filename)
-    MODEL_DEFS = {
+    # All model definitions: label → (subdir_key, csv_filename)
+    # subdir_key is used to filter by ACTIVE_MODELS and to build the path.
+    _ALL_MODEL_DEFS: dict[str, tuple[str, str]] = {
         "Base (Raw EEG)": ("base", "sub-27_base_model_results.csv"),
         "Spectral (Welch)": ("spectral", "sub-27_spectral_model_results.csv"),
         "Spectral TDE": ("tde", "sub-27_tde_model_results.csv"),
-        "Raw TDE": ("raw_tde", "sub-27_raw_tde_model_results.csv"),
+        "Raw TDE (Cov)": ("raw_tde", "sub-27_raw_tde_model_results.csv"),
+        "Shuffle Baseline": (
+            "shuffle_baseline",
+            "sub-27_shuffle_baseline_results.csv",
+        ),
+        "Mean Baseline": ("mean_baseline", "sub-27_mean_baseline_results.csv"),
+        "Delta Luminance": (
+            "delta_luminance",
+            "sub-27_delta_luminance_results.csv",
+        ),
+        "Change Classifier": (
+            "change_classifier",
+            "sub-27_change_classifier_results.csv",
+        ),
+    }
+
+    # Map config keys to subdir keys for filtering.
+    # "raw_tde_cov" in ACTIVE_MODELS is an alias for "raw_tde" after refactoring.
+    _active_set = set(ACTIVE_MODELS) | (
+        {"raw_tde"} if "raw_tde_cov" in ACTIVE_MODELS else set()
+    )
+
+    # Filter: keep only models whose subdir key is in ACTIVE_MODELS (Req 6.1, 6.3)
+    MODEL_DEFS: dict[str, tuple[str, str]] = {
+        label: (subdir, csv_name)
+        for label, (subdir, csv_name) in _ALL_MODEL_DEFS.items()
+        if subdir in _active_set
+    }
+
+    # Separate regression vs classification models for metric handling
+    CLASSIFICATION_MODELS: set[str] = {"Change Classifier"}
+    REGRESSION_MODELS: set[str] = set(MODEL_DEFS.keys()) - CLASSIFICATION_MODELS
+
+    # Subdirectory overrides: baselines and delta use a nested path structure
+    SUBDIR_OVERRIDES: dict[str, str] = {
+        "shuffle_baseline": "baselines",
+        "mean_baseline": "baselines",
     }
 
     return (
+        ACTIVE_MODELS,
+        CLASSIFICATION_MODELS,
+        COMPARISON_PATH,
         EPOCH_TAGS,
         MODEL_DEFS,
         Path,
         PROJECT_ROOT,
+        REGRESSION_MODELS,
         RESULTS_PATH,
         STIMULI_PATH,
+        SUBDIR_OVERRIDES,
+        json_mod,
         np,
         pd,
         plt,
@@ -424,73 +475,113 @@ def _(mo):
 
 
 @app.cell
-def _(EPOCH_TAGS, MODEL_DEFS, RESULTS_PATH, mo, pd):
-    _all_frames: list = []
+def _(
+    CLASSIFICATION_MODELS,
+    EPOCH_TAGS,
+    MODEL_DEFS,
+    REGRESSION_MODELS,
+    RESULTS_PATH,
+    SUBDIR_OVERRIDES,
+    mo,
+    pd,
+):
+    _regression_frames: list = []
+    _classification_frames: list = []
     _missing: list = []
 
     for _epoch_tag in EPOCH_TAGS:
         for _label, (_subdir, _csv_name) in MODEL_DEFS.items():
-            _csv_path = RESULTS_PATH / _subdir / _epoch_tag / _csv_name
+            # Baselines use a nested path: baselines/{epoch_tag}/
+            _actual_subdir = SUBDIR_OVERRIDES.get(_subdir, _subdir)
+            _csv_path = RESULTS_PATH / _actual_subdir / _epoch_tag / _csv_name
             if _csv_path.exists():
                 _df = pd.read_csv(_csv_path)
                 _df["ModelLabel"] = _label
                 _df["Epoch"] = _epoch_tag
-                _all_frames.append(_df)
+                if _label in CLASSIFICATION_MODELS:
+                    _classification_frames.append(_df)
+                else:
+                    _regression_frames.append(_df)
             else:
                 _missing.append(f"{_label} / {_epoch_tag}")
 
-    if _all_frames:
-        combined_df = pd.concat(_all_frames, ignore_index=True)
+    if _regression_frames:
+        combined_df = pd.concat(_regression_frames, ignore_index=True)
     else:
         combined_df = pd.DataFrame()
 
+    if _classification_frames:
+        classification_df = pd.concat(_classification_frames, ignore_index=True)
+    else:
+        classification_df = pd.DataFrame()
+
+    _loaded_count = len(combined_df) + len(classification_df)
     if _missing:
         mo.md(
             f"⚠️ Resultados faltantes: {', '.join(_missing)}. "
-            "Ejecutar `run_all_models.ps1` primero."
+            "Ejecutar los scripts de modelado primero."
         )
     else:
         mo.md(
-            f"✅ Cargados **{len(combined_df)}** filas "
-            f"({len(MODEL_DEFS)} modelos × {len(EPOCH_TAGS)} epochs × 7 folds)."
+            f"✅ Cargados **{_loaded_count}** filas "
+            f"({len(MODEL_DEFS)} modelos × {len(EPOCH_TAGS)} epochs)."
         )
 
     combined_df
-    return (combined_df,)
+    return (classification_df, combined_df)
 
 
 
 @app.cell
 def _(combined_df, mo, pd):
     if combined_df.empty:
-        _42_out = mo.md("*No hay datos cargados.*")
+        _42_out = mo.md("*No hay datos de regresión cargados.*")
     else:
+        _agg_dict: dict[str, tuple[str, str]] = {
+            "MeanTrainR": ("TrainPearsonR", "mean"),
+            "MeanTestR": ("PearsonR", "mean"),
+            "StdTestR": ("PearsonR", "std"),
+            "MeanSpearman": ("SpearmanRho", "mean"),
+            "MeanRMSE": ("RMSE", "mean"),
+        }
+        # Include R² if available in any model's CSV (Req 7.3)
+        if "R2" in combined_df.columns:
+            _agg_dict["MeanR2"] = ("R2", "mean")
+        # Include BestAlpha only if present (baselines don't have it)
+        if "BestAlpha" in combined_df.columns:
+            _agg_dict["MeanBestAlpha"] = ("BestAlpha", "mean")
+
+        # Filter to columns that actually exist to avoid KeyError
+        _valid_agg = {
+            alias: (col, func)
+            for alias, (col, func) in _agg_dict.items()
+            if col in combined_df.columns
+        }
+
         _summary = (
             combined_df.groupby(["Epoch", "ModelLabel"])
-            .agg(
-                MeanTrainR=("TrainPearsonR", "mean"),
-                MeanTestR=("PearsonR", "mean"),
-                StdTestR=("PearsonR", "std"),
-                MeanSpearman=("SpearmanRho", "mean"),
-                MeanRMSE=("RMSE", "mean"),
-                MeanBestAlpha=("BestAlpha", "mean"),
-            )
+            .agg(**_valid_agg)
             .round(4)
             .reset_index()
-            .sort_values(["Epoch", "MeanTestR"], ascending=[True, False])
+        )
+        _sort_col = "MeanR2" if "MeanR2" in _summary.columns else "MeanTestR"
+        _summary = _summary.sort_values(
+            ["Epoch", _sort_col], ascending=[True, False]
         )
         _42_out = mo.ui.table(_summary)
-    mo.vstack([mo.md("### 4.2 Tabla resumen de métricas medias"), _42_out])
+    mo.vstack([mo.md("### 4.2 Tabla resumen de métricas medias (regresión)"), _42_out])
     return
 
 
 @app.cell
-def _(combined_df, mo, np, plt):
+def _(REGRESSION_MODELS, combined_df, mo, np, plt):
     if combined_df.empty:
         _43_content = mo.md("*No hay datos.*")
     else:
         _epochs = sorted(combined_df["Epoch"].unique())
-        _models = sorted(combined_df["ModelLabel"].unique())
+        _models = sorted(
+            m for m in combined_df["ModelLabel"].unique() if m in REGRESSION_MODELS
+        )
         _n_epochs = len(_epochs)
 
         _fig, _axes = plt.subplots(1, _n_epochs, figsize=(8 * _n_epochs, 5), squeeze=False)
@@ -538,7 +629,7 @@ def _(combined_df, mo, np, plt):
 
 
 @app.cell
-def _(combined_df, mo, np, plt, sns):
+def _(REGRESSION_MODELS, combined_df, mo, np, plt, sns):
     if combined_df.empty:
         _44_content = mo.md("*No hay datos.*")
     else:
@@ -549,18 +640,9 @@ def _(combined_df, mo, np, plt, sns):
             1, _n_epochs, figsize=(8 * _n_epochs, 5), squeeze=False
         )
 
-        _model_order = [
-            "Base (Raw EEG)",
-            "Spectral (Welch)",
-            "Spectral TDE",
-            "Raw TDE",
-        ]
-        _palette = {
-            "Base (Raw EEG)": "#4C72B0",
-            "Spectral (Welch)": "#DD8452",
-            "Spectral TDE": "#55A868",
-            "Raw TDE": "#C44E52",
-        }
+        _model_order = sorted(
+            m for m in combined_df["ModelLabel"].unique() if m in REGRESSION_MODELS
+        )
 
         for _col_idx, _epoch_tag in enumerate(_epochs):
             _ax = _axes[0, _col_idx]
@@ -573,7 +655,6 @@ def _(combined_df, mo, np, plt, sns):
                 hue="ModelLabel",
                 order=_model_order,
                 hue_order=_model_order,
-                palette=_palette,
                 inner=None,
                 linewidth=0.8,
                 alpha=0.3,
@@ -589,7 +670,6 @@ def _(combined_df, mo, np, plt, sns):
                 hue="ModelLabel",
                 order=_model_order,
                 hue_order=_model_order,
-                palette=_palette,
                 size=7,
                 jitter=0.12,
                 alpha=0.85,
@@ -639,16 +719,25 @@ def _(combined_df, mo, np, plt, sns):
 
 
 @app.cell
-def _(combined_df, mo, np, plt):
+def _(REGRESSION_MODELS, combined_df, mo, np, plt):
     if combined_df.empty:
         _45_content = mo.md("*No hay datos.*")
     else:
         _metrics = ["PearsonR", "SpearmanRho", "RMSE"]
         _titles = ["Mean Pearson r (test)", "Mean Spearman ρ (test)", "Mean RMSE"]
-        _epochs = sorted(combined_df["Epoch"].unique())
-        _models = sorted(combined_df["ModelLabel"].unique())
+        # Add R² if available (Req 7.3)
+        if "R2" in combined_df.columns:
+            _metrics.insert(0, "R2")
+            _titles.insert(0, "Mean R²")
 
-        _fig, _axes = plt.subplots(1, 3, figsize=(18, 5))
+        _epochs = sorted(combined_df["Epoch"].unique())
+        _models = sorted(
+            m for m in combined_df["ModelLabel"].unique() if m in REGRESSION_MODELS
+        )
+
+        _fig, _axes = plt.subplots(1, len(_metrics), figsize=(6 * len(_metrics), 5))
+        if len(_metrics) == 1:
+            _axes = [_axes]
         _x = np.arange(len(_models))
         _width = 0.35
         _colors = {"500ms": "steelblue", "1000ms": "darkorange"}
@@ -660,8 +749,12 @@ def _(combined_df, mo, np, plt):
                 _stds = []
                 for _model in _models:
                     _model_data = _epoch_data[_epoch_data["ModelLabel"] == _model]
-                    _means.append(_model_data[_metric].mean())
-                    _stds.append(_model_data[_metric].std())
+                    if _metric in _model_data.columns and not _model_data[_metric].isna().all():
+                        _means.append(_model_data[_metric].mean())
+                        _stds.append(_model_data[_metric].std())
+                    else:
+                        _means.append(0.0)
+                        _stds.append(0.0)
                 _offset = (_e_idx - 0.5) * _width
                 _ax.bar(
                     _x + _offset,
@@ -679,7 +772,7 @@ def _(combined_df, mo, np, plt):
             _ax.set_title(_title)
             _ax.legend()
 
-        _fig.suptitle("Comparación de modelos: 500ms vs 1000ms", fontsize=14)
+        _fig.suptitle("Comparación de modelos de regresión: 500ms vs 1000ms", fontsize=14)
         _fig.tight_layout()
         _45_content = _fig
 
@@ -688,39 +781,46 @@ def _(combined_df, mo, np, plt):
 
 
 @app.cell
-def _(combined_df, mo, plt):
+def _(REGRESSION_MODELS, combined_df, mo, plt):
     if combined_df.empty:
         _46_content = mo.md("*No hay datos.*")
     else:
-        _epochs = sorted(combined_df["Epoch"].unique())
-        _models = sorted(combined_df["ModelLabel"].unique())
-        _n_epochs = len(_epochs)
+        # Only show train vs test for models that have TrainPearsonR
+        _has_train = combined_df.dropna(subset=["TrainPearsonR"]) if "TrainPearsonR" in combined_df.columns else combined_df.iloc[0:0]
+        if _has_train.empty:
+            _46_content = mo.md("*No hay datos de Train Pearson r disponibles.*")
+        else:
+            _epochs = sorted(_has_train["Epoch"].unique())
+            _models = sorted(
+                m for m in _has_train["ModelLabel"].unique() if m in REGRESSION_MODELS
+            )
+            _n_epochs = len(_epochs)
 
-        _fig, _axes = plt.subplots(1, _n_epochs, figsize=(7 * _n_epochs, 5), squeeze=False)
+            _fig, _axes = plt.subplots(1, _n_epochs, figsize=(7 * _n_epochs, 5), squeeze=False)
 
-        for _col_idx, _epoch_tag in enumerate(_epochs):
-            _ax = _axes[0, _col_idx]
-            _epoch_data = combined_df[combined_df["Epoch"] == _epoch_tag]
+            for _col_idx, _epoch_tag in enumerate(_epochs):
+                _ax = _axes[0, _col_idx]
+                _epoch_data = _has_train[_has_train["Epoch"] == _epoch_tag]
 
-            _train_means = []
-            _test_means = []
-            for _model in _models:
-                _md = _epoch_data[_epoch_data["ModelLabel"] == _model]
-                _train_means.append(_md["TrainPearsonR"].mean())
-                _test_means.append(_md["PearsonR"].mean())
+                _train_means = []
+                _test_means = []
+                for _model in _models:
+                    _md = _epoch_data[_epoch_data["ModelLabel"] == _model]
+                    _train_means.append(_md["TrainPearsonR"].mean() if not _md.empty else 0.0)
+                    _test_means.append(_md["PearsonR"].mean() if not _md.empty else 0.0)
 
-            _x = range(len(_models))
-            _ax.bar([i - 0.2 for i in _x], _train_means, 0.35, label="Train", color="lightcoral")
-            _ax.bar([i + 0.2 for i in _x], _test_means, 0.35, label="Test", color="steelblue")
-            _ax.set_xticks(list(_x))
-            _ax.set_xticklabels(_models, rotation=25, ha="right", fontsize=9)
-            _ax.set_ylabel("Mean Pearson r")
-            _ax.set_title(f"Train vs Test — {_epoch_tag}")
-            _ax.legend()
+                _x = range(len(_models))
+                _ax.bar([i - 0.2 for i in _x], _train_means, 0.35, label="Train", color="lightcoral")
+                _ax.bar([i + 0.2 for i in _x], _test_means, 0.35, label="Test", color="steelblue")
+                _ax.set_xticks(list(_x))
+                _ax.set_xticklabels(_models, rotation=25, ha="right", fontsize=9)
+                _ax.set_ylabel("Mean Pearson r")
+                _ax.set_title(f"Train vs Test — {_epoch_tag}")
+                _ax.legend()
 
-        _fig.suptitle("Diagnóstico de Overfitting", fontsize=14)
-        _fig.tight_layout()
-        _46_content = _fig
+            _fig.suptitle("Diagnóstico de Overfitting", fontsize=14)
+            _fig.tight_layout()
+            _46_content = _fig
 
     mo.vstack([
         mo.md("### 4.6 Train vs Test Pearson r (diagnóstico de overfitting)"),
@@ -731,11 +831,13 @@ def _(combined_df, mo, plt):
 
 
 @app.cell
-def _(combined_df, mo, np, plt):
+def _(REGRESSION_MODELS, combined_df, mo, np, plt):
     if combined_df.empty or len(combined_df["Epoch"].unique()) < 2:
         _47_content = mo.md("*Se necesitan resultados de ambas duraciones de epoch.*")
     else:
-        _models = sorted(combined_df["ModelLabel"].unique())
+        _models = sorted(
+            m for m in combined_df["ModelLabel"].unique() if m in REGRESSION_MODELS
+        )
         _fig, _axes = plt.subplots(1, 3, figsize=(18, 5))
         _metrics = ["PearsonR", "SpearmanRho", "RMSE"]
         _titles = ["ΔPearson r", "ΔSpearman ρ", "ΔRMSE"]
@@ -777,38 +879,44 @@ def _(combined_df, mo, np, plt):
 
 
 @app.cell
-def _(combined_df, mo, plt):
-    if combined_df.empty:
-        _48_content = mo.md("*No hay datos.*")
+def _(REGRESSION_MODELS, combined_df, mo, plt):
+    if combined_df.empty or "BestAlpha" not in combined_df.columns:
+        _48_content = mo.md("*No hay datos de BestAlpha disponibles.*")
     else:
-        _epochs = sorted(combined_df["Epoch"].unique())
-        _models = sorted(combined_df["ModelLabel"].unique())
-        _n_epochs = len(_epochs)
+        _has_alpha = combined_df.dropna(subset=["BestAlpha"])
+        if _has_alpha.empty:
+            _48_content = mo.md("*No hay datos de BestAlpha disponibles.*")
+        else:
+            _epochs = sorted(_has_alpha["Epoch"].unique())
+            _models = sorted(
+                m for m in _has_alpha["ModelLabel"].unique() if m in REGRESSION_MODELS
+            )
+            _n_epochs = len(_epochs)
 
-        _fig, _axes = plt.subplots(1, _n_epochs, figsize=(7 * _n_epochs, 5), squeeze=False)
+            _fig, _axes = plt.subplots(1, _n_epochs, figsize=(7 * _n_epochs, 5), squeeze=False)
 
-        for _col_idx, _epoch_tag in enumerate(_epochs):
-            _ax = _axes[0, _col_idx]
-            _epoch_data = combined_df[combined_df["Epoch"] == _epoch_tag]
+            for _col_idx, _epoch_tag in enumerate(_epochs):
+                _ax = _axes[0, _col_idx]
+                _epoch_data = _has_alpha[_has_alpha["Epoch"] == _epoch_tag]
 
-            for _model in _models:
-                _md = _epoch_data[_epoch_data["ModelLabel"] == _model]
-                _alphas = _md["BestAlpha"].values
-                _ax.scatter(
-                    [_model] * len(_alphas),
-                    _alphas,
-                    alpha=0.7,
-                    s=50,
-                )
+                for _model in _models:
+                    _md = _epoch_data[_epoch_data["ModelLabel"] == _model]
+                    _alphas = _md["BestAlpha"].values
+                    _ax.scatter(
+                        [_model] * len(_alphas),
+                        _alphas,
+                        alpha=0.7,
+                        s=50,
+                    )
 
-            _ax.set_yscale("log")
-            _ax.set_ylabel("Best α (log scale)")
-            _ax.set_title(f"α seleccionado — {_epoch_tag}")
-            _ax.tick_params(axis="x", rotation=25)
+                _ax.set_yscale("log")
+                _ax.set_ylabel("Best α (log scale)")
+                _ax.set_title(f"α seleccionado — {_epoch_tag}")
+                _ax.tick_params(axis="x", rotation=25)
 
-        _fig.suptitle("Distribución de α óptimo por fold", fontsize=14)
-        _fig.tight_layout()
-        _48_content = _fig
+            _fig.suptitle("Distribución de α óptimo por fold", fontsize=14)
+            _fig.tight_layout()
+            _48_content = _fig
 
     mo.vstack([
         mo.md("### 4.8 Distribución de BestAlpha seleccionado por GridSearchCV"),
@@ -824,10 +932,10 @@ def _(combined_df, mo, plt, RESULTS_PATH):
         r"""
         ### 4.9 Predicciones del mejor modelo: luminancia real vs predicha
 
-        Se muestran las predicciones (por fold) del modelo con mayor
-        Spearman ρ medio. Cada subplot corresponde a un fold de LOVO-CV,
+        Se muestran las predicciones (por fold) del modelo de regresión con
+        mayor Spearman ρ medio. Cada subplot corresponde a un fold de LOVO-CV,
         con la luminancia real (z-scored) en azul y la predicha en rojo.
-        Las imágenes se generan durante el entrenamiento (Scripts 10–13).
+        Las imágenes se generan durante el entrenamiento.
         """
     )
 
@@ -835,16 +943,11 @@ def _(combined_df, mo, plt, RESULTS_PATH):
         _49_content = mo.md("*No hay datos cargados.*")
     else:
         _model_to_subdir = {
-            "Base (Raw EEG)": "base",
-            "Spectral (Welch)": "spectral",
-            "Spectral TDE": "tde",
-            "Raw TDE": "raw_tde",
+            label: subdir for label, (subdir, _) in MODEL_DEFS.items()
         }
         _model_to_prefix = {
             "Base (Raw EEG)": "base_model",
-            "Spectral (Welch)": "spectral_model",
-            "Spectral TDE": "tde_model",
-            "Raw TDE": "raw_tde_model",
+            "Raw TDE (Cov)": "raw_tde_model",
         }
 
         _epochs = sorted(combined_df["Epoch"].unique())
@@ -930,13 +1033,20 @@ def _(combined_df, mo):
             _epoch_data = combined_df[combined_df["Epoch"] == _epoch_tag]
             for _model in sorted(_epoch_data["ModelLabel"].unique()):
                 _md = _epoch_data[_epoch_data["ModelLabel"] == _model]
-                _train_r = _md["TrainPearsonR"].mean()
-                _test_r = _md["PearsonR"].mean()
-                _gap = _train_r - _test_r
-                _lines.append(
-                    f"- {_epoch_tag} / {_model}: train={_train_r:.4f}, "
-                    f"test={_test_r:.4f}, gap={_gap:.4f}"
-                )
+                if "TrainPearsonR" in _md.columns and not _md["TrainPearsonR"].isna().all():
+                    _train_r = _md["TrainPearsonR"].mean()
+                    _test_r = _md["PearsonR"].mean()
+                    _gap = _train_r - _test_r
+                    _lines.append(
+                        f"- {_epoch_tag} / {_model}: train={_train_r:.4f}, "
+                        f"test={_test_r:.4f}, gap={_gap:.4f}"
+                    )
+                else:
+                    _test_r = _md["PearsonR"].mean()
+                    _lines.append(
+                        f"- {_epoch_tag} / {_model}: test={_test_r:.4f} "
+                        "(no train metric available)"
+                    )
 
         _5_content = mo.md("\n".join(_lines))
     else:
@@ -962,6 +1072,7 @@ def _(combined_df, mo):
             "TrainSize",
             "TestSize",
             "TrainPearsonR",
+            "R2",
             "PearsonR",
             "SpearmanRho",
             "RMSE",
@@ -979,6 +1090,300 @@ def _(combined_df, mo):
 
     mo.vstack([_6_header, _6_content])
     return
+
+
+@app.cell
+def _(classification_df, mo, np, pd, plt):
+    """Section 7: Classification metrics for Change Classifier (Req 12.3)."""
+    _7_header = mo.md(
+        r"""
+        ## 7. Métricas de Clasificación — Change Classifier
+
+        El clasificador binario de cambio/estabilidad usa métricas distintas
+        a los modelos de regresión: **Accuracy**, **F1-score** y **AUC-ROC**.
+        Se reportan por fold de LOVO-CV.
+        """
+    )
+
+    if classification_df.empty:
+        _7_content = mo.md(
+            "*No hay datos de clasificación cargados. "
+            "Ejecutar script 20 primero.*"
+        )
+    else:
+        _epochs = sorted(classification_df["Epoch"].unique())
+        _clf_metrics = ["Accuracy", "F1", "AUC_ROC"]
+        _clf_labels = ["Accuracy", "F1-score", "AUC-ROC"]
+
+        # Summary table
+        _clf_summary_rows = []
+        for _epoch_tag in _epochs:
+            _epoch_data = classification_df[
+                classification_df["Epoch"] == _epoch_tag
+            ]
+            _row = {"Epoch": _epoch_tag}
+            for _metric in _clf_metrics:
+                if _metric in _epoch_data.columns:
+                    _row[f"Mean{_metric}"] = round(
+                        float(_epoch_data[_metric].mean()), 4
+                    )
+                    _row[f"Std{_metric}"] = round(
+                        float(_epoch_data[_metric].std()), 4
+                    )
+            _clf_summary_rows.append(_row)
+
+        _clf_summary_df = pd.DataFrame(_clf_summary_rows)
+
+        # Bar chart
+        _n_epochs = len(_epochs)
+        _fig_clf, _axes_clf = plt.subplots(
+            1, len(_clf_metrics), figsize=(6 * len(_clf_metrics), 5)
+        )
+        if len(_clf_metrics) == 1:
+            _axes_clf = [_axes_clf]
+
+        _colors_clf = {"500ms": "steelblue", "1000ms": "darkorange"}
+        _all_videos = sorted(classification_df["TestVideo"].unique())
+
+        for _ax, _metric, _label in zip(_axes_clf, _clf_metrics, _clf_labels):
+            for _e_idx, _epoch_tag in enumerate(_epochs):
+                _epoch_data = classification_df[
+                    classification_df["Epoch"] == _epoch_tag
+                ]
+                if _metric not in _epoch_data.columns:
+                    continue
+                _videos = sorted(_epoch_data["TestVideo"].unique())
+                _vals = [
+                    float(_epoch_data[_epoch_data["TestVideo"] == v][_metric].values[0])
+                    if len(_epoch_data[_epoch_data["TestVideo"] == v]) > 0
+                    else 0.0
+                    for v in _videos
+                ]
+                _x_pos = np.arange(len(_videos))
+                _ax.bar(
+                    _x_pos + _e_idx * 0.35,
+                    _vals,
+                    0.35,
+                    label=_epoch_tag,
+                    color=_colors_clf.get(_epoch_tag, "gray"),
+                    alpha=0.85,
+                )
+                _mean_val = np.nanmean(_vals)
+                _ax.axhline(
+                    _mean_val,
+                    color="red",
+                    linestyle="--",
+                    linewidth=1,
+                    alpha=0.6,
+                )
+
+            _ax.set_xticks(np.arange(len(_all_videos)) + 0.175)
+            _ax.set_xticklabels(_all_videos, rotation=30, ha="right", fontsize=8)
+            _ax.set_ylabel(_label)
+            _ax.set_title(_label)
+            _ax.set_ylim(0, 1.05)
+            _ax.legend()
+
+        _fig_clf.suptitle(
+            "Change Classifier — Métricas por fold", fontsize=14
+        )
+        _fig_clf.tight_layout()
+
+        _7_content = mo.vstack([
+            mo.ui.table(_clf_summary_df),
+            _fig_clf,
+        ])
+
+    mo.vstack([_7_header, _7_content])
+    return
+
+
+@app.cell
+def _(
+    COMPARISON_PATH,
+    EPOCH_TAGS,
+    classification_df,
+    combined_df,
+    json_mod,
+    mo,
+    pd,
+):
+    """Section 8: Save comparison CSV + JSON sidecar (Req 12.5, 12.6)."""
+
+    def _build_regression_summary(
+        regression_df: pd.DataFrame,
+        epoch_tag: str,
+    ) -> pd.DataFrame:
+        """Build per-model summary for regression models in one epoch tag.
+
+        Args:
+            regression_df: Combined regression results DataFrame.
+            epoch_tag: Epoch duration tag (e.g., "500ms").
+
+        Returns:
+            Summary DataFrame with one row per model.
+        """
+        _epoch_data = regression_df[regression_df["Epoch"] == epoch_tag]
+        if _epoch_data.empty:
+            return pd.DataFrame()
+
+        _rows = []
+        for _model in sorted(_epoch_data["ModelLabel"].unique()):
+            _md = _epoch_data[_epoch_data["ModelLabel"] == _model]
+            _row: dict = {
+                "Epoch": epoch_tag,
+                "Model": _model,
+                "Type": "regression",
+                "MeanPearsonR": round(float(_md["PearsonR"].mean()), 4),
+                "MeanSpearmanRho": round(float(_md["SpearmanRho"].mean()), 4),
+                "MeanRMSE": round(float(_md["RMSE"].mean()), 4),
+            }
+            if "R2" in _md.columns and not _md["R2"].isna().all():
+                _row["MeanR2"] = round(float(_md["R2"].mean()), 4)
+            else:
+                _row["MeanR2"] = None
+            _rows.append(_row)
+        return pd.DataFrame(_rows)
+
+    def _build_classification_summary(
+        clf_df: pd.DataFrame,
+        epoch_tag: str,
+    ) -> pd.DataFrame:
+        """Build per-model summary for classification models in one epoch tag.
+
+        Args:
+            clf_df: Combined classification results DataFrame.
+            epoch_tag: Epoch duration tag (e.g., "500ms").
+
+        Returns:
+            Summary DataFrame with one row per model.
+        """
+        _epoch_data = clf_df[clf_df["Epoch"] == epoch_tag]
+        if _epoch_data.empty:
+            return pd.DataFrame()
+
+        _rows = []
+        for _model in sorted(_epoch_data["ModelLabel"].unique()):
+            _md = _epoch_data[_epoch_data["ModelLabel"] == _model]
+            _row: dict = {
+                "Epoch": epoch_tag,
+                "Model": _model,
+                "Type": "classification",
+                "MeanPearsonR": None,
+                "MeanSpearmanRho": None,
+                "MeanRMSE": None,
+                "MeanR2": None,
+            }
+            for _metric in ["Accuracy", "F1", "AUC_ROC"]:
+                if _metric in _md.columns:
+                    _row[f"Mean{_metric}"] = round(float(_md[_metric].mean()), 4)
+            _rows.append(_row)
+        return pd.DataFrame(_rows)
+
+    _all_summaries: list[pd.DataFrame] = []
+    for _epoch_tag in EPOCH_TAGS:
+        if not combined_df.empty:
+            _all_summaries.append(
+                _build_regression_summary(combined_df, _epoch_tag)
+            )
+        if not classification_df.empty:
+            _all_summaries.append(
+                _build_classification_summary(classification_df, _epoch_tag)
+            )
+
+    if _all_summaries:
+        comparison_summary_df = pd.concat(
+            [df for df in _all_summaries if not df.empty], ignore_index=True
+        )
+    else:
+        comparison_summary_df = pd.DataFrame()
+
+    # Save to results/modeling/luminance/comparison/ (Req 12.5)
+    if not comparison_summary_df.empty:
+        COMPARISON_PATH.mkdir(parents=True, exist_ok=True)
+        _csv_path = COMPARISON_PATH / "sub-27_model_comparison.csv"
+        comparison_summary_df.to_csv(_csv_path, index=False)
+
+        # JSON sidecar (Req 12.6)
+        _sidecar: dict = {
+            "Epoch": {
+                "Description": "Epoch duration tag (e.g., 500ms, 1000ms)",
+                "DataType": "string",
+            },
+            "Model": {
+                "Description": "Human-readable model label",
+                "DataType": "string",
+            },
+            "Type": {
+                "Description": (
+                    "Model type: 'regression' or 'classification'"
+                ),
+                "DataType": "string",
+            },
+            "MeanPearsonR": {
+                "Description": (
+                    "Mean Pearson r across LOVO-CV folds (regression only)"
+                ),
+                "DataType": "float",
+                "Units": "dimensionless",
+            },
+            "MeanSpearmanRho": {
+                "Description": (
+                    "Mean Spearman ρ across LOVO-CV folds (regression only)"
+                ),
+                "DataType": "float",
+                "Units": "dimensionless",
+            },
+            "MeanRMSE": {
+                "Description": (
+                    "Mean RMSE across LOVO-CV folds (regression only)"
+                ),
+                "DataType": "float",
+                "Units": "luminance units",
+            },
+            "MeanR2": {
+                "Description": (
+                    "Mean R² across LOVO-CV folds (regression only, "
+                    "null if not available)"
+                ),
+                "DataType": "float",
+                "Units": "dimensionless",
+            },
+            "MeanAccuracy": {
+                "Description": (
+                    "Mean accuracy across LOVO-CV folds (classification only)"
+                ),
+                "DataType": "float",
+                "Units": "dimensionless [0, 1]",
+            },
+            "MeanF1": {
+                "Description": (
+                    "Mean F1-score across LOVO-CV folds (classification only)"
+                ),
+                "DataType": "float",
+                "Units": "dimensionless [0, 1]",
+            },
+            "MeanAUC_ROC": {
+                "Description": (
+                    "Mean AUC-ROC across LOVO-CV folds (classification only)"
+                ),
+                "DataType": "float",
+                "Units": "dimensionless [0, 1]",
+            },
+        }
+        _json_path = COMPARISON_PATH / "sub-27_model_comparison.json"
+        with open(_json_path, "w", encoding="utf-8") as _fh:
+            json_mod.dump(_sidecar, _fh, indent=2, ensure_ascii=False)
+
+        mo.md(
+            f"✅ Comparación guardada en `{_csv_path.relative_to(_csv_path.parents[4])}` "
+            f"con JSON sidecar."
+        )
+    else:
+        mo.md("*No hay datos para guardar la comparación.*")
+
+    comparison_summary_df
+    return (comparison_summary_df,)
 
 
 if __name__ == "__main__":

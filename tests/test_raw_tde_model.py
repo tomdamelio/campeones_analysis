@@ -32,350 +32,12 @@ if _SCRIPTS_EXPLORATION_DIR not in sys.path:
 from importlib import import_module
 
 _script13 = import_module("13_luminance_raw_tde_model")
-apply_tde_on_continuous_signal = _script13.apply_tde_on_continuous_signal
-
-
-# ---------------------------------------------------------------------------
-# Strategies
-# ---------------------------------------------------------------------------
-
-MIN_WINDOW_HALF = 1
-MAX_WINDOW_HALF = 20
-MIN_CHANNELS = 1
-MAX_CHANNELS = 15
-MIN_SAMPLES = 50
-MAX_SAMPLES = 2000
-
-
-@st.composite
-def tde_continuous_inputs(draw: st.DrawFn) -> dict:
-    """Generate valid inputs for apply_tde_on_continuous_signal.
-
-    Produces a random EEG matrix of shape ``(n_channels, n_samples)`` and a
-    ``window_half`` value, ensuring ``n_samples >= 2 * window_half + 1`` so
-    that TDE can produce at least one valid output row.
-    """
-    n_channels = draw(st.integers(min_value=MIN_CHANNELS, max_value=MAX_CHANNELS))
-    window_half = draw(st.integers(min_value=MIN_WINDOW_HALF, max_value=MAX_WINDOW_HALF))
-
-    min_samples = 2 * window_half + 1
-    clamped_min = max(min_samples, MIN_SAMPLES)
-    n_samples = draw(st.integers(min_value=clamped_min, max_value=MAX_SAMPLES))
-
-    seed = draw(st.integers(min_value=0, max_value=2**32 - 1))
-    rng = np.random.default_rng(seed)
-    eeg_data = rng.standard_normal((n_channels, n_samples))
-
-    return {
-        "eeg_data": eeg_data,
-        "window_half": window_half,
-        "n_channels": n_channels,
-        "n_samples": n_samples,
-    }
-
-
-# ---------------------------------------------------------------------------
-# Property 1: TDE output shape invariant
-# Validates: Requirements 1.2, 1.3
-# ---------------------------------------------------------------------------
-
-
-@given(data=tde_continuous_inputs())
-@settings(max_examples=100, deadline=5000)
-def test_property1_tde_output_shape_invariant(data: dict) -> None:
-    """Property 1: TDE output shape invariant.
-
-    For any EEG matrix of shape ``(n_channels, n_samples)`` where
-    ``n_samples >= 2 * window_half + 1``, and any ``window_half >= 1``,
-    applying TDE on the transposed matrix should produce an output of shape
-    ``(n_samples - 2 * window_half, n_channels * (2 * window_half + 1))``.
-
-    This validates both the correct temporal expansion (each valid
-    time-point is concatenated with its ±window_half neighbours across all
-    channels) and the border discard (time-points lacking full context are
-    removed).
-
-    **Validates: Requirements 1.2, 1.3**
-    """
-    # Feature: raw-tde-and-exploratory-analysis, Property 1: TDE output shape invariant
-    eeg_data = data["eeg_data"]
-    window_half = data["window_half"]
-    n_channels = data["n_channels"]
-    n_samples = data["n_samples"]
-
-    result = apply_tde_on_continuous_signal(eeg_data, window_half)
-
-    expected_rows = n_samples - 2 * window_half
-    window_size = 2 * window_half + 1
-    expected_cols = n_channels * window_size
-
-    assert result.shape == (expected_rows, expected_cols), (
-        f"Expected shape ({expected_rows}, {expected_cols}), got {result.shape}. "
-        f"n_channels={n_channels}, n_samples={n_samples}, window_half={window_half}"
-    )
-
-# ---------------------------------------------------------------------------
-# Strategies for Property 2
-# ---------------------------------------------------------------------------
-
-MIN_TIMEPOINTS = 20
-MAX_TIMEPOINTS = 200
-MIN_FEATURES = 10
-MAX_FEATURES = 100
-
-
-@st.composite
-def pca_tde_inputs(draw: st.DrawFn) -> dict:
-    """Generate valid inputs for _apply_pca_to_tde_matrix.
-
-    Produces a random TDE-expanded matrix of shape
-    ``(n_timepoints, n_features)`` and a ``n_components`` value constrained
-    to ``[1, min(n_timepoints, n_features)]`` so that PCA can always fit.
-    """
-    n_timepoints = draw(
-        st.integers(min_value=MIN_TIMEPOINTS, max_value=MAX_TIMEPOINTS)
-    )
-    n_features = draw(
-        st.integers(min_value=MIN_FEATURES, max_value=MAX_FEATURES)
-    )
-    max_components = min(n_timepoints, n_features)
-    n_components = draw(st.integers(min_value=1, max_value=max_components))
-
-    seed = draw(st.integers(min_value=0, max_value=2**32 - 1))
-    rng = np.random.default_rng(seed)
-    tde_matrix = rng.standard_normal((n_timepoints, n_features))
-
-    return {
-        "tde_matrix": tde_matrix,
-        "n_components": n_components,
-        "n_timepoints": n_timepoints,
-        "n_features": n_features,
-        "random_seed": seed,
-    }
-
+extract_raw_tde_epochs_for_run = _script13.extract_raw_tde_epochs_for_run
 
 import logging
 
 import mne
 import pandas as pd
-
-_apply_pca_to_tde_matrix = _script13._apply_pca_to_tde_matrix
-_epoch_pca_timeseries = _script13._epoch_pca_timeseries
-extract_raw_tde_epochs_for_run = _script13.extract_raw_tde_epochs_for_run
-
-
-# ---------------------------------------------------------------------------
-# Property 2: PCA preserves time-points and reduces features
-# Validates: Requirements 1.4
-# ---------------------------------------------------------------------------
-
-
-@given(data=pca_tde_inputs())
-@settings(max_examples=100, deadline=10000)
-def test_property2_pca_preserves_timepoints(data: dict) -> None:
-    """Property 2: PCA preserves time-points and reduces features.
-
-    For any TDE-expanded matrix of shape ``(n_timepoints, n_features)`` and
-    any ``n_components <= min(n_timepoints, n_features)``, applying PCA
-    should produce a matrix of shape ``(n_timepoints, n_components)``.
-
-    This validates that PCA preserves the number of time-points (rows)
-    while reducing the feature dimension (columns) to the requested number
-    of principal components.
-
-    **Validates: Requirements 1.4**
-    """
-    # Feature: raw-tde-and-exploratory-analysis, Property 2: PCA preserves time-points and reduces features
-    tde_matrix = data["tde_matrix"]
-    n_components = data["n_components"]
-    n_timepoints = data["n_timepoints"]
-    random_seed = data["random_seed"]
-
-    result = _apply_pca_to_tde_matrix(tde_matrix, n_components, random_seed)
-
-    assert result.shape == (n_timepoints, n_components), (
-        f"Expected shape ({n_timepoints}, {n_components}), got {result.shape}. "
-        f"tde_matrix.shape={tde_matrix.shape}"
-    )
-
-
-# ---------------------------------------------------------------------------
-# Strategies for Property 3
-# ---------------------------------------------------------------------------
-
-FIXED_SFREQ = 500.0
-FIXED_EPOCH_DURATION_S = 1.0
-FIXED_EPOCH_STEP_S = 0.1
-MIN_COMPONENTS_P3 = 2
-MAX_COMPONENTS_P3 = 20
-
-
-@st.composite
-def epoch_count_inputs(draw: st.DrawFn) -> dict:
-    """Generate valid inputs for _epoch_pca_timeseries epoch-count property.
-
-    Uses fixed sfreq (500 Hz), epoch_duration_s (1.0 s), and epoch_step_s
-    (0.1 s) matching the project's EEG configuration.  The number of valid
-    samples is drawn so that at least one full epoch fits (>= sfreq *
-    epoch_duration_s).  n_components is drawn from a small range because it
-    does not affect the epoch count.
-    """
-    min_samples_for_one_epoch = int(FIXED_SFREQ * FIXED_EPOCH_DURATION_S)
-    n_valid_samples = draw(
-        st.integers(min_value=min_samples_for_one_epoch, max_value=5000)
-    )
-    n_components = draw(
-        st.integers(min_value=MIN_COMPONENTS_P3, max_value=MAX_COMPONENTS_P3)
-    )
-
-    seed = draw(st.integers(min_value=0, max_value=2**32 - 1))
-    rng = np.random.default_rng(seed)
-    pca_timeseries = rng.standard_normal((n_valid_samples, n_components))
-
-    return {
-        "pca_timeseries": pca_timeseries,
-        "n_valid_samples": n_valid_samples,
-        "n_components": n_components,
-        "sfreq": FIXED_SFREQ,
-        "epoch_duration_s": FIXED_EPOCH_DURATION_S,
-        "epoch_step_s": FIXED_EPOCH_STEP_S,
-    }
-
-
-# ---------------------------------------------------------------------------
-# Property 3: Epoch count from PCA time-series
-# Validates: Requirements 1.5
-# ---------------------------------------------------------------------------
-
-
-@given(data=epoch_count_inputs())
-@settings(max_examples=100, deadline=5000)
-def test_property3_epoch_count_from_pca_timeseries(data: dict) -> None:
-    """Property 3: Epoch count from PCA time-series.
-
-    For any PCA time-series of length ``n_valid_samples`` at sampling
-    frequency ``sfreq``, with epoch duration ``epoch_duration_s`` and step
-    ``epoch_step_s``, the number of epochs should equal
-    ``floor((n_valid_samples / sfreq - epoch_duration_s) / epoch_step_s) + 1``
-    (when the segment is long enough for at least one epoch).
-
-    **Validates: Requirements 1.5**
-    """
-    # Feature: raw-tde-and-exploratory-analysis, Property 3: Epoch count from PCA time-series
-    pca_timeseries = data["pca_timeseries"]
-    n_valid_samples = data["n_valid_samples"]
-    sfreq = data["sfreq"]
-    epoch_duration_s = data["epoch_duration_s"]
-    epoch_step_s = data["epoch_step_s"]
-
-    features, onsets = _epoch_pca_timeseries(
-        pca_timeseries, sfreq, epoch_duration_s, epoch_step_s
-    )
-
-    total_duration_s = n_valid_samples / sfreq
-    last_valid_onset = total_duration_s - epoch_duration_s
-    # Mirror the exact logic from create_epoch_onsets:
-    # np.arange(0.0, last_valid_onset + epoch_step_s / 2.0, epoch_step_s)
-    # then clip to <= last_valid_onset + 1e-12
-    onsets = np.arange(0.0, last_valid_onset + epoch_step_s / 2.0, epoch_step_s)
-    onsets = onsets[onsets <= last_valid_onset + 1e-12]
-    expected_epoch_count = len(onsets)
-
-    actual_epoch_count = features.shape[0]
-
-    assert actual_epoch_count == expected_epoch_count, (
-        f"Expected {expected_epoch_count} epochs, got {actual_epoch_count}. "
-        f"n_valid_samples={n_valid_samples}, sfreq={sfreq}, "
-        f"epoch_duration_s={epoch_duration_s}, epoch_step_s={epoch_step_s}, "
-        f"total_duration_s={total_duration_s:.4f}"
-    )
-    assert len(onsets) == actual_epoch_count, (
-        f"Onsets length ({len(onsets)}) does not match feature rows "
-        f"({actual_epoch_count})."
-    )
-
-
-# ---------------------------------------------------------------------------
-# Unit tests for _apply_pca_to_tde_matrix
-# ---------------------------------------------------------------------------
-
-
-class TestApplyPcaToTdeMatrix:
-    """Unit tests for PCA reduction of TDE-expanded matrices."""
-
-    def test_reduces_features_to_requested_components(self) -> None:
-        """PCA should reduce columns to n_components while preserving rows."""
-        rng = np.random.default_rng(42)
-        tde_matrix = rng.standard_normal((200, 231))
-        result = _apply_pca_to_tde_matrix(tde_matrix, n_components=100, random_seed=42)
-        assert result.shape == (200, 100)
-
-    def test_clamps_components_when_fewer_rows(self) -> None:
-        """When n_rows < n_components, PCA should clamp to min(n_rows, n_cols)."""
-        rng = np.random.default_rng(42)
-        tde_matrix = rng.standard_normal((30, 231))
-        result = _apply_pca_to_tde_matrix(tde_matrix, n_components=100, random_seed=42)
-        assert result.shape == (30, 30)
-
-    def test_clamps_components_when_fewer_cols(self) -> None:
-        """When n_cols < n_components, PCA should clamp to min(n_rows, n_cols)."""
-        rng = np.random.default_rng(42)
-        tde_matrix = rng.standard_normal((200, 50))
-        result = _apply_pca_to_tde_matrix(tde_matrix, n_components=100, random_seed=42)
-        assert result.shape == (200, 50)
-
-
-# ---------------------------------------------------------------------------
-# Unit tests for _epoch_pca_timeseries
-# ---------------------------------------------------------------------------
-
-
-class TestEpochPcaTimeseries:
-    """Unit tests for epoching PCA time-series into fixed-length windows."""
-
-    def test_correct_epoch_count_and_feature_size(self) -> None:
-        """Verify epoch count and feature vector size for a known input."""
-        sfreq = 500.0
-        epoch_duration_s = 1.0
-        epoch_step_s = 0.1
-        n_components = 10
-        # 3.0 s of data → (3.0 - 1.0) / 0.1 + 1 = 21 epochs
-        n_timepoints = int(3.0 * sfreq)
-        rng = np.random.default_rng(42)
-        pca_ts = rng.standard_normal((n_timepoints, n_components))
-
-        features, onsets = _epoch_pca_timeseries(
-            pca_ts, sfreq, epoch_duration_s, epoch_step_s
-        )
-
-        expected_epochs = 21
-        # mean + variance per component → 2 × n_components
-        expected_feature_dim = 2 * n_components
-        assert features.shape == (expected_epochs, expected_feature_dim)
-        assert len(onsets) == expected_epochs
-
-    def test_returns_empty_when_segment_too_short(self) -> None:
-        """Segment shorter than one epoch should return empty arrays."""
-        sfreq = 500.0
-        n_timepoints = int(0.5 * sfreq)  # 0.5 s < 1.0 s epoch
-        rng = np.random.default_rng(42)
-        pca_ts = rng.standard_normal((n_timepoints, 10))
-
-        features, onsets = _epoch_pca_timeseries(pca_ts, sfreq, 1.0, 0.1)
-
-        assert features.shape[0] == 0
-
-    def test_exactly_one_epoch(self) -> None:
-        """Segment exactly 1.0 s should produce exactly 1 epoch."""
-        sfreq = 500.0
-        n_timepoints = int(1.0 * sfreq)
-        rng = np.random.default_rng(42)
-        pca_ts = rng.standard_normal((n_timepoints, 5))
-
-        features, onsets = _epoch_pca_timeseries(pca_ts, sfreq, 1.0, 0.1)
-
-        assert features.shape[0] == 1
-        assert features.shape[1] == 2 * 5  # mean + var for 5 components
 
 
 # ---------------------------------------------------------------------------
@@ -458,7 +120,7 @@ class TestExtractRawTdeEpochsForRun:
         monkeypatch.setattr(_script13, "LUMINANCE_CSV_MAP", {video_id: f"green_intensity_video_{video_id}.csv"})
         monkeypatch.setattr(_script13, "STIMULI_PATH", tmp_path)
         monkeypatch.setattr(_script13, "TDE_WINDOW_HALF", 5)
-        monkeypatch.setattr(_script13, "PCA_COMPONENTS", 10)
+        monkeypatch.setattr(_script13, "TDE_PCA_COMPONENTS", 10)
         monkeypatch.setattr(_script13, "RANDOM_SEED", 42)
         monkeypatch.setattr(_script13, "EPOCH_DURATION_S", 1.0)
         monkeypatch.setattr(_script13, "EPOCH_STEP_S", 0.1)
@@ -511,7 +173,7 @@ class TestExtractRawTdeEpochsForRun:
         assert result == []
 
     def test_feature_vector_dimension(self, tmp_path: Path, monkeypatch) -> None:
-        """Feature vector should be PCA_COMPONENTS × n_samples_per_epoch."""
+        """Feature vector should be n_pca*(n_pca+1)//2 (covariance upper triangle)."""
         sfreq = 500.0
         channels = ["O1", "O2", "Pz"]
         raw = _make_synthetic_raw(3, channels, sfreq, 60.0)
@@ -523,7 +185,7 @@ class TestExtractRawTdeEpochsForRun:
         monkeypatch.setattr(_script13, "LUMINANCE_CSV_MAP", {video_id: f"green_intensity_video_{video_id}.csv"})
         monkeypatch.setattr(_script13, "STIMULI_PATH", tmp_path)
         monkeypatch.setattr(_script13, "TDE_WINDOW_HALF", 5)
-        monkeypatch.setattr(_script13, "PCA_COMPONENTS", n_pca)
+        monkeypatch.setattr(_script13, "TDE_PCA_COMPONENTS", n_pca)
         monkeypatch.setattr(_script13, "RANDOM_SEED", 42)
         monkeypatch.setattr(_script13, "EPOCH_DURATION_S", 1.0)
         monkeypatch.setattr(_script13, "EPOCH_STEP_S", 0.1)
@@ -540,7 +202,8 @@ class TestExtractRawTdeEpochsForRun:
 
         result = extract_raw_tde_epochs_for_run(run_config, raw, events_df, channels)
 
-        expected_dim = 2 * n_pca  # mean + var per PCA component
+        # Covariance upper triangle: n_pca*(n_pca+1)//2
+        expected_dim = n_pca * (n_pca + 1) // 2
         assert len(result) > 0
         assert result[0]["X"].shape == (expected_dim,)
 

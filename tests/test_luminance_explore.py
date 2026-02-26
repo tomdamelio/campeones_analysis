@@ -17,10 +17,14 @@ import pandas as pd
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-# Make scripts/modeling importable
+# Make scripts/modeling and scripts/exploration importable
 _scripts_modeling = str(Path(__file__).resolve().parents[1] / "scripts" / "modeling")
 if _scripts_modeling not in sys.path:
     sys.path.insert(0, _scripts_modeling)
+
+_scripts_exploration = str(Path(__file__).resolve().parents[1] / "scripts" / "exploration")
+if _scripts_exploration not in sys.path:
+    sys.path.insert(0, _scripts_exploration)
 
 # Import the module with numeric prefix via importlib
 _explore_mod = importlib.import_module("08_explore_luminance")
