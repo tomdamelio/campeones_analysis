@@ -489,6 +489,16 @@ def run_pipeline() -> None:
             print(f"  WARNING: No video_luminance events in run {run_config['id']}.")
             continue
 
+        # --- Determine slider order for luminance dimension ---
+        lum_rows = order_matrix_df[
+            order_matrix_df["dimension"].astype(str).str.strip().str.lower() == "luminance"
+        ]
+        if not lum_rows.empty:
+            slider_order = str(lum_rows.iloc[0].get("order_emojis_slider", "direct")).strip().lower()
+        else:
+            slider_order = "direct"
+        print(f"  Slider order for luminance: {slider_order}")
+
         for idx, event_row in luminance_events.iterrows():
             raw_video_id = event_row.get("video_id")
             if pd.isna(raw_video_id):
@@ -551,6 +561,11 @@ def run_pipeline() -> None:
                 joystick_signal, joystick_timestamps, luminance_timestamps
             )
 
+            # --- Invert joystick if slider order was 'inverse' ---
+            if slider_order == "inverse":
+                joystick_resampled = -joystick_resampled
+                print(f"    -> Joystick signal INVERTED (slider order = inverse)")
+
             # --- Compute cross-correlation ---
             # Estimate luminance sampling rate from timestamps
             if len(luminance_timestamps) < 2:
@@ -594,6 +609,7 @@ def run_pipeline() -> None:
                     "Subject": SUBJECT,
                     "RunID": run_config["id"],
                     "VideoID": video_id,
+                    "SliderOrder": slider_order,
                     "OptimalLag_s": optimal_lag_s,
                     "MaxCorrelation": max_correlation,
                 }
