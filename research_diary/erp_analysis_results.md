@@ -34,3 +34,7 @@ Analysis of the `sub-27_erp_peak_amplitudes.csv` yields the following peak metri
 The data suggests that taking random samples of "steepest luminance changes" natively embedded within a continuous, immersive stimulus (like the Campeones video) does **not** evoke a reliable or prominent early sensory ERP in subject 27 comparable to what would be seen from a discrete, blank-screen checkerboard or flash paradigm.
 
 Because the visual content is highly clustered, naturalistic, and continuous, strict time-locked sensory responses are likely dispersed, washed out by temporal jitter, or suppressed by higher-order cognitive processing and spatial attention mechanisms. This reinforces the previous findings: the raw intensity of light is exceptionally difficult to decode structurally or temporally from naturalistic continuous EEG data.
+
+## Update (2026-02-26): Reconciliation with Corrected TDE Results
+After fixing a critical per-video PCA bug and optimizing the number of components (50 → 20), the TDE covariance model achieves **r ≈ 0.12** for continuous luminance prediction (see `raw_tde_model_analysis.md`). This weak but genuine correlation suggests that while 500ms covariance windows cannot capture the transient ERP-like responses documented here (~632ms peak), they do retain some **graded, slow** luminance-related variance. The ERP result remains consistent: fast transient responses are washed out by covariance averaging, but slow tonic signals survive.
+

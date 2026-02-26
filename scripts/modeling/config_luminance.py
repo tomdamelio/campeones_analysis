@@ -54,7 +54,7 @@ SPECTRAL_BANDS: dict[str, tuple[float, float]] = {
 # Time Delay Embedding
 # ---------------------------------------------------------------------------
 TDE_WINDOW_HALF: int = 10  # ±10 time-points → 21 total
-TDE_PCA_COMPONENTS: int = 50
+TDE_PCA_COMPONENTS: int = 20
 
 # ---------------------------------------------------------------------------
 # ML pipeline

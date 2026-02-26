@@ -78,7 +78,11 @@ from campeones_analysis.luminance.sync import (
     load_luminance_csv,
 )
 from campeones_analysis.luminance.targets import compute_delta_luminance
-from campeones_analysis.luminance.tde_glhmm import apply_glhmm_tde_pipeline
+from campeones_analysis.luminance.tde_glhmm import (
+    apply_tde_only,
+    fit_global_pca,
+    apply_global_pca,
+)
 
 matplotlib.use("Agg")
 logger = logging.getLogger(__name__)
@@ -332,6 +336,7 @@ def _process_single_video_segment(
     roi_channels: list[str],
     bad_epochs: list[int],
     sfreq: float,
+    pca_model=None,
     epoch_duration_s: float = EPOCH_DURATION_S,
     epoch_step_s: float = EPOCH_STEP_S,
 ) -> list[dict]:
@@ -406,14 +411,20 @@ def _process_single_video_segment(
         )
         return []
 
-    # Step 2: Apply GLHMM TDE pipeline (Req 4.1, 4.2)
+    # Step 2: Apply TDE only (no PCA yet)
     segment_indices = np.array([[0, n_timepoints]])
-    pca_timeseries = apply_glhmm_tde_pipeline(
+    tde_data, _ = apply_tde_only(
         eeg_data=eeg_data_time_major,
         indices=segment_indices,
         tde_lags=TDE_WINDOW_HALF,
-        pca_components=TDE_PCA_COMPONENTS,
     )
+
+    # Step 2b: Apply global PCA (if provided)
+    if pca_model is not None:
+        pca_timeseries = apply_global_pca(tde_data, pca_model)
+    else:
+        # Pass 1: return TDE data for global PCA fitting
+        return tde_data, eeg_data_time_major, luminance_df, video_id, acq, run_id, bad_epochs
 
     n_valid_timepoints = pca_timeseries.shape[0]
 
@@ -845,7 +856,7 @@ def run_pipeline() -> None:
         return
 
     # ------------------------------------------------------------------
-    # 2. Collect GLHMM-TDE + covariance epochs (raw luminance targets)
+    # 2. PASS 1: Collect TDE-embedded data from all segments
     # ------------------------------------------------------------------
     qa_tsv_path = PROJECT_ROOT / "results" / "qa" / "eeg" / f"sub-{SUBJECT}_eeg_qa_autoreject.tsv"
     qa_df = None
@@ -855,8 +866,10 @@ def run_pipeline() -> None:
     else:
         print(f"WARNING: No QA TSV found at {qa_tsv_path}. Running WITHOUT epoch rejection.")
 
-    all_epoch_entries: list[dict] = []
+    tde_segments: list[np.ndarray] = []
+    segment_metadata: list[dict] = []
 
+    print("\n--- PASS 1: Collecting TDE-embedded segments ---")
     for run_config in RUNS_CONFIG:
         run_label = (
             f"run-{run_config['id']} acq-{run_config['acq']} "
@@ -897,15 +910,72 @@ def run_pipeline() -> None:
                 bad_idx_list = ast.literal_eval(qa_row["BadEpochsIdx"])
                 run_bad_epochs[v_id] = bad_idx_list
 
-        run_epochs = extract_raw_tde_epochs_for_run(
-            run_config=run_config,
-            eeg_raw=eeg_raw,
-            events_df=events_df,
-            roi_channels=recording_roi,
-            bad_epochs_map=run_bad_epochs,
+        luminance_events = events_df[
+            events_df["trial_type"] == "video_luminance"
+        ].reset_index(drop=True)
+
+        sfreq = eeg_raw.info["sfreq"]
+        for _, event_row in luminance_events.iterrows():
+            stim_id = int(event_row["stim_id"])
+            video_id = stim_id - 100
+            bad_epochs = run_bad_epochs.get(video_id, [])
+
+            result = _process_single_video_segment(
+                event_row=event_row,
+                run_id=run_config["id"],
+                acq=run_config["acq"],
+                eeg_raw=eeg_raw,
+                roi_channels=recording_roi,
+                bad_epochs=bad_epochs,
+                sfreq=sfreq,
+                pca_model=None,
+            )
+            if isinstance(result, tuple):
+                tde_data, _, _, vid_id, _, _, _ = result
+                tde_segments.append(tde_data)
+                segment_metadata.append({
+                    "eeg_raw_path": vhdr_path,
+                    "event_row": event_row,
+                    "run_config": run_config,
+                    "roi_channels": recording_roi,
+                    "bad_epochs": bad_epochs,
+                    "sfreq": sfreq,
+                })
+                print(f"  Video {vid_id}: TDE shape = {tde_data.shape}")
+
+    if not tde_segments:
+        print("ERROR: No TDE segments collected. Exiting.")
+        return
+
+    # ------------------------------------------------------------------
+    # 3. Fit GLOBAL PCA on concatenated TDE data
+    # ------------------------------------------------------------------
+    print("\n--- Fitting GLOBAL PCA ---")
+    global_pca = fit_global_pca(tde_segments, TDE_PCA_COMPONENTS)
+
+    # ------------------------------------------------------------------
+    # 4. PASS 2: Project with global PCA → epoch → covariance
+    # ------------------------------------------------------------------
+    print("\n--- PASS 2: Projecting with global PCA + extracting epochs ---")
+    all_epoch_entries: list[dict] = []
+
+    for meta in segment_metadata:
+        eeg_raw = mne.io.read_raw_brainvision(
+            str(meta["eeg_raw_path"]), preload=True, verbose=False
         )
-        print(f"  GLHMM-TDE covariance epochs extracted: {len(run_epochs)}")
-        all_epoch_entries.extend(run_epochs)
+        run_epochs = _process_single_video_segment(
+            event_row=meta["event_row"],
+            run_id=meta["run_config"]["id"],
+            acq=meta["run_config"]["acq"],
+            eeg_raw=eeg_raw,
+            roi_channels=meta["roi_channels"],
+            bad_epochs=meta["bad_epochs"],
+            sfreq=meta["sfreq"],
+            pca_model=global_pca,
+        )
+        if isinstance(run_epochs, list):
+            print(f"  Epochs extracted: {len(run_epochs)}")
+            all_epoch_entries.extend(run_epochs)
 
     print(f"\nTotal raw epochs collected: {len(all_epoch_entries)}")
     if not all_epoch_entries:

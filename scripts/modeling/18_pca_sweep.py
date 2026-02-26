@@ -81,7 +81,10 @@ from campeones_analysis.luminance.sync import (
     interpolate_luminance_to_epochs,
     load_luminance_csv,
 )
-from campeones_analysis.luminance.tde_glhmm import apply_glhmm_tde_pipeline
+from campeones_analysis.luminance.tde_glhmm import (
+    fit_global_pca,
+    apply_global_pca,
+)
 
 matplotlib.use("Agg")
 logger = logging.getLogger(__name__)
@@ -487,6 +490,10 @@ def extract_epochs_for_n_components(
     """
     epoch_entries: list[dict] = []
 
+    # --- Fit GLOBAL PCA on concatenated TDE from all segments ---
+    tde_matrices = [seg["tde_data"] for seg in all_segments]
+    global_pca = fit_global_pca(tde_matrices, n_components)
+
     for segment in all_segments:
         video_id: int = segment["video_id"]
         video_identifier: str = segment["video_identifier"]
@@ -498,41 +505,18 @@ def extract_epochs_for_n_components(
 
         n_timepoints = tde_data.shape[0]
 
-        # Re-apply preprocess_data (standardise + PCA) on the already-TDE data
-        # We pass the TDE data directly to preprocess_data since build_data_tde
-        # was already applied during collection. Use indices for the full segment.
-        segment_indices = np.array([[0, n_timepoints]])
-
-        # Cap n_components to feasible maximum for this segment
-        max_feasible = min(n_timepoints, tde_data.shape[1])
-        actual_n_components = min(n_components, max_feasible)
-        if actual_n_components < n_components:
-            logger.warning(
-                "Segment video_id=%d run=%s: reducing PCA components "
-                "from %d to %d (data constraint).",
-                video_id,
-                run_id,
-                n_components,
-                actual_n_components,
-            )
-
+        # Project into the global PCA subspace
         try:
-            preproc_result = glhmm_preproc.preprocess_data(
-                data=tde_data,
-                indices=segment_indices,
-                standardise=True,
-                pca=actual_n_components,
-            )
+            pca_timeseries = apply_global_pca(tde_data, global_pca)
         except Exception as exc:
             logger.warning(
-                "Segment video_id=%d run=%s: preprocess_data failed: %s. Skipping.",
+                "Segment video_id=%d run=%s: PCA projection failed: %s. Skipping.",
                 video_id,
                 run_id,
                 exc,
             )
             continue
 
-        pca_timeseries: np.ndarray = preproc_result[0]
         n_valid_timepoints = pca_timeseries.shape[0]
 
         epoch_onsets_s = create_epoch_onsets(

@@ -429,22 +429,30 @@ def _(mo):
 
         ---
 
-        ### 3.4 Script 13 — Raw TDE (Raw EEG + TDE + PCA)
+        ### 3.4 Script 13 — Raw TDE (GLHMM Protocol + Covariance)
 
-        **Representación:** TDE directamente sobre EEG crudo.
+        **Representación:** TDE directamente sobre EEG crudo, siguiendo el
+        protocolo canónico de Vidaurre et al. (2025, *Nature Protocols*).
+        Features: triángulo superior de la matriz de covarianza de las PCs
+        por epoch (incluyendo diagonal = varianzas).
 
         | Paso | Transformación | Shape |
         |------|---------------|-------|
-        | 1 | Crop EEG al segmento de video (ROI: 11 canales) | `(11, N)` |
-        | 2 | Transponer a time-major | `(N, 11)` |
-        | 3 | TDE con ventana ±10 muestras (21 total) | `(N-20, 11 × 21)` = `(N-20, 231)` |
-        | 4 | `PCA(n_components=50)` sobre la matriz TDE | `(N-20, 50)` |
-        | 5 | Epoching: mean + var por componente PCA | `(2 × 50,)` = `(100,)` |
-        | 6 | `StandardScaler()` → `Ridge(α)` | escalar |
+        | 1 | Crop EEG al segmento de video (ROI: 11 canales) | `(N, 11)` |
+        | 2 | `glhmm.preproc.build_data_tde()` — TDE ±10 lags + estandarización | `(N-20, 231)` |
+        | 3 | **Global PCA** — fit sobre todos los segmentos concatenados | `(N-20, 20)` |
+        | 4 | Estandarización de PCs (`standardise_pc=True`, glhmm canónico) | `(N-20, 20)` |
+        | 5 | Epoching: 500ms ventanas (125 muestras) | `(125, 20)` por epoch |
+        | 6 | `np.cov()` → triángulo superior (incl. diagonal) | `20×21/2 = 210` features |
+        | 7 | `StandardScaler()` → `Ridge(α)` | escalar |
 
-        **Features por epoch:** 100 (50 PCA mean + 50 PCA var)
+        **Features por epoch:** 210 (covarianza upper triangle de 20 PCA components)
 
         **Pipeline sklearn:** `StandardScaler → Ridge`
+
+        **Diferencia clave vs. Script 12:** Usa EEG crudo (no potencia espectral)
+        como input al TDE, y covarianza completa (no mean+var) como features.
+        PCA global garantiza comparabilidad de features cross-video.
 
         ---
 
@@ -455,7 +463,7 @@ def _(mo):
         | Base | Raw EEG vectorizado | — | 100 | 100 |
         | Spectral | Welch band-power | — | — | 55 |
         | Spectral TDE | Multitaper → TDE | 1155 | 50 | 100 |
-        | Raw TDE | Raw EEG → TDE | 231 | 50 | 100 |
+        | Raw TDE (Cov) | Raw EEG → TDE (glhmm) | 231 | 20 (global) | 210 |
         """
     )
     return

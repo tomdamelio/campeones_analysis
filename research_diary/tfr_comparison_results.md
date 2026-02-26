@@ -39,3 +39,7 @@ By contrasting extreme luminance shifts against stable baselines:
 1. We confirm that simple linear predictive models (like Ridge Regression) fail because the physical light intensity does not map linearly to broadband EEG covariance.
 2. Even when isolating the exact moments of transition and using non-linear spectral mappings (TFR), the naturalistic viewing paradigm introduces massive variance (eye movements, semantic processing, scene cuts) that obfuscates low-level sensory signatures.
 3. Brain responses to complex movie stimuli are dominated by cognitive/semantic processing rather than foundational visual properties like total screen luminance.
+
+## Update (2026-02-26): Reconciliation with Corrected TDE Results
+After fixing a per-video PCA bug and reducing components (50 → 20), the TDE covariance model now achieves **r ≈ 0.12** for continuous luminance (see `raw_tde_model_analysis.md`). This weak signal is consistent with the TFR finding: spectral representations show broadband differences between change/stable conditions, but these are small relative to naturalistic variance. The covariance features capture some of this spectral structure (since TDE covariance encodes cross-lag auto/cross-correlations, related to power spectra), but the signal-to-noise ratio in naturalistic viewing limits decoding performance.
+

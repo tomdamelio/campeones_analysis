@@ -17,3 +17,12 @@ Evaluate the baseline models for luminance prediction (Shuffle, Mean, and Z-scor
 
 ## Conclusion
 Esto demuestra enfáticamente que mapear valores crudos de reflectancia (0-255) desde la señal EEG en crudo para todas las películas es prohibitivo debido al cambio de escala por video. La decisión de normalizar vía z-score previo a modelar está matemáticamente justificada.
+
+## Update (2026-02-26): Context After Global PCA Fix
+Tras corregir un bug crítico en el pipeline TDE (PCA se fiteaba por video en lugar de globalmente), el modelo con features TDE + covarianza z-scored alcanza ahora **R² = -0.063** y **RMSE = 1.030** (con 20 componentes PCA). Esto es muy cercano al benchmark nulo:
+- **Shuffle baseline**: R² = -0.040, RMSE = 1.019
+- **Mean baseline**: R² = 0.000, RMSE = 1.000
+- **TDE model (fixed)**: R² = -0.063, RMSE = 1.030
+
+El modelo fijado ya no colapsa catastróficamente (R²=-1.4 → -0.06), pero todavía no supera consistentemente la media constante. El fold 12_b logra R² > 0 (0.027), indicando la primera evidencia débil de señal lineal genuina.
+

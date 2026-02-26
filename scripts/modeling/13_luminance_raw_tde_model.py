@@ -88,7 +88,11 @@ from campeones_analysis.luminance.sync import (
     interpolate_luminance_to_epochs,
     load_luminance_csv,
 )
-from campeones_analysis.luminance.tde_glhmm import apply_glhmm_tde_pipeline
+from campeones_analysis.luminance.tde_glhmm import (
+    apply_tde_only,
+    fit_global_pca,
+    apply_global_pca,
+)
 
 matplotlib.use("Agg")
 logger = logging.getLogger(__name__)
@@ -371,6 +375,7 @@ def _process_single_video_segment(
     roi_channels: list[str],
     bad_epochs: list[int],
     sfreq: float,
+    pca_model=None,
     epoch_duration_s: float = EPOCH_DURATION_S,
     epoch_step_s: float = EPOCH_STEP_S,
 ) -> list[dict]:
@@ -452,15 +457,20 @@ def _process_single_video_segment(
         )
         return []
 
-    # --- Step 2: Apply GLHMM TDE pipeline (Req 4.1, 4.2) ---
-    # indices: (n_sessions, 2) array with [start, end] sample indices
+    # --- Step 2: Apply TDE only (no PCA yet) ---
     segment_indices = np.array([[0, n_timepoints]])
-    pca_timeseries = apply_glhmm_tde_pipeline(
+    tde_data, _ = apply_tde_only(
         eeg_data=eeg_data_time_major,
         indices=segment_indices,
         tde_lags=TDE_WINDOW_HALF,
-        pca_components=TDE_PCA_COMPONENTS,
     )
+
+    # --- Step 2b: Apply global PCA (if provided) ---
+    if pca_model is not None:
+        pca_timeseries = apply_global_pca(tde_data, pca_model)
+    else:
+        # Fallback: return TDE data directly (for Pass 1 collection)
+        return tde_data, eeg_data_time_major, luminance_df, video_id, acq, run_id, bad_epochs
 
     n_valid_timepoints = pca_timeseries.shape[0]
 
@@ -605,33 +615,125 @@ def plot_predictions_per_fold(
 ) -> None:
     """Plot true vs predicted luminance for each CV fold.
 
+    Produces:
+    1. A combined multi-panel figure (2×4 grid) with all folds.
+    2. Individual per-fold PNG files for closer inspection.
+
+    Each panel shows the true and predicted luminance time-series with
+    a shaded difference region, annotated with Pearson r and R².
+
     Args:
         fold_predictions: List of dicts with keys ``test_video``,
             ``y_true``, ``y_pred``.
         output_dir: Directory to save the figure.
     """
+    from scipy.stats import pearsonr as _pearsonr
+    from sklearn.metrics import r2_score
+
     n_folds = len(fold_predictions)
-    fig, axes = plt.subplots(1, n_folds, figsize=(5 * n_folds, 4), squeeze=False)
+    n_cols = min(4, n_folds)
+    n_rows = (n_folds + n_cols - 1) // n_cols
+
+    # ---- Combined figure ----
+    fig, axes = plt.subplots(
+        n_rows, n_cols,
+        figsize=(6 * n_cols, 4 * n_rows),
+        squeeze=False,
+    )
 
     for idx, fold_data in enumerate(fold_predictions):
-        ax = axes[0, idx]
-        n_points = len(fold_data["y_true"])
-        ax.plot(range(n_points), fold_data["y_true"], label="True", alpha=0.7)
-        ax.plot(range(n_points), fold_data["y_pred"], label="Pred", alpha=0.7)
-        ax.set_title(f"Test: {fold_data['test_video']}")
-        ax.set_xlabel("Epoch")
-        ax.set_ylabel("Luminance")
-        ax.legend(fontsize=8)
+        row, col = divmod(idx, n_cols)
+        ax = axes[row, col]
+
+        y_true = fold_data["y_true"]
+        y_pred = fold_data["y_pred"]
+        test_vid = fold_data["test_video"]
+        n_epochs = len(y_true)
+
+        # Time axis: epoch index × epoch_step (100ms)
+        time_s = np.arange(n_epochs) * EPOCH_STEP_S
+
+        # Compute metrics
+        r_val, _ = _pearsonr(y_true, y_pred)
+        r2_val = r2_score(y_true, y_pred)
+
+        # Plot
+        ax.plot(time_s, y_true, color="#2196F3", linewidth=1.0,
+                alpha=0.85, label="True")
+        ax.plot(time_s, y_pred, color="#FF5722", linewidth=1.0,
+                alpha=0.85, label="Predicted")
+        ax.fill_between(
+            time_s, y_true, y_pred,
+            color="#9E9E9E", alpha=0.15, label="Error",
+        )
+
+        ax.set_title(
+            f"Video {test_vid}  |  r = {r_val:.3f}  |  R² = {r2_val:.3f}",
+            fontsize=10, fontweight="bold",
+        )
+        ax.set_xlabel("Time (s)", fontsize=9)
+        ax.set_ylabel("Luminance (z-score)", fontsize=9)
+        ax.legend(fontsize=7, loc="upper right", framealpha=0.7)
+        ax.tick_params(labelsize=8)
+        ax.grid(True, alpha=0.2)
+
+    # Hide unused subplots
+    for idx in range(n_folds, n_rows * n_cols):
+        row, col = divmod(idx, n_cols)
+        axes[row, col].set_visible(False)
 
     fig.suptitle(
-        f"Predictions — Raw TDE Model — sub-{SUBJECT}",
-        fontsize=14,
+        f"True vs Predicted Luminance — Raw TDE Model — sub-{SUBJECT}",
+        fontsize=14, fontweight="bold",
     )
-    plt.tight_layout()
-    fig.savefig(
-        output_dir / f"sub-{SUBJECT}_raw_tde_model_predictions.png", dpi=150
-    )
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    combined_path = output_dir / f"sub-{SUBJECT}_raw_tde_model_predictions.png"
+    fig.savefig(combined_path, dpi=150)
     plt.close("all")
+    print(f"  Combined predictions plot: {combined_path.name}")
+
+    # ---- Individual per-fold figures ----
+    indiv_dir = output_dir / "predictions_per_fold"
+    indiv_dir.mkdir(parents=True, exist_ok=True)
+
+    for fold_data in fold_predictions:
+        y_true = fold_data["y_true"]
+        y_pred = fold_data["y_pred"]
+        test_vid = fold_data["test_video"]
+        n_epochs = len(y_true)
+        time_s = np.arange(n_epochs) * EPOCH_STEP_S
+
+        r_val, _ = _pearsonr(y_true, y_pred)
+        r2_val = r2_score(y_true, y_pred)
+
+        fig_ind, ax_ind = plt.subplots(figsize=(12, 4))
+        ax_ind.plot(time_s, y_true, color="#2196F3", linewidth=1.2,
+                    alpha=0.9, label="True luminance")
+        ax_ind.plot(time_s, y_pred, color="#FF5722", linewidth=1.2,
+                    alpha=0.9, label="Predicted luminance")
+        ax_ind.fill_between(
+            time_s, y_true, y_pred,
+            color="#9E9E9E", alpha=0.15,
+        )
+
+        ax_ind.set_title(
+            f"Video {test_vid}  —  Pearson r = {r_val:.3f}  |  "
+            f"R² = {r2_val:.3f}  |  N = {n_epochs} epochs",
+            fontsize=12, fontweight="bold",
+        )
+        ax_ind.set_xlabel("Time (s)", fontsize=11)
+        ax_ind.set_ylabel("Luminance (z-score)", fontsize=11)
+        ax_ind.legend(fontsize=10, loc="upper right", framealpha=0.7)
+        ax_ind.grid(True, alpha=0.2)
+        plt.tight_layout()
+
+        indiv_path = (
+            indiv_dir
+            / f"sub-{SUBJECT}_pred_video_{test_vid}.png"
+        )
+        fig_ind.savefig(indiv_path, dpi=150)
+        plt.close("all")
+        print(f"  Individual plot: {indiv_path.name}")
 
 
 def plot_comparison_with_spectral_tde(
@@ -870,7 +972,8 @@ def run_pipeline(epoch_duration_override: float | None = None) -> None:
         return
 
     # ------------------------------------------------------------------
-    # 2. Collect GLHMM-TDE + covariance epochs across all runs
+    # 2. PASS 1: Collect TDE-embedded data from all segments
+    #            (TDE only, no PCA yet)
     # ------------------------------------------------------------------
     qa_tsv_path = PROJECT_ROOT / "results" / "qa" / "eeg" / f"sub-{SUBJECT}_eeg_qa_autoreject.tsv"
     qa_df = None
@@ -880,8 +983,11 @@ def run_pipeline(epoch_duration_override: float | None = None) -> None:
     else:
         print(f"WARNING: No QA TSV found at {qa_tsv_path}. Running WITHOUT epoch rejection.")
 
-    all_epoch_entries: list[dict] = []
+    # Structures to collect TDE segments and metadata for Pass 2
+    tde_segments: list[np.ndarray] = []
+    segment_metadata: list[dict] = []  # store info needed for Pass 2
 
+    print("\n--- PASS 1: Collecting TDE-embedded segments ---")
     for run_config in RUNS_CONFIG:
         run_label = (
             f"run-{run_config['id']} acq-{run_config['acq']} "
@@ -922,17 +1028,80 @@ def run_pipeline(epoch_duration_override: float | None = None) -> None:
                 bad_idx_list = ast.literal_eval(qa_row["BadEpochsIdx"])
                 run_bad_epochs[v_id] = bad_idx_list
 
-        run_epochs = extract_raw_tde_epochs_for_run(
-            run_config=run_config,
+        # Collect TDE data for this run's video segments
+        luminance_events = events_df[
+            events_df["trial_type"] == "video_luminance"
+        ].reset_index(drop=True)
+
+        sfreq = eeg_raw.info["sfreq"]
+        for _, event_row in luminance_events.iterrows():
+            stim_id = int(event_row["stim_id"])
+            video_id = stim_id - 100
+            bad_epochs = run_bad_epochs.get(video_id, [])
+
+            result = _process_single_video_segment(
+                event_row=event_row,
+                run_id=run_config["id"],
+                acq=run_config["acq"],
+                eeg_raw=eeg_raw,
+                roi_channels=recording_roi,
+                bad_epochs=bad_epochs,
+                sfreq=sfreq,
+                pca_model=None,  # Pass 1: no PCA
+                epoch_duration_s=active_epoch_duration,
+                epoch_step_s=active_epoch_step,
+            )
+            # When pca_model is None, returns a tuple with TDE data
+            if isinstance(result, tuple):
+                tde_data, eeg_data_tm, lum_df, vid_id, acq_val, rid, bad_ep = result
+                tde_segments.append(tde_data)
+                segment_metadata.append({
+                    "tde_data": tde_data,
+                    "eeg_raw_path": vhdr_path,
+                    "events_path": events_path,
+                    "event_row": event_row,
+                    "run_config": run_config,
+                    "roi_channels": recording_roi,
+                    "bad_epochs": bad_ep,
+                    "sfreq": sfreq,
+                })
+                print(f"  Video {vid_id}: TDE shape = {tde_data.shape}")
+
+    if not tde_segments:
+        print("ERROR: No TDE segments collected. Exiting.")
+        return
+
+    # ------------------------------------------------------------------
+    # 3. Fit GLOBAL PCA on concatenated TDE data
+    # ------------------------------------------------------------------
+    print("\n--- Fitting GLOBAL PCA ---")
+    global_pca = fit_global_pca(tde_segments, TDE_PCA_COMPONENTS)
+
+    # ------------------------------------------------------------------
+    # 4. PASS 2: Project each segment with global PCA → epoch → covariance
+    # ------------------------------------------------------------------
+    print("\n--- PASS 2: Projecting with global PCA + extracting epochs ---")
+    all_epoch_entries: list[dict] = []
+
+    for meta in segment_metadata:
+        eeg_raw = mne.io.read_raw_brainvision(
+            str(meta["eeg_raw_path"]), preload=True, verbose=False
+        )
+        run_epochs = _process_single_video_segment(
+            event_row=meta["event_row"],
+            run_id=meta["run_config"]["id"],
+            acq=meta["run_config"]["acq"],
             eeg_raw=eeg_raw,
-            events_df=events_df,
-            roi_channels=recording_roi,
-            bad_epochs_map=run_bad_epochs,
+            roi_channels=meta["roi_channels"],
+            bad_epochs=meta["bad_epochs"],
+            sfreq=meta["sfreq"],
+            pca_model=global_pca,  # Pass 2: use global PCA
             epoch_duration_s=active_epoch_duration,
             epoch_step_s=active_epoch_step,
         )
-        print(f"  GLHMM-TDE covariance epochs extracted: {len(run_epochs)}")
-        all_epoch_entries.extend(run_epochs)
+        if isinstance(run_epochs, list):
+            print(f"  Epochs extracted: {len(run_epochs)}")
+            all_epoch_entries.extend(run_epochs)
 
     print(f"\nTotal epochs collected: {len(all_epoch_entries)}")
     if not all_epoch_entries:
