@@ -195,6 +195,99 @@ def process_video_segment_3cond(
         return None
 
 
+# ── Luminance event-locked average ────────────────────────────────────
+
+LUM_WINDOW_PRE = 30   # ~1 s before  (frames at ~30 fps)
+LUM_WINDOW_POST = 25  # ~0.8 s after
+
+
+def collect_luminance_snippets(
+    luminance_df: pd.DataFrame, up_idx: np.ndarray,
+    down_idx: np.ndarray, nc_idx: np.ndarray,
+) -> dict[str, list[np.ndarray]]:
+    """Extract luminance time-courses around each event index."""
+    lum = luminance_df["luminance"].values
+    snippets: dict[str, list[np.ndarray]] = {
+        "ChangeUp": [], "ChangeDown": [], "NoChange": [],
+    }
+    for label, indices in [("ChangeUp", up_idx), ("ChangeDown", down_idx), ("NoChange", nc_idx)]:
+        for idx in indices:
+            start = idx - LUM_WINDOW_PRE
+            stop = idx + LUM_WINDOW_POST + 1
+            if start < 0 or stop > len(lum):
+                continue
+            snippet = lum[start:stop].copy()
+            snippet = snippet - snippet[:LUM_WINDOW_PRE].mean()
+            snippets[label].append(snippet)
+    return snippets
+
+
+def plot_luminance_around_events(
+    all_snippets: dict[str, list[np.ndarray]], output_dir: Path, fps: float = 30.0,
+):
+    """Plot mean ± SEM luminance time-locked to each condition."""
+    n_frames = LUM_WINDOW_PRE + LUM_WINDOW_POST + 1
+    time_ms = (np.arange(n_frames) - LUM_WINDOW_PRE) / fps * 1000
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+    for cond, color in COND_COLORS.items():
+        arrs = all_snippets.get(cond, [])
+        if not arrs:
+            continue
+        mat = np.stack(arrs)
+        mean = mat.mean(axis=0)
+        sem = mat.std(axis=0, ddof=1) / np.sqrt(mat.shape[0])
+        ax.plot(time_ms, mean, color=color, label=f"{cond} (n={mat.shape[0]})")
+        ax.fill_between(time_ms, mean - sem, mean + sem, color=color, alpha=0.25)
+
+    ax.axvline(0, color="k", linestyle="--", linewidth=1.0)
+    ax.set_xlabel("Time relative to event (ms)")
+    ax.set_ylabel("Δ Luminance (baseline-subtracted)")
+    ax.set_title(f"Luminance around detected events (sub-{SUBJECT})")
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(output_dir / f"sub-{SUBJECT}_luminance_around_events.png", dpi=150)
+    plt.close(fig)
+
+
+def plot_luminance_timeline(
+    luminance_df: pd.DataFrame, up_idx: np.ndarray, down_idx: np.ndarray,
+    nc_idx: np.ndarray, video_id: int, presentation: int, output_dir: Path,
+):
+    """Plot full luminance time-series with shaded background per event condition."""
+    lum = luminance_df["luminance"].values
+    times_s = luminance_df["timestamp"].values
+
+    fig, ax = plt.subplots(figsize=(20, 3.5))
+    ax.plot(times_s, lum, color="0.3", linewidth=0.7)
+
+    shade_half = 0.5  # ±0.5 s around each event
+    event_map = [
+        (up_idx, COND_COLORS["ChangeUp"], "ChangeUp"),
+        (down_idx, COND_COLORS["ChangeDown"], "ChangeDown"),
+        (nc_idx, COND_COLORS["NoChange"], "NoChange"),
+    ]
+    plotted_labels: set[str] = set()
+    for indices, color, label in event_map:
+        for idx in indices:
+            if idx >= len(times_s):
+                continue
+            t_evt = times_s[idx]
+            lbl = label if label not in plotted_labels else None
+            ax.axvspan(t_evt - shade_half, t_evt + shade_half, alpha=0.20, color=color, label=lbl)
+            ax.axvline(t_evt, color=color, linewidth=0.5, alpha=0.5)
+            if lbl:
+                plotted_labels.add(label)
+
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Luminance (green ch.)")
+    ax.set_title(f"Luminance timeline — video {video_id}, presentation {presentation} (sub-{SUBJECT})")
+    ax.legend(loc="upper right", fontsize=8)
+    fig.tight_layout()
+    fig.savefig(output_dir / f"sub-{SUBJECT}_lum_timeline_vid{video_id}_pres{presentation}.png", dpi=150)
+    plt.close(fig)
+
+
 # ── Plotting ──────────────────────────────────────────────────────────
 
 
@@ -248,6 +341,64 @@ def plot_erp_3cond(epochs: mne.Epochs, output_dir: Path):
         fig.tight_layout()
         fig.savefig(output_dir / f"sub-{SUBJECT}_erp_3cond_{roi_name}.png", dpi=150)
         plt.close(fig)
+
+# ── Luminance event-locked average ────────────────────────────────────
+
+# Window around each event (in frames at ~30 fps)
+LUM_WINDOW_PRE = 30   # ~1 s before
+LUM_WINDOW_POST = 25  # ~0.8 s after
+
+
+def collect_luminance_snippets(
+    luminance_df: pd.DataFrame, up_idx: np.ndarray,
+    down_idx: np.ndarray, nc_idx: np.ndarray,
+) -> dict[str, list[np.ndarray]]:
+    """Extract luminance time-courses around each event index."""
+    lum = luminance_df["luminance"].values
+    snippets: dict[str, list[np.ndarray]] = {
+        "ChangeUp": [], "ChangeDown": [], "NoChange": [],
+    }
+    for label, indices in [("ChangeUp", up_idx), ("ChangeDown", down_idx), ("NoChange", nc_idx)]:
+        for idx in indices:
+            start = idx - LUM_WINDOW_PRE
+            stop = idx + LUM_WINDOW_POST + 1
+            if start < 0 or stop > len(lum):
+                continue
+            snippet = lum[start:stop].copy()
+            # Baseline-subtract: remove mean of pre-event window
+            snippet = snippet - snippet[:LUM_WINDOW_PRE].mean()
+            snippets[label].append(snippet)
+    return snippets
+
+
+def plot_luminance_around_events(
+    all_snippets: dict[str, list[np.ndarray]], output_dir: Path, fps: float = 30.0,
+):
+    """Plot mean ± SEM luminance time-locked to each condition."""
+    n_frames = LUM_WINDOW_PRE + LUM_WINDOW_POST + 1
+    time_ms = (np.arange(n_frames) - LUM_WINDOW_PRE) / fps * 1000  # ms
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+    for cond, color in COND_COLORS.items():
+        arrs = all_snippets.get(cond, [])
+        if not arrs:
+            continue
+        mat = np.stack(arrs)  # (n_events, n_frames)
+        mean = mat.mean(axis=0)
+        sem = mat.std(axis=0, ddof=1) / np.sqrt(mat.shape[0])
+        ax.plot(time_ms, mean, color=color, label=f"{cond} (n={mat.shape[0]})")
+        ax.fill_between(time_ms, mean - sem, mean + sem, color=color, alpha=0.25)
+
+    ax.axvline(0, color="k", linestyle="--", linewidth=1.0)
+    ax.set_xlabel("Time relative to event (ms)")
+    ax.set_ylabel("Δ Luminance (baseline-subtracted)")
+    ax.set_title(f"Luminance around detected events (sub-{SUBJECT})")
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(output_dir / f"sub-{SUBJECT}_luminance_around_events.png", dpi=150)
+    plt.close(fig)
+
+
 
 
 def plot_tfr_3cond(epochs: mne.Epochs, output_dir: Path):
@@ -338,6 +489,9 @@ def run_pipeline():
         return
 
     all_epochs: list[mne.Epochs] = []
+    all_lum_snippets: dict[str, list[np.ndarray]] = {
+        "ChangeUp": [], "ChangeDown": [], "NoChange": [],
+    }
 
     for run_config in RUNS_CONFIG:
         vhdr = _resolve_eeg_path(run_config)
@@ -350,6 +504,7 @@ def run_pipeline():
         rec_roi = select_roi_channels(eeg_raw.ch_names, EEG_CHANNELS)
 
         lum_evs = events_df[events_df["trial_type"] == "video_luminance"]
+        vid_presentation_count: dict[int, int] = {}
 
         for _, row in lum_evs.iterrows():
             vid = int(row["stim_id"]) - 100
@@ -360,6 +515,17 @@ def run_pipeline():
                 lum_df = load_luminance_csv(STIMULI_PATH / csv_name)
             except FileNotFoundError:
                 continue
+
+            vid_presentation_count[vid] = vid_presentation_count.get(vid, 0) + 1
+
+            # Collect luminance snippets around events
+            up_idx, down_idx, nc_idx = detect_3cond_events(lum_df["luminance"].values, ERP_N_CHANGES)
+            snips = collect_luminance_snippets(lum_df, up_idx, down_idx, nc_idx)
+            for k in all_lum_snippets:
+                all_lum_snippets[k].extend(snips.get(k, []))
+
+            # Timeline plot per video presentation
+            plot_luminance_timeline(lum_df, up_idx, down_idx, nc_idx, vid, vid_presentation_count[vid], RESULTS_PATH)
 
             eps = process_video_segment_3cond(
                 eeg_raw, float(row["onset"]), float(row["duration"]),
@@ -382,6 +548,7 @@ def run_pipeline():
 
     plot_erp_3cond(grand, RESULTS_PATH)
     plot_tfr_3cond(grand, RESULTS_PATH)
+    plot_luminance_around_events(all_lum_snippets, RESULTS_PATH)
 
     print(f"Results saved to {RESULTS_PATH}")
     print("Done.")
