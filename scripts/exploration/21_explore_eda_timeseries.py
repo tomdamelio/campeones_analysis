@@ -5,11 +5,17 @@ import mne
 import neurokit2 as nk
 import biosppy
 import matplotlib.pyplot as plt
+import json
 
 # --- CONFIGURACIÓN ---
 SUBJECT_ID = "27"
 BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
+OUTPUT_PATH = rf"data/derivatives/eda_preproc_tests/sub-{SUBJECT_ID}"
 SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"
+
+RESULTS_PATH = rf"results/eda_preproc_tests/sub-{SUBJECT_ID}/physio/features_timeseries"
+os.makedirs(OUTPUT_PATH, exist_ok=True)
+os.makedirs(RESULTS_PATH, exist_ok=True)
 
 # Nombre del canal de EDA. ¡Asegúrate de que coincida con tus archivos VHDR!
 EDA_CHANNEL = 'GSR' 
@@ -216,11 +222,27 @@ def process_and_plot_eda_block(eeg_filepath, eda_channel_name=EDA_CHANNEL):
         'SMNA': eda_smna,
         'Marks': marks_col  # Nueva columna
     })
-
-    output_csv = f'eda_processed_sub-{SUBJECT_ID}_ses-{acq_id}_task-{task_id}.csv'
-    df_to_save.to_csv(output_csv, index=False)
-    print(f"  💾 Señales procesadas guardadas en {output_csv}.")
-
+    
+    bids_filename = f'sub-{SUBJECT_ID}_ses-{acq_id}_task-{task_id}_desc-edapreproc_physio'
+    
+    # 1. Guardar como TSV (separado por tabulaciones)
+    output_tsv = os.path.join(OUTPUT_PATH, f'{bids_filename}.tsv')
+    df_to_save.to_csv(output_tsv, sep='\t', index=False)
+    
+    # 2. Crear y guardar el diccionario JSON de metadatos (Sidecar)
+    bids_metadata = {
+        "SamplingFrequency": sfreq,
+        "StartTime": 0.0,
+        "Columns": list(df_to_save.columns),
+        "Description": "Processed EDA signals including NeuroKit and CVX decomposition",
+        "RawEDAChannel": eda_channel_name
+    }
+    
+    output_json = os.path.join(OUTPUT_PATH, f'{bids_filename}.json')
+    with open(output_json, 'w') as f:
+        json.dump(bids_metadata, f, indent=4)
+        
+    print(f"  💾 Señales procesadas guardadas en BIDS: {output_tsv} (+ .json)")
     # Se ejecuta para cumplir el requisito, pero sus resultados no se grafican como señal
     _ = process_eda_emotiphai(eda_raw, sampling_rate=sfreq)
 
@@ -274,8 +296,15 @@ def process_and_plot_eda_block(eeg_filepath, eda_channel_name=EDA_CHANNEL):
     plt.tight_layout(rect=[0, 0, 1, 0.96]) # Ajustar para el supertítulo
     
     print("  👁️  Mostrando gráfico. Cierra la ventana para procesar el siguiente bloque...")
-    plt.savefig(f'eda_timeseries_sub-{SUBJECT_ID}_ses-{acq_id}_task-{task_id}.png', dpi=300)
-    plt.show(block=True) 
+    
+    # Guardar figura en carpeta results con nomenclatura BIDS
+    fig_bids_name = f"sub-{SUBJECT_ID}_ses-{acq_id}_task-{task_id}_desc-edatimeseries_fig.png"
+    fig_path = os.path.join(RESULTS_PATH, fig_bids_name)
+    
+    plt.savefig(fig_path, dpi=300)
+    print(f"  📊 Gráfico guardado en: {fig_path}")
+    
+    plt.show(block=True)
 
 # --- SCRIPT DE EJECUCIÓN PRINCIPAL ---
 if __name__ == "__main__":

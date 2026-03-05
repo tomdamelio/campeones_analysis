@@ -2,13 +2,6 @@
     "participant_id": {
         "Description": "Unique participant identifier"
     },
-    "species": {
-        "Description": "Binomial species name from NCBI Taxonomy; if omitted defaults to Homo sapiens"
-    },
-    "birth_date": {
-        "Description": "Date of birth of the participant",
-        "Units": "date"
-    },
     "age": {
         "Description": "Age of the participant at time of testing",
         "Units": "years"
@@ -19,6 +12,29 @@
             "F": "female",
             "M": "male"
         }
+    },
+    "hand": {
+        "Description": "Handedness of the participant",
+        "Levels": {
+            "R": "right",
+            "L": "left",
+            "A": "ambidextrous"
+        }
+    },
+    "weight": {
+        "Description": "Body weight of the participant",
+        "Units": "kg"
+    },
+    "height": {
+        "Description": "Body height of the participant",
+        "Units": "m"
+    },
+    "species": {
+        "Description": "Binomial species name from NCBI Taxonomy; if omitted defaults to Homo sapiens"
+    },
+    "birth_date": {
+        "Description": "Date of birth of the participant",
+        "Units": "date"
     },
     "gender": {
         "Description": "Self-identified gender",
@@ -139,21 +155,5 @@
             "other_specify": "Other (please specify)"
         },
         "Delimiter": ";"
-    },
-    "hand": {
-        "Description": "Handedness of the participant",
-        "Levels": {
-            "R": "right",
-            "L": "left",
-            "A": "ambidextrous"
-        }
-    },
-    "weight": {
-        "Description": "Body weight of the participant",
-        "Units": "kg"
-    },
-    "height": {
-        "Description": "Body height of the participant",
-        "Units": "m"
     }
 }

@@ -6,8 +6,12 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 
 # --- CONFIGURACIÓN ---
-BASE_PATH = r"data/derivatives/campeones_preproc/sub-27/ses-vr/eeg"
-SOURCEDATA_PATH = r"data/sourcedata/xdf/sub-27"
+SUBJECT_ID = "27"
+BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
+SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"
+RESULTS_PATH = rf"results/eda_preproc_tests/sub-{SUBJECT_ID}/beh/pca"
+os.makedirs(RESULTS_PATH, exist_ok=True)
+
 CHANNELS = ['joystick_x', 'joystick_y']
 
 def process_pca_comparison_3plots(base_path, sourcedata_path):
@@ -145,6 +149,13 @@ def process_pca_comparison_3plots(base_path, sourcedata_path):
             # Título general
             plt.suptitle(f"Análisis de Trayectoria - Video {vid_id} - {dimension.upper()} - Var Explicada PC1: {expl_var:.1f}%", fontsize=14)
             plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+            
+            # Guardar figura en carpeta results con nomenclatura BIDS
+            fig_name = f"sub-{subject_id}_{acq_id}_{task_id}_desc-video{vid_id}pca_fig.png"
+            fig_path = os.path.join(RESULTS_PATH, fig_name)
+            
+            plt.savefig(fig_path, dpi=300)
+            print(f"💾 Gráfico PCA guardado en: {fig_path}")
             plt.show()
 
 # --- MAIN ---

@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 import os
 
 # --- CONFIGURACIÓN ---
-CSV_PATH = "sub-27_all_reports.csv"
+SUBJECT_ID = "27"
+RESULTS_PATH = rf"results/eda_preproc_tests/sub-{SUBJECT_ID}/beh"
+TSV_PATH = os.path.join(RESULTS_PATH, f"sub-{SUBJECT_ID}_desc-videoratings_beh.tsv")
 
 def plot_affective_space_comparison(df):
     """
@@ -109,17 +111,24 @@ def plot_affective_space_comparison(df):
 
     plt.subplots_adjust(bottom=0.15) # Espacio para la leyenda
     plt.tight_layout(rect=[0, 0.05, 1, 1]) # Ajustar layout respetando la leyenda
-    plt.savefig("comparacion_espacio_afectivo.png", dpi=300)
+    
+    # Guardar figura en carpeta results con nomenclatura BIDS
+    fig_name = f"sub-{SUBJECT_ID}_desc-affectivespace_fig.png"
+    fig_path = os.path.join(RESULTS_PATH, fig_name)
+    
+    plt.savefig(fig_path, dpi=300)
+    print(f"💾 Gráfico de Espacio Afectivo guardado en: {fig_path}")
     plt.show()
 
 # --- SCRIPT PRINCIPAL ---
 if __name__ == "__main__":
-    if not os.path.exists(CSV_PATH):
-        print(f"ERROR: No se encontró el archivo '{CSV_PATH}'.")
-        print("Asegúrate de que la tabla CSV esté en la misma carpeta.")
+    if not os.path.exists(TSV_PATH):
+        print(f"ERROR: No se encontró el archivo '{TSV_PATH}'.")
+        print("Asegúrate de haber ejecutado el script de extracción de reportes primero.")
     else:
-        print(f"Cargando datos desde {CSV_PATH}...")
-        df = pd.read_csv(CSV_PATH, index_col='video_id')
+        print(f"Cargando datos desde {TSV_PATH}...")
+        # Leemos el TSV usando tabulación como separador
+        df = pd.read_csv(TSV_PATH, sep='\t', index_col='video_id')
         
         print("Generando Gráfico Comparativo de Espacios Afectivos...")
         plot_affective_space_comparison(df)

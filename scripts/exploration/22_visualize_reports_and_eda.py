@@ -4,6 +4,7 @@ import numpy as np
 import mne
 import matplotlib.pyplot as plt
 import warnings
+from scipy.stats import spearmanr
 
 # Ignorar warnings si el joystick no se mueve (varianza 0 produce NaN en la correlación)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
@@ -11,7 +12,10 @@ warnings.filterwarnings('ignore', category=RuntimeWarning)
 # --- CONFIGURACIÓN ---
 SUBJECT_ID = "27"
 BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
+EDA_PREPROC_PATH = rf"data/derivatives/eda_preproc_tests/sub-{SUBJECT_ID}"
 SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"
+RESULTS_PATH = rf"results/eda_preproc_tests/sub-{SUBJECT_ID}/physio/multimodal_per_stimulus"
+os.makedirs(RESULTS_PATH, exist_ok=True)
 
 JOYSTICK_CHANNEL = 'joystick_x'
 MAX_LAG_SECONDS = 5 # Rango máximo para buscar el lag óptimo
@@ -38,11 +42,11 @@ def calculate_time_lagged_correlation(x, y, fs, max_lag_sec=15):
     
     for lag in lags:
         if lag == 0:
-            c = np.corrcoef(x, y)[0, 1]
+            c = spearmanr(x, y)[0]
         elif lag > 0:
-            c = np.corrcoef(x[:-lag], y[lag:])[0, 1]
+            c = spearmanr(x[:-lag], y[lag:])[0]
         else:
-            c = np.corrcoef(x[-lag:], y[:lag])[0, 1]
+            c = spearmanr(x[-lag:], y[:lag])[0]
         
         corrs.append(0 if np.isnan(c) else c)
     
@@ -86,13 +90,15 @@ def process_multimodal_per_stimulus(eeg_filepath):
         return
 
     # 2. CARGA DE EDA PREPROCESADA (CSV)
-    eda_csv_filename = f'eda_processed_sub-{SUBJECT_ID}_ses-{acq_id}_task-{task_id}.csv'
-    if not os.path.exists(eda_csv_filename):
-        print(f"  ❌ ERROR: No se encontró el CSV de la EDA: {eda_csv_filename}")
+
+    eda_tsv_filename = os.path.join(EDA_PREPROC_PATH, f'sub-{SUBJECT_ID}_ses-{acq_id}_task-{task_id}_desc-edapreproc_physio.tsv')
+    if not os.path.exists(eda_tsv_filename):
+        print(f"  ❌ ERROR: No se encontró el archivo BIDS de la EDA: {eda_tsv_filename}")
         print(f"     Asegúrate de haber ejecutado el script puro de EDA primero.")
         return
         
-    eda_df = pd.read_csv(eda_csv_filename)
+    # Importante: agregar sep='\t' porque ahora es un archivo TSV
+    eda_df = pd.read_csv(eda_tsv_filename, sep='\t')
     eda_tonic = eda_df['Tonic'].values
     eda_phasic = eda_df['Phasic'].values
     times = eda_df['Time'].values # Usamos el vector de tiempo guardado
@@ -146,7 +152,6 @@ def process_multimodal_per_stimulus(eeg_filepath):
             tonic_slice = eda_tonic[start_idx:end_idx]
             phasic_slice = eda_phasic[start_idx:end_idx]
             
-            # ---> NUEVO: SUAVIZADO DEL REPORTE (SLIDING WINDOW) <---
             window_samples = int(SMOOTHING_WINDOW_SECONDS * sfreq)
             # Aplicamos media móvil centrada. min_periods=1 evita que los bordes se vuelvan NaN
             joy_slice = pd.Series(joy_slice).rolling(window=window_samples, center=True, min_periods=1).mean().values
@@ -205,9 +210,11 @@ def process_multimodal_per_stimulus(eeg_filepath):
             # Bajamos el inicio de las gráficas (top=0.81) para hacerle espacio al gran cuadro de texto de las correlaciones
             plt.tight_layout(rect=[0, 0, 1, 0.81]) 
             
-            out_filename = f"multi_sub-{SUBJECT_ID}_ses-{acq_id}_block-{task_num}_video-{vid_id}.png"
-            plt.savefig(out_filename, dpi=300)
-            print(f"     💾 Gráfico guardado: {out_filename}")
+            bids_fig_name = f"sub-{SUBJECT_ID}_ses-{acq_id}_task-{task_id}_desc-video_{vid_id}_multimodal_fig.png"
+            out_filepath = os.path.join(RESULTS_PATH, bids_fig_name)
+            
+            plt.savefig(out_filepath, dpi=300)
+            print(f"     💾 Gráfico guardado en: {out_filepath}")
             
             # Comenta esta línea si no quieres que el script se pause en cada video
             plt.show(block=True) 

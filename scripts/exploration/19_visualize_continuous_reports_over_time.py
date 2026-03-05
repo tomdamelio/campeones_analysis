@@ -7,8 +7,12 @@ from matplotlib.collections import LineCollection
 from scipy import signal
 
 # --- CONFIGURACIÓN ---
-BASE_PATH = r"data/derivatives/campeones_preproc/sub-27/ses-vr/eeg"
-SOURCEDATA_PATH = r"data/sourcedata/xdf/sub-27"
+SUBJECT_ID = "27"
+BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
+SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"
+RESULTS_PATH = rf"results/eda_preproc_tests/sub-{SUBJECT_ID}/beh"
+os.makedirs(RESULTS_PATH, exist_ok=True)
+
 CHANNEL_TO_EXTRACT = 'joystick_x'
 VIDEOS_TO_PLOT = [2, 14]  # Los videos solicitados
 
@@ -171,7 +175,13 @@ def plot_affective_trajectories(videos, base_path, source_path, channel):
     cbar.set_ticklabels(['Inicio (0%)', 'Fin (100%)'])
 
     plt.subplots_adjust(right=0.9) # Espacio para la colorbar
-    plt.savefig("trayectorias_afectivas_continuas.png", dpi=300)
+    
+    # Guardar figura en carpeta results con nomenclatura BIDS
+    fig_name = f"sub-{SUBJECT_ID}_desc-affectivetrajectories_fig.png"
+    fig_path = os.path.join(RESULTS_PATH, fig_name)
+    
+    plt.savefig(fig_path, dpi=300)
+    print(f"💾 Trayectorias guardadas en: {fig_path}")
     plt.show()
 
 # --- MAIN ---

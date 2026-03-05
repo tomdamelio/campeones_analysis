@@ -5,8 +5,9 @@ import scipy.stats as stats
 import os
 
 # --- CONFIGURACIÓN ---
-# Ruta al CSV generado por el script anterior
-CSV_PATH = "sub-27_all_reports.csv"
+SUBJECT_ID = "27"
+RESULTS_PATH = rf"results/eda_preproc_tests/sub-{SUBJECT_ID}/beh"
+TSV_PATH = os.path.join(RESULTS_PATH, f"sub-{SUBJECT_ID}_desc-videoratings_beh.tsv")
 
 def plot_correlation_scatter(df):
     """
@@ -71,7 +72,13 @@ def plot_correlation_scatter(df):
         ax.legend(loc='upper left')
 
     plt.tight_layout()
-    plt.savefig("comparacion_post_continuo_scatter.png", dpi=300)
+    
+    # Guardar figura en carpeta results con nomenclatura BIDS
+    fig_name = f"sub-{SUBJECT_ID}_desc-scattercorrelation_fig.png"
+    fig_path = os.path.join(RESULTS_PATH, fig_name)
+    
+    plt.savefig(fig_path, dpi=300)
+    print(f"💾 Scatter Plot guardado en: {fig_path}")
     plt.show()
 
 
@@ -122,19 +129,25 @@ def plot_paired_differences(df):
         ax.grid(axis='y', linestyle=':', alpha=0.6)
 
     plt.tight_layout()
-    plt.savefig("comparacion_post_continuo_wilcoxon.png", dpi=300)
+    
+    # Guardar figura en carpeta results con nomenclatura BIDS
+    fig_name = f"sub-{SUBJECT_ID}_desc-pairedwilcoxon_fig.png"
+    fig_path = os.path.join(RESULTS_PATH, fig_name)
+    
+    plt.savefig(fig_path, dpi=300)
+    print(f"💾 Wilcoxon Plot guardado en: {fig_path}")
     plt.show()
 
 
 # --- SCRIPT PRINCIPAL ---
 if __name__ == "__main__":
-    if not os.path.exists(CSV_PATH):
-        print(f"ERROR: No se encontró el archivo '{CSV_PATH}'.")
-        print("Asegúrate de haber corrido el script anterior guardando el CSV en la misma carpeta.")
+    if not os.path.exists(TSV_PATH):
+        print(f"ERROR: No se encontró el archivo '{TSV_PATH}'.")
+        print("Asegúrate de haber corrido el script anterior que genera el TSV en la carpeta results.")
     else:
-        # Cargar los datos, asumiendo que el 'video_id' se guardó como índice/primera columna
-        print(f"Cargando datos desde {CSV_PATH}...")
-        df = pd.read_csv(CSV_PATH, index_col='video_id')
+        # Cargar los datos TSV (tab separated values)
+        print(f"Cargando datos desde {TSV_PATH}...")
+        df = pd.read_csv(TSV_PATH, sep='\t', index_col='video_id')
         
         print("Generando Gráfico 1: Dispersión y Correlación...")
         plot_correlation_scatter(df)

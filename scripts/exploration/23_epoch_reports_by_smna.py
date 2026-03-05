@@ -7,17 +7,21 @@ import seaborn as sns
 from scipy.signal import find_peaks
 import random
 from scipy.stats import mannwhitneyu
+from scipy.stats import zscore
 
 # --- CONFIGURACIÓN ---
 SUBJECT_ID = "27"
 BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
 SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"
+RESULTS_PATH = rf"results/eda_preproc_tests/sub-{SUBJECT_ID}/physio"
+os.makedirs(RESULTS_PATH, exist_ok=True)
 
 CHANNEL_TO_PLOT = 'joystick_x'
-EPOCH_HALF_WINDOW = 3.0  # Segundos antes y después del pico
-SMNA_PEAK_THRESHOLD = 0.01  # Umbral bajo para considerar un pico de SMNA (ajustable)
+EPOCH_HALF_WINDOW = 5.0  # Segundos antes y después del pico
+SMNA_PEAK_THRESHOLD = 0.5  # Umbral bajo para considerar un pico de SMNA (ajustable)
 SMOOTHING_WINDOW_SECONDS = 1.0
 ALLOW_OVERLAP = True  # True para permitir solapamiento, False para rechazarlo
+RANDOM_SEED = 42
 
 def get_non_overlapping_epochs(centers, duration, min_time, max_time, allow_overlap=False):
     """
@@ -107,11 +111,14 @@ def process_subject():
         acq_id = parts[3].split('-')[1].upper() # ej: 'VR' o similar
         
         # Archivo EDA procesado correspondiente
-        eda_filename = f'eda_processed_sub-{SUBJECT_ID}_ses-{acq_id.lower()}_task-{task_id}.csv'
-        eda_filepath = os.path.join(os.getcwd(), eda_filename) # Asumiendo que se guardaron en la ruta de ejecución
+        eda_filename = f'sub-{SUBJECT_ID}_ses-{acq_id}_task-{task_id}_desc-edapreproc_physio.tsv'
+        
+        # 💡 Opcional: Si en el primer script los guardaste en "data/derivatives/...", 
+        # asegúrate de que la ruta aquí apunte a esa carpeta y no a os.getcwd(). 
+        eda_filepath = os.path.join(rf"data/derivatives/eda_preproc_tests/sub-{SUBJECT_ID}", eda_filename)
         
         if not os.path.exists(eda_filepath):
-            print(f"⚠️ Saltando bloque {task_id}: No se encontró el CSV de EDA procesado ({eda_filename})")
+            print(f"⚠️ Saltando bloque {task_id}: No se encontró el TSV BIDS de EDA procesado ({eda_filename})")
             continue
             
         print(f"\n🔄 Procesando Bloque {task_id} - Sesión {acq_id}")
@@ -119,7 +126,7 @@ def process_subject():
         # Cargar datos
         raw = mne.io.read_raw_brainvision(eeg_filepath, preload=True, verbose=False)
         events_df = pd.read_csv(events_filepath, sep='\t')
-        eda_df = pd.read_csv(eda_filepath)
+        eda_df = pd.read_csv(eda_filepath, sep='\t') # Importante: agregar sep='\t'
         
         sfreq = raw.info['sfreq']
         
@@ -138,24 +145,10 @@ def process_subject():
             
         # Preparar señal de comportamiento (Joystick)
         joystick_data, times = raw.get_data(picks=[CHANNEL_TO_PLOT], return_times=True)
-        beh_signal = joystick_data[0].copy()
+        raw_beh_signal = joystick_data[0].copy()
         
-        if inversion_instruction == 'inverse':
-            beh_signal *= -1
-            
-        window_samples = int(SMOOTHING_WINDOW_SECONDS * sfreq)
-        # Usamos pd.Series para el rolling y .values para volver a numpy
-        beh_signal = pd.Series(beh_signal).rolling(window=window_samples, center=True, min_periods=1).mean().values
-
-        # Si es valencia, tomamos el módulo (valor absoluto)
-        if dimension == "valence":
-            beh_signal = np.abs(beh_signal)
-            dimension_label = "valence_module"
-        else:
-            dimension_label = "arousal"
-            
-        # Derivada del comportamiento
-        beh_derivative = np.gradient(beh_signal) * sfreq
+        # 2. Iterar sobre eventos de video
+        video_counter = 0
         
         # 2. Iterar sobre eventos de video
         video_counter = 0
@@ -169,6 +162,28 @@ def process_subject():
                 
                 onset = row['onset']
                 offset = onset + row['duration']
+
+                idx_onset = int(onset * sfreq)
+                idx_offset = int(offset * sfreq)
+                
+                # Extraemos solo el segmento de la señal correspondiente a este video
+                stim_beh_signal = raw_beh_signal[idx_onset:idx_offset].copy()
+                
+                if inversion_instruction == 'inverse':
+                    stim_beh_signal *= -1
+                    
+                window_samples = int(SMOOTHING_WINDOW_SECONDS * sfreq)
+                stim_beh_signal = pd.Series(stim_beh_signal).rolling(window=window_samples, center=True, min_periods=1).mean().values
+
+                if dimension == "valence":
+                    stim_beh_signal = np.abs(stim_beh_signal)
+                    dimension_label = "valence_module"
+                else:
+                    dimension_label = "arousal"
+                    
+                stim_beh_derivative = np.gradient(stim_beh_signal) * sfreq
+                stim_beh_signal_z = zscore(stim_beh_signal)
+                stim_beh_derivative_z = np.gradient(stim_beh_signal_z) * sfreq
                 
                 # Mascara booleana para el tiempo del video en el DataFrame del EDA
                 mask_video = (eda_df['Time'] >= onset) & (eda_df['Time'] <= offset)
@@ -216,12 +231,16 @@ def process_subject():
                 
                 for epoch_type, epochs in epoch_sets:
                     for e_start, e_end in epochs:
-                        # Encontrar índices en la señal de EEG (joystick)
-                        idx_start = int(e_start * sfreq)
-                        idx_end = int(e_end * sfreq)
+                        # --- MODIFICADO: Índices RELATIVOS al inicio del estímulo ---
+                        # Se le resta el 'onset' para que coincida con nuestro array 'stim_beh_signal'
+                        idx_start = int((e_start - onset) * sfreq)
+                        idx_end = int((e_end - onset) * sfreq)
                         
-                        beh_chunk = beh_signal[idx_start:idx_end]
-                        der_chunk = beh_derivative[idx_start:idx_end]
+                        beh_chunk = stim_beh_signal[idx_start:idx_end]
+                        der_chunk = stim_beh_derivative[idx_start:idx_end]
+
+                        beh_chunk_z = stim_beh_signal_z[idx_start:idx_end]
+                        der_chunk_z = stim_beh_derivative_z[idx_start:idx_end]
                         
                         if len(beh_chunk) > 0:
                             all_results.append({
@@ -229,7 +248,11 @@ def process_subject():
                                 "stimuli": vid_id,
                                 "dimension": dimension_label,
                                 "mean": np.mean(beh_chunk),
-                                "derivate_mean": np.mean(der_chunk)
+                                "derivate_mean": np.mean(der_chunk),
+                                "std": np.std(beh_chunk),
+                                "z_mean": np.mean(beh_chunk_z),
+                                "z_derivate_mean": np.mean(der_chunk_z),
+                                "z_std": np.std(beh_chunk_z),
                             })
 
     # 4. Guardar resultados
@@ -238,9 +261,11 @@ def process_subject():
         print("❌ No se generaron épocas válidas.")
         return
         
-    out_csv = f'epoch_metrics_sub-{SUBJECT_ID}.csv'
-    results_df.to_csv(out_csv, index=False)
-    print(f"\n✅ Análisis completo. Datos guardados en {out_csv}")
+    out_filename = f'sub-{SUBJECT_ID}_desc-epochmetrics_stat.tsv'
+    out_filepath = os.path.join(RESULTS_PATH, out_filename)
+    
+    results_df.to_csv(out_filepath, sep='\t', index=False)
+    print(f"\n✅ Análisis completo. Datos guardados en {out_filepath}")
     
     # --- NUEVO: Resumen global de N ---
     print("\n📊 Resumen de Épocas Totales (N):")
@@ -251,80 +276,79 @@ def process_subject():
     plot_results(results_df)
 
 def plot_results(df):
-    """Genera gráficos de Boxplot comparando Peak vs No Peak con Test Mann-Whitney U."""
+    """Genera gráficos de Boxplot comparando Peak vs No Peak con Test Mann-Whitney U.
+    Crea un plot para los valores Raw y otro para los Z-Scoreados."""
     sns.set_theme(style="whitegrid")
     
-    fig, axes = plt.subplots(2, 2, figsize=(14, 11))
-    fig.suptitle(f"Comparación Comportamental: Peak SMNA vs No Peak (Sujeto {SUBJECT_ID})", fontsize=16)
-    
-    # Aplanar los ejes
-    ax_arousal_mean = axes[0, 0]
-    ax_arousal_der = axes[1, 0]
-    ax_valence_mean = axes[0, 1]
-    ax_valence_der = axes[1, 1]
-    
-    def custom_plot(data, y_col, ax, title_prefix, ylabel):
-        if data.empty:
-            ax.set_visible(False)
-            return
-
-        # 1. Plotear
-        sns.boxplot(data=data, x="epoch_type", y=y_col, ax=ax, width=0.4, 
-                    boxprops=dict(alpha=0.4), showfliers=False, palette="Set2", order=["peak", "no_peak"])
-        sns.stripplot(data=data, x="epoch_type", y=y_col, ax=ax, 
-                      size=4, color="black", alpha=0.5, jitter=True, order=["peak", "no_peak"])
+    def generate_figure(data_df, prefix_col, title_type):
+        # Ahora usamos 4 filas (Mean, Der_Mean, Std) y 2 columnas (Arousal, Valencia)
+        fig, axes = plt.subplots(3, 2, figsize=(14, 20))
+        fig.suptitle(f"Comparación Comportamental ({title_type}): Peak SMNA vs No Peak (Sujeto {SUBJECT_ID})", fontsize=16)
         
-        # 2. Extraer datos para estadísticas
-        peak_vals = data[data['epoch_type'] == 'peak'][y_col].dropna()
-        no_peak_vals = data[data['epoch_type'] == 'no_peak'][y_col].dropna()
+        def custom_plot(data, y_col, ax, title_prefix, ylabel):
+            if data.empty:
+                ax.set_visible(False)
+                return
+
+            sns.boxplot(data=data, x="epoch_type", y=y_col, ax=ax, width=0.4, 
+                        boxprops=dict(alpha=0.4), showfliers=False, palette="Set2", order=["peak", "no_peak"])
+            sns.stripplot(data=data, x="epoch_type", y=y_col, ax=ax, 
+                          size=4, color="black", alpha=0.5, jitter=True, order=["peak", "no_peak"])
+            
+            peak_vals = data[data['epoch_type'] == 'peak'][y_col].dropna()
+            no_peak_vals = data[data['epoch_type'] == 'no_peak'][y_col].dropna()
+            
+            n_peak, n_no_peak = len(peak_vals), len(no_peak_vals)
+            
+            if n_peak > 1 and n_no_peak > 1:
+                stat, p_val = mannwhitneyu(peak_vals, no_peak_vals, alternative='two-sided')
+                if p_val < 0.001: sig = "***"
+                elif p_val < 0.01: sig = "**"
+                elif p_val < 0.05: sig = "*"
+                else: sig = "ns"
+                
+                final_title = f"{title_prefix} ({sig})"
+                stats_text = f"Mann-Whitney U\np = {p_val:.4f}\nn(peak) = {n_peak}\nn(no_peak) = {n_no_peak}"
+                ax.text(0.05, 0.95, stats_text, transform=ax.transAxes, 
+                        verticalalignment='top', fontsize=9, 
+                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.9))
+            else:
+                final_title = f"{title_prefix} (Datos insuficientes)"
+            
+            ax.set_title(final_title, fontweight='bold')
+            ax.set_ylabel(ylabel)
+            ax.set_xlabel("")
+
+        df_aro = data_df[data_df['dimension'] == 'arousal']
+        df_val = data_df[data_df['dimension'] == 'valence_module']
+
+        # Fila 1: Promedios
+        custom_plot(df_aro, f'{prefix_col}mean', axes[0, 0], "Arousal - Promedio", "Mean")
+        custom_plot(df_val, f'{prefix_col}mean', axes[0, 1], "|Valencia| - Promedio", "Mean")
+
+        # Fila 2: Derivada Promedios
+        custom_plot(df_aro, f'{prefix_col}derivate_mean', axes[1, 0], "Arousal - Derivada promedio", "Mean Derivative")
+        custom_plot(df_val, f'{prefix_col}derivate_mean', axes[1, 1], "|Valencia| - Derivada promedio", "Mean Derivative")
+
+        # Fila 3: Variabilidad (Desviación Estándar)
+        custom_plot(df_aro, f'{prefix_col}std', axes[2, 0], "Arousal - Variabilidad (Std)", "Std Dev")
+        custom_plot(df_val, f'{prefix_col}std', axes[2, 1], "|Valencia| - Variabilidad (Std)", "Std Dev")
+
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
         
-        n_peak = len(peak_vals)
-        n_no_peak = len(no_peak_vals)
+        # Guardar figura en la carpeta results con nomenclatura BIDS
+        fig_filename = f'sub-{SUBJECT_ID}_desc-boxplot_{title_type}_fig.png'
+        fig_filepath = os.path.join(RESULTS_PATH, fig_filename)
         
-        # 3. Test de Hipótesis (Mann-Whitney U)
-        if n_peak > 1 and n_no_peak > 1:
-            stat, p_val = mannwhitneyu(peak_vals, no_peak_vals, alternative='two-sided')
-            
-            # Determinar asteriscos de significancia
-            if p_val < 0.001: sig = "***"
-            elif p_val < 0.01: sig = "**"
-            elif p_val < 0.05: sig = "*"
-            else: sig = "ns" # no significativo
-            
-            final_title = f"{title_prefix} ({sig})"
-            
-            # Texto con estadísticas dentro del plot
-            stats_text = (f"Mann-Whitney U\n"
-                          f"p = {p_val:.4f}\n"
-                          f"n(peak) = {n_peak}\n"
-                          f"n(no_peak) = {n_no_peak}")
-            
-            # Ubicar texto en la esquina superior izquierda
-            ax.text(0.05, 0.95, stats_text, transform=ax.transAxes, 
-                    verticalalignment='top', fontsize=9, 
-                    bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.9))
-        else:
-            final_title = f"{title_prefix} (Datos insuficientes)"
-        
-        ax.set_title(final_title, fontweight='bold')
-        ax.set_ylabel(ylabel)
-        ax.set_xlabel("") # Limpiamos etiqueta x para que no sea redundante
+        plt.savefig(fig_filepath, dpi=300)
+        print(f"     💾 Gráfico {title_type} guardado en: {fig_filepath}")
+        plt.show()
 
-    # Filtrar datos por dimensión
-    df_aro = df[df['dimension'] == 'arousal']
-    df_val = df[df['dimension'] == 'valence_module']
-
-    # Generar los 4 subplots
-    custom_plot(df_aro, 'mean', ax_arousal_mean, "Arousal - Promedio", "Mean Arousal")
-    custom_plot(df_aro, 'derivate_mean', ax_arousal_der, "Arousal - Derivada", "Mean Derivative")
-
-    custom_plot(df_val, 'mean', ax_valence_mean, "Módulo Valencia - Promedio", "Mean |Valence|")
-    custom_plot(df_val, 'derivate_mean', ax_valence_der, "Módulo Valencia - Derivada", "Mean Derivative")
-
-    plt.tight_layout()
-    plt.subplots_adjust(top=0.92) # Ajuste para el título principal
-    plt.savefig(f'boxplot_metrics_stats_sub-{SUBJECT_ID}.png', dpi=300)
-    plt.show()
+    # Generar los dos gráficos requeridos
+    generate_figure(df, prefix_col="", title_type="RAW")
+    generate_figure(df, prefix_col="z_", title_type="Z-SCORED")
 
 if __name__ == "__main__":
+    random.seed(RANDOM_SEED)
+    np.random.seed(RANDOM_SEED)
     process_subject()

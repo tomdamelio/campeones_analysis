@@ -2,11 +2,17 @@ import mne
 import os
 import pandas as pd
 import numpy as np
+import json
 
 # --- CONFIGURACIÓN ---
-BASE_PATH = r"data/derivatives/campeones_preproc/sub-27/ses-vr/eeg"
-SOURCEDATA_PATH = r"data/sourcedata/xdf/sub-27"
+SUBJECT_ID = "27" # Lo definimos variable para usarlo en las rutas
+BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
+SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"
 CHANNEL_TO_EXTRACT = 'joystick_x'
+
+# NUEVO: Ruta para guardar la tabla final
+RESULTS_PATH = rf"results/eda_preproc_tests/sub-{SUBJECT_ID}/beh"
+os.makedirs(RESULTS_PATH, exist_ok=True)
 
 # 1. DATOS A POSTERIORI (Sujeto 27)
 post_reports_raw = {
@@ -165,5 +171,29 @@ if __name__ == "__main__":
     print("-" * 60)
     print(df_final)
     
-    df_final.to_csv(f"sub-27_all_reports.csv")
-    print("Guardado en 'sub-27_all_reports.csv'")
+    # 1. Preparar nombre y ruta
+    bids_filename = f"sub-{SUBJECT_ID}_desc-videoratings_beh"
+    out_tsv = os.path.join(RESULTS_PATH, bids_filename + ".tsv")
+    out_json = os.path.join(RESULTS_PATH, bids_filename + ".json")
+
+    # 2. Guardar TSV (Reset index para que 'video_id' sea una columna explícita)
+    df_final.to_csv(out_tsv, sep='\t', index=True, index_label='video_id')
+
+    # 3. Guardar JSON Sidecar (Metadatos)
+    metadata = {
+        "Description": "Aggregated behavioral ratings per video (Post-stimulus and Continuous)",
+        "Subject": SUBJECT_ID,
+        "Columns": {
+            "video_id": "Unique identifier of the video stimulus",
+            "post_*": "Post-stimulus self-report (Scale 1-9)",
+            "continua_*": "Continuous joystick evaluation transformed to Scale 1-9 (1=Low, 9=High)",
+            "media": "Mean value of the continuous signal",
+            "desvio": "Standard deviation of the continuous signal"
+        }
+    }
+    
+    with open(out_json, 'w') as f:
+        json.dump(metadata, f, indent=4)
+
+    print(f"✅ Tabla guardada en BIDS: {out_tsv}")
+    print(f"✅ Metadatos guardados en: {out_json}")

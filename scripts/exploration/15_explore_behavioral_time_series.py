@@ -5,8 +5,9 @@ import pandas as pd
 import numpy as np
 
 # --- CONFIGURACIÓN ---
-BASE_PATH = r"data/derivatives/campeones_preproc/sub-27/ses-vr/eeg"
-SOURCEDATA_PATH = r"data/sourcedata/xdf/sub-27"
+SUBJECT_ID = "27"
+BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
+SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"
 
 CHANNEL_TO_PLOT = 'joystick_x'
 
