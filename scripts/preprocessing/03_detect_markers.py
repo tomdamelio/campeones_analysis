@@ -98,6 +98,7 @@ import numpy as np
 import json
 from pathlib import Path
 import mne
+mne.viz.set_browser_backend('qt')
 from mne_bids import BIDSPath, read_raw_bids
 import matplotlib.pyplot as plt
 from scipy import stats, signal
@@ -1518,7 +1519,13 @@ def visualize_signals_with_annotations(raw, annotations, apply_zscore=True):
     if apply_zscore:
         print("Aplicando z-score a las señales para normalización...")
         raw_plot = apply_zscore_to_raw(raw_plot)
-        print("Z-score aplicado. Las señales están ahora en unidades de desviación estándar.")
+    
+    # --- AÑADE ESTO PARA OPTIMIZAR ---
+    # Si la frecuencia de muestreo es muy alta (ej. audio), bajarla a 500Hz o 1000Hz 
+    # solo para que la interfaz no colapse.
+    if raw_plot.info['sfreq'] > 1000:
+        print(f"Reduciendo frecuencia de visualización de {raw_plot.info['sfreq']}Hz a 1000Hz...")
+        raw_plot.resample(1000.0)
     
     # Instrucciones para el usuario
     print("\n--- INSTRUCCIONES PARA AÑADIR ANOTACIONES MANUALMENTE ---")
@@ -1556,7 +1563,7 @@ def visualize_signals_with_annotations(raw, annotations, apply_zscore=True):
     fig = raw_plot.plot(
         title=f"Canales {', '.join(channels_to_pick)} con anotaciones automáticas",
         scalings=scalings,
-        duration=540,
+        duration=20,
         start=0,
         show=True,
         block=True
@@ -1691,7 +1698,7 @@ def compare_manual_and_auto_annotations(raw, manual_path, auto_path):
     fig = raw_combined.plot(
         title=f"Comparación de anotaciones manuales y automáticas",
         scalings=scalings,
-        duration=540,
+        duration=20,
         start=0,
         show=True,
         block=True
