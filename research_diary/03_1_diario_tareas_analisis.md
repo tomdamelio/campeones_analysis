@@ -163,7 +163,36 @@ Una vez generados los TSVs con CHANGE_PHOTO y NO_CHANGE_PHOTO, crear epocas MNE 
 
 ---
 
-### 1.5 Calcular y graficar ERPs
+### 1.5 Visualizacion interactiva de las nuevas epocas
+
+Antes de computar ERPs o TFRs, verificar visualmente que los nuevos eventos CHANGE_PHOTO y NO_CHANGE_PHOTO estan correctamente ubicados en la senal. Esto es analogo a lo que se hace en el paso 3 del pipeline (`03_detect_markers.py`) cuando se visualizan las marcas de AUDIO y PHOTO para validacion manual, pero aplicado a las nuevas epocas.
+
+**Que hacer:** Para cada archivo preprocesado del sujeto 27, cargar la senal EEG junto con los canales AUDIO y PHOTO, y superponer las anotaciones de CHANGE_PHOTO y NO_CHANGE_PHOTO como marcas visuales. Esto permite confirmar que:
+- Los eventos CHANGE_PHOTO coinciden con actividad real en el canal PHOTO (flicker visible)
+- Los eventos NO_CHANGE_PHOTO caen en zonas de silencio/baseline (sin actividad en PHOTO ni AUDIO)
+- No hay solapamiento entre epocas ni eventos mal posicionados
+
+**Implementacion sugerida:**
+1. Cargar el archivo `.vhdr` preprocesado de cada run
+2. Cargar el TSV de `photo_events` generado en la Tarea 1.3
+3. Convertir los eventos CHANGE_PHOTO y NO_CHANGE_PHOTO a `mne.Annotations`
+4. Asignar las anotaciones al objeto Raw con `raw.set_annotations()`
+5. Visualizar con `raw.plot()` mostrando canales AUDIO, PHOTO y algunos canales EEG (ej. O1, O2, Pz)
+
+**Referencia directa:** `visualize_signals_with_annotations()` en `03_detect_markers.py` (linea 1460). Esta funcion ya:
+- Selecciona canales AUDIO, PHOTO, joystick_x
+- Aplica z-score para normalizar las senales
+- Resamplea a 1000 Hz si la frecuencia es muy alta
+- Abre el visualizador interactivo de MNE con `raw.plot(duration=20, block=True)`
+- Permite edicion manual de anotaciones (agregar/eliminar/ajustar con tecla 'a' y click derecho)
+
+Adaptar esta funcion para que muestre las nuevas anotaciones CHANGE_PHOTO (ej. en color rojo) y NO_CHANGE_PHOTO (ej. en color verde) sobre los canales AUDIO, PHOTO y EEG occipitales.
+
+**Salida esperada:** Visualizacion interactiva por run donde se pueda scrollear por la senal y verificar que cada marca esta en el lugar correcto. Opcionalmente, permitir correccion manual si alguna marca esta mal posicionada.
+
+---
+
+### 1.6 Calcular y graficar ERPs
 
 Computar ERPs promediando las epocas por condicion:
 - ERP de CHANGE_PHOTO
@@ -173,7 +202,7 @@ Computar ERPs promediando las epocas por condicion:
 
 ---
 
-### 1.6 Computar mapas de tiempo-frecuencia (TFR)
+### 1.7 Computar mapas de tiempo-frecuencia (TFR)
 
 **Referencia:** `plot_tfr_3cond()` en `21e` (linea 274):
 - Frecuencias: `np.logspace(*np.log10([3, 40]), num=20)` (3-40 Hz)
@@ -182,7 +211,7 @@ Computar ERPs promediando las epocas por condicion:
 
 ---
 
-### 1.7 Contrastes estadisticos iniciales
+### 1.8 Contrastes estadisticos iniciales
 
 Comparar CHANGE_PHOTO vs. NO_CHANGE_PHOTO:
 - Diferencia de ERPs por ROI

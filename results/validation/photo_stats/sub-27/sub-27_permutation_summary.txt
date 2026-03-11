@@ -1,0 +1,276 @@
+Permutation test summary — sub-27
+N permutations: 10000
+Alpha: 0.05
+Seed: 42
+
+==================================================
+ERP results (temporal cluster test per ROI)
+==================================================
+
+  Frontal:
+    Total clusters: 28
+    Significant clusters: 1
+      cluster 0: p = 0.9974
+      cluster 1: p = 1.0000
+      cluster 2: p = 1.0000
+      cluster 3: p = 1.0000
+      cluster 4: p = 1.0000
+      cluster 5: p = 1.0000
+      cluster 6: p = 1.0000
+      cluster 7: p = 0.5982
+      cluster 8: p = 0.7018
+      cluster 9: p = 0.9886
+      cluster 10: p = 0.9937
+      cluster 11: p = 0.5130
+      cluster 12: p = 0.0175 ***
+      cluster 13: p = 0.3906
+      cluster 14: p = 1.0000
+      cluster 15: p = 0.6955
+      cluster 16: p = 0.9994
+      cluster 17: p = 0.1253
+      cluster 18: p = 1.0000
+      cluster 19: p = 1.0000
+      cluster 20: p = 0.9174
+      cluster 21: p = 1.0000
+      cluster 22: p = 0.9944
+      cluster 23: p = 1.0000
+      cluster 24: p = 1.0000
+      cluster 25: p = 0.9696
+      cluster 26: p = 1.0000
+      cluster 27: p = 0.9930
+
+  Temporal:
+    Total clusters: 21
+    Significant clusters: 3
+      cluster 0: p = 0.9948
+      cluster 1: p = 1.0000
+      cluster 2: p = 1.0000
+      cluster 3: p = 1.0000
+      cluster 4: p = 1.0000
+      cluster 5: p = 0.0007 ***
+      cluster 6: p = 0.9763
+      cluster 7: p = 1.0000
+      cluster 8: p = 0.0052 ***
+      cluster 9: p = 1.0000
+      cluster 10: p = 1.0000
+      cluster 11: p = 1.0000
+      cluster 12: p = 1.0000
+      cluster 13: p = 0.0156 ***
+      cluster 14: p = 0.9924
+      cluster 15: p = 1.0000
+      cluster 16: p = 1.0000
+      cluster 17: p = 0.0971
+      cluster 18: p = 1.0000
+      cluster 19: p = 0.9499
+      cluster 20: p = 1.0000
+
+  Parietal:
+    Total clusters: 23
+    Significant clusters: 1
+      cluster 0: p = 0.9986
+      cluster 1: p = 1.0000
+      cluster 2: p = 1.0000
+      cluster 3: p = 0.9994
+      cluster 4: p = 0.8683
+      cluster 5: p = 0.1642
+      cluster 6: p = 1.0000
+      cluster 7: p = 0.0897
+      cluster 8: p = 0.0218 ***
+      cluster 9: p = 0.8085
+      cluster 10: p = 1.0000
+      cluster 11: p = 1.0000
+      cluster 12: p = 0.3682
+      cluster 13: p = 0.9998
+      cluster 14: p = 0.2903
+      cluster 15: p = 1.0000
+      cluster 16: p = 0.9992
+      cluster 17: p = 0.6880
+      cluster 18: p = 0.8855
+      cluster 19: p = 0.9995
+      cluster 20: p = 0.9928
+      cluster 21: p = 1.0000
+      cluster 22: p = 0.9796
+
+  Occipital:
+    Total clusters: 28
+    Significant clusters: 1
+      cluster 0: p = 0.9988
+      cluster 1: p = 1.0000
+      cluster 2: p = 1.0000
+      cluster 3: p = 1.0000
+      cluster 4: p = 1.0000
+      cluster 5: p = 0.9996
+      cluster 6: p = 0.0378 ***
+      cluster 7: p = 0.7527
+      cluster 8: p = 0.9988
+      cluster 9: p = 0.1648
+      cluster 10: p = 0.0935
+      cluster 11: p = 1.0000
+      cluster 12: p = 0.9567
+      cluster 13: p = 0.9997
+      cluster 14: p = 1.0000
+      cluster 15: p = 0.5356
+      cluster 16: p = 0.9890
+      cluster 17: p = 1.0000
+      cluster 18: p = 1.0000
+      cluster 19: p = 0.9170
+      cluster 20: p = 1.0000
+      cluster 21: p = 0.9965
+      cluster 22: p = 0.9908
+      cluster 23: p = 1.0000
+      cluster 24: p = 0.9920
+      cluster 25: p = 1.0000
+      cluster 26: p = 1.0000
+      cluster 27: p = 1.0000
+
+==================================================
+TFR results (freq x time cluster test per ROI)
+==================================================
+
+  Frontal:
+    Total clusters: 35
+    Significant clusters: 0
+      cluster 0: p = 1.0000
+      cluster 1: p = 1.0000
+      cluster 2: p = 0.5251
+      cluster 3: p = 0.3118
+      cluster 4: p = 0.1135
+      cluster 5: p = 0.7746
+      cluster 6: p = 0.4766
+      cluster 7: p = 0.9990
+      cluster 8: p = 1.0000
+      cluster 9: p = 0.5719
+      cluster 10: p = 0.8794
+      cluster 11: p = 0.9984
+      cluster 12: p = 1.0000
+      cluster 13: p = 1.0000
+      cluster 14: p = 1.0000
+      cluster 15: p = 1.0000
+      cluster 16: p = 1.0000
+      cluster 17: p = 0.9797
+      cluster 18: p = 1.0000
+      cluster 19: p = 0.8914
+      cluster 20: p = 1.0000
+      cluster 21: p = 0.4967
+      cluster 22: p = 1.0000
+      cluster 23: p = 1.0000
+      cluster 24: p = 1.0000
+      cluster 25: p = 1.0000
+      cluster 26: p = 1.0000
+      cluster 27: p = 1.0000
+      cluster 28: p = 0.8659
+      cluster 29: p = 1.0000
+      cluster 30: p = 1.0000
+      cluster 31: p = 1.0000
+      cluster 32: p = 1.0000
+      cluster 33: p = 1.0000
+      cluster 34: p = 1.0000
+
+  Temporal:
+    Total clusters: 37
+    Significant clusters: 0
+      cluster 0: p = 0.6162
+      cluster 1: p = 1.0000
+      cluster 2: p = 1.0000
+      cluster 3: p = 1.0000
+      cluster 4: p = 0.7897
+      cluster 5: p = 1.0000
+      cluster 6: p = 0.0761
+      cluster 7: p = 0.5218
+      cluster 8: p = 1.0000
+      cluster 9: p = 0.2415
+      cluster 10: p = 1.0000
+      cluster 11: p = 0.9015
+      cluster 12: p = 0.9872
+      cluster 13: p = 1.0000
+      cluster 14: p = 1.0000
+      cluster 15: p = 1.0000
+      cluster 16: p = 1.0000
+      cluster 17: p = 0.9983
+      cluster 18: p = 1.0000
+      cluster 19: p = 0.4932
+      cluster 20: p = 1.0000
+      cluster 21: p = 1.0000
+      cluster 22: p = 1.0000
+      cluster 23: p = 1.0000
+      cluster 24: p = 1.0000
+      cluster 25: p = 1.0000
+      cluster 26: p = 1.0000
+      cluster 27: p = 1.0000
+      cluster 28: p = 1.0000
+      cluster 29: p = 1.0000
+      cluster 30: p = 1.0000
+      cluster 31: p = 1.0000
+      cluster 32: p = 0.8054
+      cluster 33: p = 1.0000
+      cluster 34: p = 1.0000
+      cluster 35: p = 1.0000
+      cluster 36: p = 1.0000
+
+  Parietal:
+    Total clusters: 29
+    Significant clusters: 0
+      cluster 0: p = 0.9910
+      cluster 1: p = 1.0000
+      cluster 2: p = 1.0000
+      cluster 3: p = 1.0000
+      cluster 4: p = 0.2235
+      cluster 5: p = 1.0000
+      cluster 6: p = 0.4845
+      cluster 7: p = 1.0000
+      cluster 8: p = 0.9548
+      cluster 9: p = 1.0000
+      cluster 10: p = 1.0000
+      cluster 11: p = 1.0000
+      cluster 12: p = 0.0864
+      cluster 13: p = 0.3619
+      cluster 14: p = 1.0000
+      cluster 15: p = 0.5605
+      cluster 16: p = 0.9837
+      cluster 17: p = 1.0000
+      cluster 18: p = 1.0000
+      cluster 19: p = 1.0000
+      cluster 20: p = 1.0000
+      cluster 21: p = 1.0000
+      cluster 22: p = 1.0000
+      cluster 23: p = 1.0000
+      cluster 24: p = 0.9974
+      cluster 25: p = 0.9991
+      cluster 26: p = 1.0000
+      cluster 27: p = 1.0000
+      cluster 28: p = 0.9999
+
+  Occipital:
+    Total clusters: 31
+    Significant clusters: 1
+      cluster 0: p = 1.0000
+      cluster 1: p = 1.0000
+      cluster 2: p = 0.5728
+      cluster 3: p = 1.0000
+      cluster 4: p = 0.1745
+      cluster 5: p = 0.9783
+      cluster 6: p = 1.0000
+      cluster 7: p = 1.0000
+      cluster 8: p = 0.8077
+      cluster 9: p = 0.9942
+      cluster 10: p = 1.0000
+      cluster 11: p = 0.9988
+      cluster 12: p = 0.0076 ***
+      cluster 13: p = 0.9939
+      cluster 14: p = 1.0000
+      cluster 15: p = 1.0000
+      cluster 16: p = 1.0000
+      cluster 17: p = 1.0000
+      cluster 18: p = 1.0000
+      cluster 19: p = 1.0000
+      cluster 20: p = 1.0000
+      cluster 21: p = 0.9990
+      cluster 22: p = 0.9978
+      cluster 23: p = 1.0000
+      cluster 24: p = 1.0000
+      cluster 25: p = 1.0000
+      cluster 26: p = 1.0000
+      cluster 27: p = 1.0000
+      cluster 28: p = 1.0000
+      cluster 29: p = 1.0000
+      cluster 30: p = 1.0000
