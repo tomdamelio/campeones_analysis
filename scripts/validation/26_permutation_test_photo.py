@@ -53,9 +53,10 @@ TFR_FREQS = np.logspace(*np.log10([3, 40]), num=20)
 TFR_N_CYCLES = TFR_FREQS / 2.0
 
 # Epoch parameters
-BASELINE = (-1.0, -0.5)
+BASELINE = (-1.5, -1.0)
 
-# Default permutation settings
+# TFR decimation for permutation test (reduces computation time)
+TFR_DECIM = 4  # keep every 4th time point
 DEFAULT_N_PERM = 1000
 RANDOM_SEED = 42
 ALPHA = 0.05
@@ -225,8 +226,14 @@ def run_tfr_permutation(
         data_a = tfr_change.data[:, ch_idx, :, :].mean(axis=1)
         data_b = tfr_nochange.data[:, ch_idx, :, :].mean(axis=1)
 
+        # Decimate time axis to speed up permutation test
+        data_a = data_a[:, :, ::TFR_DECIM]
+        data_b = data_b[:, :, ::TFR_DECIM]
+        times_dec = tfr_change.times[::TFR_DECIM]
+
         print(f"  TFR {roi_name}: running {n_perm} permutations "
-              f"on {data_a.shape[1]}x{data_a.shape[2]} (freq x time) ...")
+              f"on {data_a.shape[1]}x{data_a.shape[2]} (freq x time, "
+              f"decimated {TFR_DECIM}x) ...")
 
         # Cluster-forming threshold (TFR): t-value for p < 0.05 (two-tailed)
         df = data_a.shape[0] + data_b.shape[0] - 2
@@ -255,7 +262,7 @@ def run_tfr_permutation(
         }
 
         # --- Plot: t-statistic map with significant clusters outlined ---
-        times_ms = tfr_change.times * 1000
+        times_ms = times_dec * 1000
         freqs = TFR_FREQS
 
         fig, axes = plt.subplots(1, 2, figsize=(16, 5))

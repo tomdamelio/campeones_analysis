@@ -108,7 +108,7 @@ def plot_tfr(epochs: mne.Epochs, output_dir: Path, subject: str) -> float:
             continue
         tfr = tfr_morlet(ep, freqs=TFR_FREQS, n_cycles=TFR_N_CYCLES,
                          return_itc=False, average=True, verbose=False)
-        tfr.apply_baseline(baseline=(-1.0, -0.5), mode="percent")
+        tfr.apply_baseline(baseline=(-1.5, -1.0), mode="percent")
         tfr.data *= 100  # to percent
         tfrs[cond] = tfr
 
@@ -199,8 +199,8 @@ def plot_contrast(epochs: mne.Epochs, output_dir: Path, subject: str,
                        return_itc=False, average=True, verbose=False)
     tfr_b = tfr_morlet(epochs[cond_b], freqs=TFR_FREQS, n_cycles=TFR_N_CYCLES,
                        return_itc=False, average=True, verbose=False)
-    tfr_a.apply_baseline(baseline=(-1.0, -0.5), mode="percent")
-    tfr_b.apply_baseline(baseline=(-1.0, -0.5), mode="percent")
+    tfr_a.apply_baseline(baseline=(-1.5, -1.0), mode="percent")
+    tfr_b.apply_baseline(baseline=(-1.5, -1.0), mode="percent")
     tfr_a.data *= 100
     tfr_b.data *= 100
 

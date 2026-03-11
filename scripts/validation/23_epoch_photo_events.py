@@ -40,9 +40,9 @@ SESSION = "vr"
 EVENT_ID = {"CHANGE_PHOTO": 1, "NO_CHANGE_PHOTO": 2}
 
 # Epoch window (seconds relative to event onset)
-TMIN = -1.0
+TMIN = -1.5
 TMAX = 2.0
-BASELINE = (-1.0, -0.5)
+BASELINE = (-1.5, -1.0)
 
 # Runs config (same as 22_generate_photo_events.py)
 RUNS_CONFIG: dict[str, list[dict]] = {
