@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import json
 
 # --- CONFIGURACIÓN ---
-SUBJECT_ID = "27"
+SUBJECT_ID = "30"
 BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
 OUTPUT_PATH = rf"data/derivatives/eda_preproc_tests/sub-{SUBJECT_ID}"
 SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"

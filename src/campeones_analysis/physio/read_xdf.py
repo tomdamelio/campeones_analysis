@@ -694,7 +694,13 @@ if __name__ == "__main__":
         "--subject", type=str, help="Process specific subject (e.g., '01')"
     )
     parser.add_argument(
+        "--subjects", type=str, nargs="+", help="Process multiple subjects (e.g., '01' '02' '03')"
+    )
+    parser.add_argument(
         "--session", type=str, help="Process specific session (e.g., 'VR')"
+    )
+    parser.add_argument(
+        "--acq", type=str, help="Process specific acquisition/day (e.g., 'b')"
     )
     parser.add_argument(
         "--test", action="store_true", help="Process only the first XDF file found (for testing)"
@@ -820,14 +826,12 @@ if __name__ == "__main__":
         return sorted(xdf_files)
 
     # Process all subjects or a specific one
-    if args.subject:
+    if args.subjects:
+        subjects = args.subjects
+    elif args.subject:
         subjects = [args.subject]
     else:
         subjects = find_subjects()
-
-    if not subjects:
-        logger.error("No subjects found in the sourcedata directory.")
-        sys.exit(1)
 
     logger.info(f"Found {len(subjects)} subjects: {', '.join(subjects)}")
 
@@ -892,6 +896,10 @@ if __name__ == "__main__":
                             run = part.replace("run-", "")
                         elif part.startswith("day-"):
                             acq = part.replace("day-", "")
+
+                    if args.acq and acq != args.acq:
+                        logger.debug(f"⏭️  OMITIENDO: {filename} - No coincide con acq='{args.acq}'")
+                        continue
                     
                     # Check if file has already been processed (unless force flag is used)
                     if not args.force and is_already_processed(subject, session, task, run, acq):

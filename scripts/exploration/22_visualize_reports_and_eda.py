@@ -10,7 +10,7 @@ from scipy.stats import spearmanr
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 # --- CONFIGURACIÓN ---
-SUBJECT_ID = "27"
+SUBJECT_ID = "28"
 BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
 EDA_PREPROC_PATH = rf"data/derivatives/eda_preproc_tests/sub-{SUBJECT_ID}"
 SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"

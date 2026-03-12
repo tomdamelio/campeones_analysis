@@ -80,7 +80,7 @@ Para procesar datos de un nuevo sujeto, ejecutar los scripts en este orden:
 micromamba run -n campeones python -m src.campeones_analysis.physio.read_xdf --subject XX
 
 # PASO 1: Obtener duraciones de videos (OPCIONAL, solo si no existe video_durations.csv)
-micromamba run -n campeones python scripts/preprocessing/01_get_video_durations.py
+# micromamba run -n campeones python scripts/preprocessing/01_get_video_durations.py
 
 # PASO 2: Crear eventos iniciales (run se detecta automáticamente)
 micromamba run -n campeones python scripts/preprocessing/02_create_events_tsv.py --subjects XX --all-runs

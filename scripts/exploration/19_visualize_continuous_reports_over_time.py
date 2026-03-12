@@ -7,7 +7,7 @@ from matplotlib.collections import LineCollection
 from scipy import signal
 
 # --- CONFIGURACIÓN ---
-SUBJECT_ID = "27"
+SUBJECT_ID = "30"
 BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
 SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"
 RESULTS_PATH = rf"results/eda_preproc_tests/sub-{SUBJECT_ID}/beh"

@@ -11,7 +11,7 @@
     },
     "stim_id": {
         "LongName": "Stimulus identifier",
-        "Description": "001-014 = affective videos; 101/103/107/109/112 = luminance videos; 500 = fixation; 901\u2013902 = calm; 991-994 = practice"
+        "Description": "001-014 = affective videos; 101/103/107/109/112 = luminance videos; 500 = fixation; 901\u00e2\u20ac\u201c902 = calm; 991-994 = practice"
     },
     "condition": {
         "Description": "Experimental condition of the event",
@@ -28,8 +28,8 @@
     },
     "ProcessingMethod": {
         "Description": "Fusi\u00f3n de eventos originales con anotaciones detectadas autom\u00e1ticamente y editadas manualmente",
-        "OriginalEventsSource": "C:\\Users\\tdamelio\\Desktop\\campeones_analysis\\data\\derivatives\\events\\sub-25\\ses-vr\\eeg\\sub-25_ses-vr_task-04_acq-a_run-005_events.tsv",
-        "MergeDate": "2026-01-18T00:39:25"
+        "OriginalEventsSource": "C:\\Users\\jeror\\Desktop\\Cocuco\\campeones_analysis\\data\\derivatives\\events\\sub-25\\ses-vr\\eeg\\sub-25_ses-vr_task-04_acq-a_run-005_events.tsv",
+        "MergeDate": "2026-03-11T20:08:51"
     },
     "GeneratedBy": {
         "Name": "detect_markers.py",

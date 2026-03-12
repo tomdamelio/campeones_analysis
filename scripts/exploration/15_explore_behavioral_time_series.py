@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 
 # --- CONFIGURACIÓN ---
-SUBJECT_ID = "27"
+SUBJECT_ID = "30"
 BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
 SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"
 
