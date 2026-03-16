@@ -53,7 +53,7 @@ TFR_FREQS = np.logspace(*np.log10([3, 40]), num=20)
 TFR_N_CYCLES = TFR_FREQS / 2.0
 
 # Epoch parameters
-BASELINE = (-1.5, -1.0)
+BASELINE = (-4.5, -4.0)
 
 # TFR decimation for permutation test (reduces computation time)
 TFR_DECIM = 4  # keep every 4th time point

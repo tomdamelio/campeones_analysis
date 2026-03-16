@@ -44,6 +44,10 @@ ROIS = {
 
 COND_COLORS = {"CHANGE_PHOTO": "C3", "NO_CHANGE_PHOTO": "C2"}
 
+# Baseline & visualization crop
+BASELINE = (-4.5, -4.0)
+VIS_TMIN = -3.0  # crop epochs to this for visualization (exclude baseline)
+
 # TFR parameters
 TFR_FREQS = np.logspace(*np.log10([3, 40]), num=20)
 TFR_N_CYCLES = TFR_FREQS / 2.0
@@ -55,21 +59,22 @@ TFR_N_CYCLES = TFR_FREQS / 2.0
 
 def plot_erp(epochs: mne.Epochs, output_dir: Path, subject: str) -> None:
     """Plot ERP waveforms per ROI: CHANGE vs NO_CHANGE with SEM bands."""
-    time_pts = epochs.times * 1000  # ms
+    # Crop to exclude baseline window from visualization
+    epochs_vis = epochs.copy().crop(tmin=VIS_TMIN)
+    time_pts = epochs_vis.times * 1000  # ms
 
     for roi_name, roi_chs in ROIS.items():
-        valid_chs = [c for c in roi_chs if c in epochs.ch_names]
+        valid_chs = [c for c in roi_chs if c in epochs_vis.ch_names]
         if not valid_chs:
             continue
 
-        fig, ax = plt.subplots(figsize=(10, 4))
+        fig, ax = plt.subplots(figsize=(12, 4))
 
         for cond, color in COND_COLORS.items():
             try:
-                ep = epochs[cond].copy().pick(valid_chs)
+                ep = epochs_vis[cond].copy().pick(valid_chs)
             except KeyError:
                 continue
-            # (n_epochs, n_channels, n_times) -> average over channels -> (n_epochs, n_times)
             data = ep.get_data().mean(axis=1) * 1e6  # to uV
             mean = data.mean(axis=0)
             sem = data.std(axis=0, ddof=1) / np.sqrt(data.shape[0])
@@ -77,6 +82,8 @@ def plot_erp(epochs: mne.Epochs, output_dir: Path, subject: str) -> None:
             ax.fill_between(time_pts, mean - sem, mean + sem,
                             color=color, alpha=0.25)
 
+        ax.axvline(-1000, color="k", linestyle=":", linewidth=1.0, alpha=0.5,
+                   label="flicker onset (-1000 ms)")
         ax.axvline(0, color="k", linestyle="--", linewidth=1.0)
         ax.axvline(1000, color="k", linestyle="--", linewidth=1.0, alpha=0.5,
                    label="flicker offset (1000 ms)")
@@ -108,7 +115,8 @@ def plot_tfr(epochs: mne.Epochs, output_dir: Path, subject: str) -> float:
             continue
         tfr = tfr_morlet(ep, freqs=TFR_FREQS, n_cycles=TFR_N_CYCLES,
                          return_itc=False, average=True, verbose=False)
-        tfr.apply_baseline(baseline=(-1.5, -1.0), mode="percent")
+        tfr.apply_baseline(baseline=BASELINE, mode="percent")
+        tfr.crop(tmin=VIS_TMIN)
         tfr.data *= 100  # to percent
         tfrs[cond] = tfr
 
@@ -134,6 +142,7 @@ def plot_tfr(epochs: mne.Epochs, output_dir: Path, subject: str) -> float:
             im = ax.pcolormesh(tfr.times * 1000, tfr.freqs, data,
                                cmap="RdBu_r", shading="gouraud",
                                vmin=-vmax, vmax=vmax)
+            ax.axvline(-1000, color="k", linestyle=":", linewidth=1.0, alpha=0.5)
             ax.axvline(0, color="k", linestyle="--", linewidth=1.0)
             ax.axvline(1000, color="k", linestyle="--", linewidth=1.0, alpha=0.5)
             n_ep = len(epochs[cond])
@@ -166,21 +175,23 @@ def plot_contrast(epochs: mne.Epochs, output_dir: Path, subject: str,
     cond_a, cond_b = conds[0], conds[1]  # CHANGE, NO_CHANGE
 
     # --- ERP contrast ---
-    time_pts = epochs.times * 1000
+    epochs_vis = epochs.copy().crop(tmin=VIS_TMIN)
+    time_pts = epochs_vis.times * 1000
     for roi_name, roi_chs in ROIS.items():
-        valid_chs = [c for c in roi_chs if c in epochs.ch_names]
+        valid_chs = [c for c in roi_chs if c in epochs_vis.ch_names]
         if not valid_chs:
             continue
 
-        fig, ax = plt.subplots(figsize=(10, 4))
-        data_a = epochs[cond_a].copy().pick(valid_chs).get_data().mean(axis=1) * 1e6
-        data_b = epochs[cond_b].copy().pick(valid_chs).get_data().mean(axis=1) * 1e6
+        fig, ax = plt.subplots(figsize=(12, 4))
+        data_a = epochs_vis[cond_a].copy().pick(valid_chs).get_data().mean(axis=1) * 1e6
+        data_b = epochs_vis[cond_b].copy().pick(valid_chs).get_data().mean(axis=1) * 1e6
         mean_a = data_a.mean(axis=0)
         mean_b = data_b.mean(axis=0)
         diff = mean_a - mean_b
 
         ax.plot(time_pts, diff, color="k", linewidth=1.5,
                 label=f"{cond_a} - {cond_b}")
+        ax.axvline(-1000, color="k", linestyle=":", linewidth=1.0, alpha=0.5)
         ax.axvline(0, color="k", linestyle="--", linewidth=1.0)
         ax.axvline(1000, color="k", linestyle="--", linewidth=1.0, alpha=0.5)
         ax.axhline(0, color="gray", linestyle=":", linewidth=0.5)
@@ -199,8 +210,10 @@ def plot_contrast(epochs: mne.Epochs, output_dir: Path, subject: str,
                        return_itc=False, average=True, verbose=False)
     tfr_b = tfr_morlet(epochs[cond_b], freqs=TFR_FREQS, n_cycles=TFR_N_CYCLES,
                        return_itc=False, average=True, verbose=False)
-    tfr_a.apply_baseline(baseline=(-1.5, -1.0), mode="percent")
-    tfr_b.apply_baseline(baseline=(-1.5, -1.0), mode="percent")
+    tfr_a.apply_baseline(baseline=BASELINE, mode="percent")
+    tfr_b.apply_baseline(baseline=BASELINE, mode="percent")
+    tfr_a.crop(tmin=VIS_TMIN)
+    tfr_b.crop(tmin=VIS_TMIN)
     tfr_a.data *= 100
     tfr_b.data *= 100
 
@@ -218,6 +231,7 @@ def plot_contrast(epochs: mne.Epochs, output_dir: Path, subject: str,
         im = ax.pcolormesh(tfr_diff.times * 1000, tfr_diff.freqs, data,
                            cmap="RdBu_r", shading="gouraud",
                            vmin=-shared_vmax, vmax=shared_vmax)
+        ax.axvline(-1000, color="k", linestyle=":", linewidth=1.0, alpha=0.5)
         ax.axvline(0, color="k", linestyle="--", linewidth=1.0)
         ax.axvline(1000, color="k", linestyle="--", linewidth=1.0, alpha=0.5)
         ax.set_title(f"TFR contrast ({cond_a} - {cond_b}): {roi_name} (sub-{subject})")
