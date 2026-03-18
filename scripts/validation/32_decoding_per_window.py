@@ -97,6 +97,7 @@ SPECTRAL_BANDS = {
 }
 
 C_GRID = [0.001, 0.01, 0.1, 1.0, 10.0]
+FIXED_C = 0.001
 RANDOM_SEED = 42
 
 
@@ -357,7 +358,10 @@ def _build_pipeline(c_val: float):
     )
 
 
-def _select_best_c(X_train: np.ndarray, y_train: np.ndarray) -> float:
+def _select_best_c(X_train: np.ndarray, y_train: np.ndarray,
+                   fixed_c: float | None = None) -> float:
+    if fixed_c is not None:
+        return fixed_c
     n_splits = min(3, max(2, len(np.unique(y_train))))
     inner_cv = StratifiedKFold(n_splits=n_splits, shuffle=True,
                                random_state=RANDOM_SEED)
@@ -382,6 +386,7 @@ def run_loro(
     runs_data: list[tuple[np.ndarray, np.ndarray, str]],
     feature_name: str,
     window_label: str,
+    fixed_c: float | None = None,
 ) -> dict:
     """Leave-One-Run-Out CV."""
     n_runs = len(runs_data)
@@ -398,7 +403,7 @@ def run_loro(
         X_test = runs_data[test_idx][0]
         y_test = runs_data[test_idx][1]
 
-        best_c = _select_best_c(X_train, y_train)
+        best_c = _select_best_c(X_train, y_train, fixed_c=fixed_c)
         pipe = _build_pipeline(best_c)
         pipe.fit(X_train, y_train)
         y_pred = pipe.predict(X_test)
@@ -482,11 +487,15 @@ def plot_summary(all_results: list[dict], output_dir: Path, subject: str) -> Non
 # Pipeline
 # ---------------------------------------------------------------------------
 
-def run_pipeline(subject: str) -> None:
+def run_pipeline(subject: str, fixed_c: float | None = FIXED_C) -> None:
     print("=" * 60)
     print(f"32 — Per-window micro-epoch decoding — sub-{subject}")
     print(f"     Post-onset windows: {[pw[2] for pw in POST_WINDOWS]}")
     print(f"     Pre-onset pool: {PRE_WINDOWS}")
+    if fixed_c is not None:
+        print(f"     Fixed C={fixed_c} (no inner CV)")
+    else:
+        print(f"     C grid search: {C_GRID} (inner CV)")
     print("=" * 60)
 
     long_epochs = load_long_epochs_per_run(subject)
@@ -512,7 +521,7 @@ def run_pipeline(subject: str) -> None:
         for pw_start, pw_end, pw_label in POST_WINDOWS:
             print(f"\n    Window {pw_label}:")
             runs_data = datasets[pw_label]
-            res = run_loro(runs_data, feat_type, pw_label)
+            res = run_loro(runs_data, feat_type, pw_label, fixed_c=fixed_c)
             if res:
                 all_results.append(res)
                 print(f"      Acc={res['accuracy']:.3f}  F1={res['f1']:.3f}  "
@@ -540,9 +549,15 @@ def parse_args() -> argparse.Namespace:
         description="Per-window micro-epoch decoding (Task 10.1)",
     )
     parser.add_argument("--subject", type=str, required=True)
+    parser.add_argument("--fixed-c", type=float, default=FIXED_C,
+                        help="Fixed C for LogisticRegression (default: 0.001). "
+                             "Set to 0 to enable inner CV grid search instead.")
+    parser.add_argument("--inner-cv", action="store_true",
+                        help="Enable inner CV grid search for C (overrides --fixed-c).")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    run_pipeline(subject=args.subject)
+    fixed_c = None if args.inner_cv else args.fixed_c
+    run_pipeline(subject=args.subject, fixed_c=fixed_c)

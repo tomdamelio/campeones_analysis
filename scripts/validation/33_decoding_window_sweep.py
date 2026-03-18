@@ -87,6 +87,7 @@ SPECTRAL_BANDS = {
 }
 
 C_GRID = [0.001, 0.01, 0.1, 1.0, 10.0]
+FIXED_C = 0.001
 RANDOM_SEED = 42
 
 # TDE parameters (from config_luminance.py / script 13)
@@ -346,7 +347,10 @@ def _build_pipeline(c_val: float):
     )
 
 
-def _select_best_c(X_train: np.ndarray, y_train: np.ndarray) -> float:
+def _select_best_c(X_train: np.ndarray, y_train: np.ndarray,
+                   fixed_c: float | None = None) -> float:
+    if fixed_c is not None:
+        return fixed_c
     n_splits = min(3, max(2, len(np.unique(y_train))))
     inner_cv = StratifiedKFold(n_splits=n_splits, shuffle=True,
                                random_state=RANDOM_SEED)
@@ -368,6 +372,7 @@ def _select_best_c(X_train: np.ndarray, y_train: np.ndarray) -> float:
 
 def run_loro_quick(
     runs_data: list[tuple[np.ndarray, np.ndarray, str]],
+    fixed_c: float | None = None,
 ) -> dict:
     """LORO CV returning accuracy, AUC, and train/test sizes."""
     n_runs = len(runs_data)
@@ -384,7 +389,7 @@ def run_loro_quick(
         n_train_total += len(y_train)
         n_test_total += len(y_test)
 
-        best_c = _select_best_c(X_train, y_train)
+        best_c = _select_best_c(X_train, y_train, fixed_c=fixed_c)
         pipe = _build_pipeline(best_c)
         pipe.fit(X_train, y_train)
 
@@ -412,6 +417,7 @@ def run_sweep(
     feature_type: str,
     win_samples: int,
     sweep_positions: list[float],
+    fixed_c: float | None = None,
 ) -> list[dict]:
     """Run LORO CV at each sweep position for one feature type."""
     rng = np.random.RandomState(RANDOM_SEED)
@@ -440,7 +446,7 @@ def run_sweep(
             y = np.concatenate([np.ones(n_ep), np.zeros(n_ep)]).astype(int)
             runs_data.append((X, y, rd["label"]))
 
-        res = run_loro_quick(runs_data)
+        res = run_loro_quick(runs_data, fixed_c=fixed_c)
         res["window"] = label
         res["t_start_ms"] = int(t_start * 1000)
         res["t_end_ms"] = int(t_end * 1000)
@@ -463,6 +469,7 @@ def run_sweep_tde(
     nochange_pool_tde: list[np.ndarray],
     win_samples: int,
     sweep_positions: list[float],
+    fixed_c: float | None = None,
 ) -> list[dict]:
     """Run LORO CV sweep for TDE features with PCA fit per fold."""
     from campeones_analysis.luminance.tde_glhmm import fit_global_pca
@@ -542,7 +549,7 @@ def run_sweep_tde(
             n_train_total += len(y_train)
             n_test_total += len(y_test)
 
-            best_c = _select_best_c(X_train, y_train)
+            best_c = _select_best_c(X_train, y_train, fixed_c=fixed_c)
             pipe = _build_pipeline(best_c)
             pipe.fit(X_train, y_train)
 
@@ -611,11 +618,15 @@ def plot_sweep(all_results: list[dict], output_dir: Path, subject: str) -> None:
 # Pipeline
 # ---------------------------------------------------------------------------
 
-def run_pipeline(subject: str) -> None:
+def run_pipeline(subject: str, fixed_c: float | None = FIXED_C) -> None:
     print("=" * 60)
     print(f"33 — Window sweep decoding — sub-{subject}")
     print(f"     Window: {WINDOW_DURATION*1000:.0f}ms, step: {STEP_SIZE*1000:.0f}ms")
     print(f"     Sweep: {SWEEP_START*1000:.0f}ms to {SWEEP_END*1000:.0f}ms")
+    if fixed_c is not None:
+        print(f"     Fixed C={fixed_c} (no inner CV)")
+    else:
+        print(f"     C grid search: {C_GRID} (inner CV)")
     print("=" * 60)
 
     long_epochs = load_long_epochs_per_run(subject)
@@ -651,7 +662,7 @@ def run_pipeline(subject: str) -> None:
         print(f"  === {feat_type} ===")
         nc_pool = precompute_nochange_pool(precomputed, win_samples, feat_type)
         results = run_sweep(precomputed, nc_pool, feat_type, win_samples,
-                            sweep_positions)
+                            sweep_positions, fixed_c=fixed_c)
         all_results.extend(results)
 
     # --- TDE (PCA fit per LORO fold) ---
@@ -660,7 +671,8 @@ def run_pipeline(subject: str) -> None:
     all_run_tde = precompute_tde_data(precomputed)
     print("  Running sweep with per-fold PCA...")
     tde_results = run_sweep_tde(precomputed, all_run_tde, None,
-                                win_samples, sweep_positions)
+                                win_samples, sweep_positions,
+                                fixed_c=fixed_c)
     all_results.extend(tde_results)
 
     # Save JSON
@@ -691,9 +703,15 @@ def parse_args() -> argparse.Namespace:
         description="Systematic window sweep for micro-epoch decoding (Task 10.2)",
     )
     parser.add_argument("--subject", type=str, required=True)
+    parser.add_argument("--fixed-c", type=float, default=FIXED_C,
+                        help="Fixed C for LogisticRegression (default: 0.001). "
+                             "Set to 0 to enable inner CV grid search instead.")
+    parser.add_argument("--inner-cv", action="store_true",
+                        help="Enable inner CV grid search for C (overrides --fixed-c).")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    run_pipeline(subject=args.subject)
+    fixed_c = None if args.inner_cv else args.fixed_c
+    run_pipeline(subject=args.subject, fixed_c=fixed_c)

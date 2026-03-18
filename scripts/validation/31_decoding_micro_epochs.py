@@ -94,6 +94,7 @@ SPECTRAL_BANDS = {
 }
 
 C_GRID = [0.001, 0.01, 0.1, 1.0, 10.0]
+FIXED_C = 0.001
 RANDOM_SEED = 42
 
 
@@ -322,8 +323,11 @@ def _build_pipeline(c_val: float):
     )
 
 
-def _select_best_c(X_train: np.ndarray, y_train: np.ndarray) -> float:
-    """Inner stratified CV to select best C."""
+def _select_best_c(X_train: np.ndarray, y_train: np.ndarray,
+                   fixed_c: float | None = None) -> float:
+    """Inner stratified CV to select best C, or return fixed_c if provided."""
+    if fixed_c is not None:
+        return fixed_c
     n_splits = min(3, max(2, len(np.unique(y_train))))
     inner_cv = StratifiedKFold(n_splits=n_splits, shuffle=True,
                                random_state=RANDOM_SEED)
@@ -344,15 +348,18 @@ def _select_best_c(X_train: np.ndarray, y_train: np.ndarray) -> float:
     return best_c
 
 
+
 def run_loro(
     runs_data: list[tuple[np.ndarray, np.ndarray, str]],
     feature_name: str,
+    fixed_c: float | None = None,
 ) -> dict:
     """Leave-One-Run-Out CV.
 
     Args:
         runs_data: list of (features, labels, run_label)
         feature_name: name for reporting
+        fixed_c: if provided, skip inner CV and use this C value
     """
     n_runs = len(runs_data)
     if n_runs < 2:
@@ -371,7 +378,7 @@ def run_loro(
         X_test = runs_data[test_idx][0]
         y_test = runs_data[test_idx][1]
 
-        best_c = _select_best_c(X_train, y_train)
+        best_c = _select_best_c(X_train, y_train, fixed_c=fixed_c)
 
         pipe = _build_pipeline(best_c)
         pipe.fit(X_train, y_train)
@@ -462,13 +469,17 @@ def plot_summary(all_results: list[dict], output_dir: Path, subject: str) -> Non
 # Pipeline
 # ---------------------------------------------------------------------------
 
-def run_pipeline(subject: str) -> None:
+def run_pipeline(subject: str, fixed_c: float | None = FIXED_C) -> None:
     print("=" * 60)
     print(f"31 — Micro-epoch decoding — sub-{subject}")
     print(f"     Long epoch: TMIN={TMIN}, TMAX={TMAX}, BASELINE={BASELINE}")
     print(f"     CHANGE windows: {CHANGE_WINDOWS}")
     print(f"     NO_CHANGE windows: {NO_CHANGE_WINDOWS}")
     print(f"     Channels: {len(EEG_CHANNELS)}")
+    if fixed_c is not None:
+        print(f"     Fixed C={fixed_c} (no inner CV)")
+    else:
+        print(f"     C grid search: {C_GRID} (inner 3-fold CV)")
     print("=" * 60)
 
     long_epochs = load_long_epochs_per_run(subject)
@@ -497,7 +508,7 @@ def run_pipeline(subject: str) -> None:
         n_nc = int((1 - y).sum())
         print(f"    {label}: {n_ch} CHANGE + {n_nc} NO_CHANGE")
 
-    res = run_loro(bp_runs, "bandpower_filtered")
+    res = run_loro(bp_runs, "bandpower_filtered", fixed_c=fixed_c)
     if res:
         all_results.append(res)
         print(f"    Acc={res['accuracy']:.3f}  F1={res['f1']:.3f}  AUC={res['auc_roc']:.3f}")
@@ -512,7 +523,7 @@ def run_pipeline(subject: str) -> None:
         feats, y = extract_raw_micro(epochs)
         raw_runs.append((feats, y, label))
 
-    res = run_loro(raw_runs, "raw_signal")
+    res = run_loro(raw_runs, "raw_signal", fixed_c=fixed_c)
     if res:
         all_results.append(res)
         print(f"    Acc={res['accuracy']:.3f}  F1={res['f1']:.3f}  AUC={res['auc_roc']:.3f}")
@@ -537,9 +548,15 @@ def parse_args() -> argparse.Namespace:
         description="Decode CHANGE vs NO_CHANGE from 50ms micro-epochs",
     )
     parser.add_argument("--subject", type=str, required=True)
+    parser.add_argument("--fixed-c", type=float, default=FIXED_C,
+                        help="Fixed C for LogisticRegression (default: 1.0). "
+                             "Set to 0 to enable inner CV grid search instead.")
+    parser.add_argument("--inner-cv", action="store_true",
+                        help="Enable inner CV grid search for C (overrides --fixed-c).")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    run_pipeline(subject=args.subject)
+    fixed_c = None if args.inner_cv else args.fixed_c
+    run_pipeline(subject=args.subject, fixed_c=fixed_c)

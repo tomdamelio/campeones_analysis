@@ -1,4 +1,4 @@
-# Tareas Post-Reunión con Diego — 2026-03-11
+# Tareas Post-Reunión 2026-03-11 (con Diego primero, y Enzo despues)
 
 **Proyecto:** campeones_analysis
 **Contexto:** Revisión de resultados de scripts 22–26 (pipeline de photo events: generación de eventos, epoching, ERPs, TFRs, permutation tests).
@@ -180,7 +180,7 @@ Verificar en la señal EEG real que el residuo alfa en el promedio de épocas ra
 
 Script: `scripts/validation/29_alpha_residual_real_data.py`. Output en `results/validation/alpha_residual_real/sub-27/` (2 figuras + JSON).
 
-Pool de 700 épocas random (100/run × 7 runs, TMIN=-4.5, TMAX=3.0, BASELINE=(-4.5, -4.0), sfreq=250 Hz). Para cada N, se subsamplean 50 repeticiones y se mide el RMS de la señal alfa-filtrada (8-12 Hz, Butterworth orden 4) del ERP promediado.
+Pool de 700 épocas random (100/run x 7 runs, TMIN=-4.5, TMAX=3.0, BASELINE=(-4.5, -4.0), sfreq=250 Hz). Para cada N, se subsamplean 50 repeticiones y se mide el RMS de la señal alfa-filtrada (8-12 Hz, Butterworth orden 4) del ERP promediado.
 
 **RMS alfa vs N — Occipital (ROI principal):**
 
@@ -256,61 +256,102 @@ Se compara el RMS de trials individuales vs el RMS del ERP promediado para las 3
 ## Tarea 9: Decoding de Change/No-Change con Todos los Electrodos ✅
 
 ### Objetivo
-Correr modelos de decoding sobre clasificación binaria Change/No-Change usando las nuevas épocas, con todos los 32 electrodos. Feature sets alineados con el pipeline de modeling (`scripts/modeling/`).
+Correr modelos de decoding sobre clasificación binaria Change/No-Change usando épocas focalizadas, con todos los 32 electrodos. Comparar ventanas de 500ms y 1s para evaluar si la señal discriminativa es más perceptual (~300ms, P2/N2) o cognitiva (~550ms).
+
+### Diseño de épocas
+- Epochar ancho (-1.5 a 1.5s), aplicar baseline (-1.5 a -1.0s), cropear a [0.05, crop_end]s post-onset para ambas condiciones.
+- CHANGE: señal post-cambio de luminancia (donde está la modulación alfa, Tarea 8.2).
+- NO_CHANGE: señal post-onset del evento NO_CHANGE (punto arbitrario en fixation, generado con jitter en Tarea 5). Actividad de fondo sin estímulo.
+- Dos ventanas testeadas:
+  - **500ms** [0.05, 0.55]s → 125 muestras a 250 Hz. Centro Hann ~300ms (procesamiento perceptual, P2/N2).
+  - **1000ms** [0.05, 1.05]s → 250 muestras a 250 Hz. Centro Hann ~550ms (procesamiento más cognitivo).
 
 ### Implementación
-- Script: `scripts/validation/27_decoding_photo_change.py`
-- Re-epoching desde datos crudos con parámetros de decoding: TMIN=-2.5, TMAX=2.0, BASELINE=(-2.5, -1.5)
+- Script: `scripts/validation/27_decoding_photo_change.py --focused --crop-end {0.55|1.05}`
 - 32 canales EEG, 74 CHANGE + 74 NO_CHANGE epochs, 7 runs
-- Clasificación: LogisticRegression (L2), Leave-One-Run-Out CV con inner CV (3-fold stratified) para selección de C
+- Clasificación: LogisticRegression (L2, C=1.0 fijo), Leave-One-Run-Out CV
 - 3 feature sets alineados con scripts/modeling/:
-  1. **bandpower_welch** (script 11): Welch PSD → 5 bandas × 32 canales = 160 features
+  1. **bandpower_welch** (script 11): Welch PSD → 5 bandas x 32 canales = 160 features
   2. **tde_cov** (script 13): GLHMM TDE(±10) → PCA global(20, fit solo en train) → covarianza upper triangle = 210 features
-  3. **raw_pca** (script 10): señal cruda vectorizada (36032 dim) → PCA(100, fit en train) → 100 features
+  3. **raw_pca** (script 10): señal cruda vectorizada → PCA(100, fit en train) → 100 features
 
-### Resultados (2026-03-17)
+**Nota sobre selección de C:** Inicialmente se usó inner CV (3-fold stratified) para seleccionar C de un grid [0.001, 0.01, 0.1, 1.0, 10.0]. Con train sets de 99-140 muestras, el inner CV produce estimaciones ruidosas y sobre-regularizaba (elegía C=0.01 en tde_cov, C=0.001 en raw_pca). Se adoptó C=1.0 fijo como default. El flag `--inner-cv` permite reactivar el grid search.
 
-Output en `results/validation/photo_decoding/sub-27/`.
+### Resultados (2026-03-18)
 
-| Feature set     | N features | Accuracy | Precision | Recall | F1    | AUC-ROC |
-|----------------|-----------|----------|-----------|--------|-------|---------|
-| bandpower_welch | 160       | 0.804    | 0.771     | 0.865  | 0.815 | 0.877   |
-| tde_cov         | 210       | 0.743    | 0.709     | 0.824  | 0.763 | 0.811   |
-| raw_pca         | 100 (de 36032) | 0.284 | 0.362  | 0.568  | 0.442 | 0.398   |
+#### Comparación 500ms vs 1000ms
 
-**Detalle por fold (n_train / n_test):**
+| Feature set | N feat | Acc (500ms) | AUC (500ms) | Acc (1s) | AUC (1s) | Δ Acc | Δ AUC |
+|---|---|---|---|---|---|---|---|
+| bandpower_welch | 160 | **0.858** | **0.922** | 0.784 | 0.872 | +0.074 | +0.050 |
+| tde_cov | 210 | 0.581 | 0.606 | **0.757** | **0.820** | -0.176 | -0.214 |
+| raw_pca | 100 | 0.608 | 0.652 | **0.649** | **0.716** | -0.041 | -0.064 |
+
+#### Detalle: 500ms [0.05, 0.55]s — centro Hann ~300ms
+
+Output en `results/validation/photo_decoding_focused_500ms/sub-27/`.
+
+| Feature set | N features | Accuracy | Precision | Recall | F1 | AUC-ROC |
+|---|---|---|---|---|---|---|
+| bandpower_welch | 160 | 0.858 | 0.835 | 0.892 | 0.863 | 0.922 |
+| tde_cov | 210 | 0.581 | 0.573 | 0.635 | 0.603 | 0.606 |
+| raw_pca | 100 (de 4064) | 0.608 | 0.603 | 0.635 | 0.618 | 0.652 |
+
+**Accuracy por fold (500ms):**
 
 | Fold | bandpower_welch | tde_cov | raw_pca | n_train | n_test |
-|------|----------------|---------|---------|---------|--------|
-| task-01_acq-a_run-002 | 0.837 (C=10) | 0.714 (C=1.0) | 0.245 (C=0.001) | 99 | 49 |
-| task-02_acq-a_run-003 | 0.750 (C=1.0) | 0.875 (C=0.01) | 0.000 (C=0.001) | 140 | 8 |
-| task-03_acq-a_run-004 | 1.000 (C=10) | 0.800 (C=0.01) | 0.000 (C=0.001) | 138 | 10 |
-| task-04_acq-a_run-006 | 0.583 (C=10) | 0.583 (C=0.01) | 0.750 (C=10) | 136 | 12 |
-| task-01_acq-b_run-007 | 0.755 (C=0.1) | 0.714 (C=0.01) | 0.245 (C=0.001) | 99 | 49 |
-| task-03_acq-b_run-009 | 1.000 (C=1.0) | 0.875 (C=0.01) | 0.500 (C=0.1) | 140 | 8 |
-| task-04_acq-b_run-010 | 0.833 (C=0.1) | 0.917 (C=0.01) | 0.417 (C=0.1) | 136 | 12 |
+|---|---|---|---|---|---|
+| task-01_acq-a_run-002 | 0.857 | 0.571 | 0.653 | 99 | 49 |
+| task-02_acq-a_run-003 | 1.000 | 0.625 | 0.750 | 140 | 8 |
+| task-03_acq-a_run-004 | 1.000 | 0.700 | 0.500 | 138 | 10 |
+| task-04_acq-a_run-006 | 0.833 | 0.167 | 0.583 | 136 | 12 |
+| task-01_acq-b_run-007 | 0.857 | 0.653 | 0.633 | 99 | 49 |
+| task-03_acq-b_run-009 | 0.875 | 0.250 | 0.500 | 140 | 8 |
+| task-04_acq-b_run-010 | 0.667 | 0.833 | 0.417 | 136 | 12 |
+
+#### Detalle: 1000ms [0.05, 1.05]s — centro Hann ~550ms
+
+Output en `results/validation/photo_decoding_focused_1000ms/sub-27/`.
+
+| Feature set | N features | Accuracy | Precision | Recall | F1 | AUC-ROC |
+|---|---|---|---|---|---|---|
+| bandpower_welch | 160 | 0.784 | 0.739 | 0.878 | 0.802 | 0.872 |
+| tde_cov | 210 | 0.757 | 0.738 | 0.797 | 0.766 | 0.820 |
+| raw_pca | 100 (de 8032) | 0.649 | 0.636 | 0.716 | 0.675 | 0.716 |
+
+**Accuracy por fold (1000ms):**
+
+| Fold | bandpower_welch | tde_cov | raw_pca | n_train | n_test |
+|---|---|---|---|---|---|
+| task-01_acq-a_run-002 | 0.694 | 0.673 | 0.653 | 99 | 49 |
+| task-02_acq-a_run-003 | 0.750 | 0.625 | 0.750 | 140 | 8 |
+| task-03_acq-a_run-004 | 1.000 | 0.900 | 0.600 | 138 | 10 |
+| task-04_acq-a_run-006 | 0.750 | 0.583 | 0.667 | 136 | 12 |
+| task-01_acq-b_run-007 | 0.796 | 0.816 | 0.633 | 99 | 49 |
+| task-03_acq-b_run-009 | 1.000 | 0.875 | 0.875 | 140 | 8 |
+| task-04_acq-b_run-010 | 0.833 | 0.917 | 0.500 | 136 | 12 |
+| task-03_acq-b_run-009 | 140 | 8 | 140x160 | 140x210 | 140x100 |
+| task-04_acq-b_run-010 | 136 | 12 | 136x160 | 136x210 | 136x100 |
+
 
 ### Interpretación
 
-**Bandpower Welch es el claro ganador (80.4% accuracy, AUC=0.88).** 160 features (5 bandas × 32 canales), ratio features/samples ~1.2 sobre ~130 trials de entrenamiento. Consistente con los hallazgos de 8.2: la modulación alfa en CHANGE es masiva en Occipital, y el bandpower la captura directamente. Los runs grandes (task-01, 49 trials) son estables (~76-84%), los runs chicos (8-10 trials) alcanzan 75-100%.
+**Bandpower Welch es el mejor feature set (78.4%, AUC=0.872).** la señal discriminativa está concentrada en el primer segundo post-onset. Los folds grandes (task-01, n_test=49) dan 0.69 y 0.80, los folds chicos (8-12 trials) tienen alta varianza (0.75-1.00) pero no invalidan el resultado global.
 
-**TDE+Cov funciona bien (74.3%, AUC=0.81).** 210 features (triángulo superior de covarianza de 20 PCA components), ratio ~1.6. PCA global fitteado solo sobre datos de train en cada fold (sin data leakage). Los C óptimos son bajos (0.01 en 5/7 folds), indicando que la regularización fuerte ayuda. Captura relaciones temporales entre componentes que el bandpower no ve, pero con menos poder discriminativo que las bandas espectrales directas.
+**TDE+Cov funciona bien pero pierde con épocas cortas (75.7%, AUC=0.820).** Con épocas de 1s hay ~230 timepoints válidos post-TDE (vs ~1106 con 4.5s). La covarianza de 20 componentes PCA se estima con menos muestras, lo que la hace más ruidosa.
 
-**Raw+PCA no funciona (28.4%, AUC=0.40 — peor que chance).** 36032 features raw → PCA(100) en train. A pesar de la reducción de dimensionalidad, los 100 componentes principales no capturan la información discriminativa. Los C óptimos son extremadamente bajos (0.001) en la mayoría de folds, y el modelo predice casi todo como una sola clase. La señal cruda en el dominio temporal no es informativa para este contraste sin transformación espectral o TDE previa.
+**Raw+PCA mejora sustancialmente con épocas focalizadas (62.8%, AUC=0.715).** Con épocas de 1s, el vector raw tiene 8032 features (vs 36032 con 4.5s), y PCA(100) captura una proporción mayor de la varianza relevante. Al focalizar en la ventana discriminativa, los componentes principales reflejan la diferencia CHANGE vs NO_CHANGE en vez de la actividad de fondo estacionaria. Sigue siendo el peor feature set, pero ahora funciona por encima de chance.
 
-**Observaciones por fold:**
-- task-04_acq-a (run-006) es consistentemente el peor fold en bandpower (58%) y tde_cov (58%). Podría tener alguna particularidad (calidad de datos, comportamiento del sujeto). Candidato para QC.
-- Los runs de task-01 (49 trials cada uno) son los más informativos y estables.
-- Los runs chicos (8-12 trials) tienen alta varianza pero no invalidan el resultado global.
+**Riesgo de overfitting:** Con ratios features/samples de ~1.2 (bandpower, 160 feat / ~130 train) y ~1.6 (tde_cov, 210 feat / ~130 train), hay riesgo moderado. La regularización L2 con C=1.0 y la validación por LORO mitigan esto.
 
-**Conclusión:** El contraste CHANGE vs NO_CHANGE es decodificable con buena precisión usando features espectrales (bandpower Welch) y razonablemente con features de covarianza temporal (TDE+cov). La señal cruda en dominio temporal no es informativa. Esto confirma que hay una señal neural discriminativa real, predominantemente en las bandas espectrales (consistente con la modulación alfa masiva vista en 8.2). Los feature sets están ahora alineados con el pipeline de modeling de `scripts/modeling/`.
+**Conclusión:** El contraste CHANGE vs NO_CHANGE es decodificable con buena precisión (78.4% accuracy, AUC=0.87) usando bandpower Welch con épocas focalizadas de 1s. La señal discriminativa es predominantemente espectral (modulación alfa masiva en Occipital, consistente con 8.2). Pipeline: épocas de 1s [0.05, 1.05]s post-onset, baseline (-1.5, -1.0)s, LogReg L2 con C=1.0 fijo, LORO CV.
 
 ---
 
 ## Tarea 10: Decoding con Micro-Épocas de 50ms (diseño de Enzo)
 
 ### Objetivo
-Rediseñar el dataset de decoding usando ventanas temporales cortas (50 ms) para aumentar el número de observaciones y mejorar la resolución temporal del clasificador. Propuesto por el supervisor Enzo.
+Rediseñar el dataset de decoding usando ventanas temporales cortas (50 ms) para aumentar el número de observaciones y mejorar la resolución temporal del clasificador. 
 
 ### Diseño del dataset
 
@@ -321,7 +362,7 @@ Para cada uno de los 74 momentos de cambio de luminancia (onset = 0 ms), extraer
 - Ventana 3: 150 a 200 ms post-onset
 - Ventana 4: 200 a 250 ms post-onset
 
-Total CHANGE: 74 × 4 = 296 épocas
+Total CHANGE: 74 x 4 = 296 épocas
 
 **Épocas NO_CHANGE (pre-estímulo):**
 Para cada uno de los mismos 74 momentos de cambio, extraer 4 ventanas de 50 ms inmediatamente antes del onset:
@@ -330,7 +371,7 @@ Para cada uno de los mismos 74 momentos de cambio, extraer 4 ventanas de 50 ms i
 - Ventana 3: -150 a -100 ms pre-onset
 - Ventana 4: -100 a -50 ms pre-onset
 
-Total NO_CHANGE: 74 × 4 = 296 épocas
+Total NO_CHANGE: 74 x 4 = 296 épocas
 
 **Dataset total:** 592 épocas (296 CHANGE + 296 NO_CHANGE), balanceado.
 
@@ -347,11 +388,11 @@ Total NO_CHANGE: 74 × 4 = 296 épocas
 - Clasificación: LogisticRegression (L2), LORO CV por run, inner CV para selección de C.
 
 **Estrategia para resolver la baja resolución espectral:**
-Las micro-épocas de 12 muestras no permiten calcular Welch PSD con resolución útil. Solución: primero se crea la época larga (TMIN=-2.5, TMAX=2.0, baseline=(-2.5, -1.5)) como en Tarea 9, luego se filtra pasa-banda en cada banda espectral sobre la época completa (donde hay ~1125 muestras), y finalmente se segmenta en micro-ventanas de 50 ms y se calcula la varianza (= potencia) por canal. Esto da resolución espectral completa a pesar de las ventanas cortas.
+Las micro-épocas de 12 muestras no permiten calcular Welch PSD con resolución útil. Solución: primero se crea la época larga (TMIN=-2.5, TMAx=2.0, baseline=(-2.5, -1.5)) como en Tarea 9, luego se filtra pasa-banda en cada banda espectral sobre la época completa (donde hay ~1125 muestras), y finalmente se segmenta en micro-ventanas de 50 ms y se calcula la varianza (= potencia) por canal. Esto da resolución espectral completa a pesar de las ventanas cortas.
 
 **Feature sets:**
-1. `bandpower_filtered`: filtrado pasa-banda sobre época larga → segmentar → varianza por banda/canal = 5 × 32 = 160 features
-2. `raw_signal`: época larga con baseline → segmentar → vectorizar = 32 ch × 12 = 384 features
+1. `bandpower_filtered`: filtrado pasa-banda sobre época larga → segmentar → varianza por banda/canal = 5 x 32 = 160 features
+2. `raw_signal`: época larga con baseline → segmentar → vectorizar = 32 ch x 12 = 384 features
 
 ### Resultados (sub-27)
 
@@ -504,4 +545,4 @@ Tarea 9 (Decoding con épocas largas, 32 ch) ✅
 Tarea 10 (Decoding con micro-épocas 50ms — diseño Enzo) ✅
     ├── 10.1 Performance por ventana temporal post-estímulo ✅
     └── 10.2 Barrido sistemático de ventanas (10ms steps) ✅
-```
+
