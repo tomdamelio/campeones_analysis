@@ -415,6 +415,73 @@ Evaluar en qué ventana de 50 ms post-onset se maximiza la performance de decodi
 - LORO CV por run.
 - Esto permite identificar el momento post-estímulo donde la señal neural discriminativa es más fuerte.
 
+#### Resultados (sub-27)
+
+Script: `scripts/validation/32_decoding_per_window.py`. Output en `results/validation/photo_decoding_per_window/sub-27/`.
+
+**bandpower_filtered (160 features):**
+
+| Ventana | Accuracy | AUC-ROC |
+|---|---|---|
+| 50-100ms | 54.7% | 0.557 |
+| 100-150ms | 58.8% | 0.568 |
+| 150-200ms | 65.5% | 0.749 |
+| 200-250ms | 50.7% | 0.532 |
+
+**raw_signal (384 features):**
+
+| Ventana | Accuracy | AUC-ROC |
+|---|---|---|
+| 50-100ms | 54.7% | 0.531 |
+| 100-150ms | 62.8% | 0.647 |
+| 150-200ms | 56.1% | 0.592 |
+| 200-250ms | 60.1% | 0.606 |
+
+**Hallazgo principal:** La ventana 150-200ms post-onset maximiza la performance para bandpower_filtered (65.5%, AUC=0.749), consistente con la latencia típica de componentes ERP visuales (P1/N1). Para raw_signal, el pico está en 100-150ms (62.8%, AUC=0.647). La ventana 0-50ms y 200-250ms están cerca de chance, indicando que la señal discriminativa se concentra entre 100 y 200ms post-onset.
+
+### Tarea 10.2: Barrido sistemático de ventanas post-onset ✅
+
+#### Objetivo
+Evaluar la performance de decoding con mayor granularidad temporal. Deslizar una ventana de 50ms desde 0ms hasta 500ms post-onset en pasos de 10ms, entrenando un modelo LORO CV independiente en cada posición.
+
+#### Diseño
+- 46 posiciones de ventana: 0-50ms, 10-60ms, 20-70ms, ..., 450-500ms.
+- Para cada posición: 74 CHANGE (una micro-época por onset) vs 74 NO_CHANGE (muestreadas del pool pre-onset [-250, -50]ms).
+- Feature sets: bandpower_filtered (160 feat), raw_signal (384 feat), y tde_pca_var (20 feat).
+- LORO CV por run, inner CV para selección de C.
+- Para TDE: se aplica TDE(±10) sobre la época larga, PCA(20) fit en train per fold (sin data leakage), y se extrae la varianza de cada componente PCA en la micro-ventana.
+- Train/test promedio por fold: ~126 / ~21 épocas.
+
+#### Resultados (sub-27)
+
+Script: `scripts/validation/33_decoding_window_sweep.py`. Output en `results/validation/photo_decoding_sweep/sub-27/`.
+
+**Picos de performance:**
+
+| Feature set | N feat | Mejor Accuracy | Ventana | Mejor AUC | Ventana |
+|---|---|---|---|---|---|
+| bandpower_filtered | 160 | 68.9% | 270-320ms | 0.719 | 280-330ms |
+| raw_signal | 384 | 66.9% | 130-180ms | 0.726 | 130-180ms |
+| tde_pca_var | 20 | 69.6% | 240-290ms | 0.701 | 240-290ms |
+
+#### Interpretación
+
+1. **Tres feature sets, tres perfiles temporales distintos.** Raw_signal tiene su pico temprano (130-180ms), consistente con componentes ERP rápidos (N1/P2). Bandpower_filtered pica más tarde (270-330ms), reflejando la modulación de potencia espectral. TDE_pca_var pica en 240-290ms, capturando relaciones temporales entre componentes que se establecen con latencia intermedia.
+
+2. **TDE funciona y es competitivo (69.6% accuracy, AUC=0.701) con solo 20 features.** A pesar de que las micro-ventanas tienen solo 12 muestras, la estrategia de aplicar TDE sobre la época larga y después segmentar los componentes PCA funciona. La varianza de 20 componentes PCA es un feature set muy compacto (20 vs 160 o 384) y logra la mejor accuracy puntual.
+
+3. **La señal discriminativa emerge a ~50ms y se mantiene hasta ~400ms.** Los tres feature sets superan chance de forma sostenida a partir de ~50ms post-onset. No hay un único momento óptimo sino una ventana amplia de discriminabilidad.
+
+4. **Raw_signal domina en la ventana temprana (50-200ms).** La forma de onda cruda captura mejor los componentes ERP transitorios tempranos.
+
+5. **Bandpower y TDE dominan en la ventana tardía (250-350ms).** La modulación de potencia espectral y las relaciones temporales entre componentes se establecen más lentamente.
+
+6. **Comparación con Tarea 9 (épocas largas):** El mejor resultado del sweep (~69% accuracy, AUC~0.72) sigue por debajo del 80.4% (AUC=0.877) de bandpower Welch con épocas de 4.5s. La época larga integra información de toda la ventana temporal.
+
+**Archivos generados:**
+- `results/validation/photo_decoding_sweep/sub-27/sub-27_sweep_results.json`
+- `results/validation/photo_decoding_sweep/sub-27/sub-27_sweep_results.png`
+
 ---
 
 ## Orden de Ejecución
@@ -435,5 +502,6 @@ Tarea 8 (Simulaciones + potencia absoluta) ✅
 Tarea 9 (Decoding con épocas largas, 32 ch) ✅
     ↓
 Tarea 10 (Decoding con micro-épocas 50ms — diseño Enzo) ✅
-    └── 10.1 Performance por ventana temporal post-estímulo
+    ├── 10.1 Performance por ventana temporal post-estímulo ✅
+    └── 10.2 Barrido sistemático de ventanas (10ms steps) ✅
 ```

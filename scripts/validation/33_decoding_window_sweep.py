@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 import mne
 import numpy as np
 import pandas as pd
+from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold
@@ -36,6 +37,9 @@ from sklearn.preprocessing import StandardScaler
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parents[1]
+
+# Add src to path for TDE imports
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 PREPROC_ROOT = PROJECT_ROOT / "data" / "derivatives" / "campeones_preproc"
 PHOTO_EVENTS_ROOT = PROJECT_ROOT / "data" / "derivatives" / "photo_events"
@@ -84,6 +88,10 @@ SPECTRAL_BANDS = {
 
 C_GRID = [0.001, 0.01, 0.1, 1.0, 10.0]
 RANDOM_SEED = 42
+
+# TDE parameters (from config_luminance.py / script 13)
+TDE_WINDOW_HALF = 10  # ±10 timepoints → 21 total
+TDE_PCA_COMPONENTS = 20
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +247,71 @@ def extract_window_raw(
 
 
 # ---------------------------------------------------------------------------
+# TDE pre-computation (TDE on long epoch, PCA fit per LORO fold)
+# ---------------------------------------------------------------------------
+
+def precompute_tde_data(
+    precomputed: list[dict],
+) -> list[list[np.ndarray]]:
+    """Apply TDE to each epoch of each run. Returns TDE segments per run.
+
+    Returns: list of lists, run_tde[run_idx][epoch_idx] = (n_valid_times, n_tde_feat)
+    """
+    from campeones_analysis.luminance.tde_glhmm import apply_tde_only
+
+    all_run_tde: list[list[np.ndarray]] = []
+    for rd in precomputed:
+        raw_data = rd["raw_data"]  # (n_ep, n_ch, n_times)
+        n_ep = raw_data.shape[0]
+        epoch_tde = []
+        for i in range(n_ep):
+            ep = raw_data[i].T  # (n_times, n_ch)
+            n_t = ep.shape[0]
+            indices = np.array([[0, n_t]])
+            tde_data, _ = apply_tde_only(ep, indices, TDE_WINDOW_HALF)
+            epoch_tde.append(tde_data)
+        all_run_tde.append(epoch_tde)
+    return all_run_tde
+
+
+def extract_window_tde_pca(
+    run_tde: list[np.ndarray],
+    pca_model: PCA,
+    t_start: float,
+    win_samples: int,
+    sfreq: float,
+    tmin: float,
+) -> np.ndarray:
+    """Project TDE data with PCA, then extract variance per component in window.
+
+    TDE removes TDE_WINDOW_HALF samples from each end, so sample indices
+    need to be offset accordingly.
+
+    Returns: (n_ep, TDE_PCA_COMPONENTS)
+    """
+    from campeones_analysis.luminance.tde_glhmm import apply_global_pca
+
+    s0_epoch = _time_to_sample(t_start, sfreq, tmin)
+    # TDE trims TDE_WINDOW_HALF from start → offset
+    s0_tde = s0_epoch - TDE_WINDOW_HALF
+    s1_tde = s0_tde + win_samples
+
+    n_ep = len(run_tde)
+    features = np.empty((n_ep, TDE_PCA_COMPONENTS))
+    for i in range(n_ep):
+        pca_data = apply_global_pca(run_tde[i], pca_model)
+        n_valid = pca_data.shape[0]
+        # Clamp indices
+        s0_c = max(0, s0_tde)
+        s1_c = min(n_valid, s1_tde)
+        if s1_c <= s0_c:
+            features[i] = 0.0
+        else:
+            features[i] = np.var(pca_data[s0_c:s1_c], axis=0)
+    return features
+
+
+# ---------------------------------------------------------------------------
 # Pre-compute NO_CHANGE pool (fixed across sweep)
 # ---------------------------------------------------------------------------
 
@@ -296,15 +369,20 @@ def _select_best_c(X_train: np.ndarray, y_train: np.ndarray) -> float:
 def run_loro_quick(
     runs_data: list[tuple[np.ndarray, np.ndarray, str]],
 ) -> dict:
-    """LORO CV returning only accuracy and AUC."""
+    """LORO CV returning accuracy, AUC, and train/test sizes."""
     n_runs = len(runs_data)
     all_y_true, all_y_pred, all_y_prob = [], [], []
+    n_train_total = 0
+    n_test_total = 0
 
     for test_idx in range(n_runs):
         X_train = np.vstack([runs_data[i][0] for i in range(n_runs) if i != test_idx])
         y_train = np.concatenate([runs_data[i][1] for i in range(n_runs) if i != test_idx])
         X_test = runs_data[test_idx][0]
         y_test = runs_data[test_idx][1]
+
+        n_train_total += len(y_train)
+        n_test_total += len(y_test)
 
         best_c = _select_best_c(X_train, y_train)
         pipe = _build_pipeline(best_c)
@@ -319,6 +397,8 @@ def run_loro_quick(
         "accuracy": float(accuracy_score(y_true, np.array(all_y_pred))),
         "auc_roc": float(roc_auc_score(y_true, np.array(all_y_prob))),
         "n_total": len(y_true),
+        "n_train_avg": int(n_train_total / n_runs),
+        "n_test_avg": int(n_test_total / n_runs),
     }
 
 
@@ -365,8 +445,125 @@ def run_sweep(
         res["t_start_ms"] = int(t_start * 1000)
         res["t_end_ms"] = int(t_end * 1000)
         res["feature"] = feature_type
+        res["n_features"] = runs_data[0][0].shape[1]
         results.append(res)
 
+        print(f"    {label}: acc={res['accuracy']:.3f}  AUC={res['auc_roc']:.3f}")
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# TDE sweep (PCA fit per LORO fold)
+# ---------------------------------------------------------------------------
+
+def run_sweep_tde(
+    precomputed: list[dict],
+    all_run_tde: list[list[np.ndarray]],
+    nochange_pool_tde: list[np.ndarray],
+    win_samples: int,
+    sweep_positions: list[float],
+) -> list[dict]:
+    """Run LORO CV sweep for TDE features with PCA fit per fold."""
+    from campeones_analysis.luminance.tde_glhmm import fit_global_pca
+
+    rng = np.random.RandomState(RANDOM_SEED)
+    n_runs = len(precomputed)
+    results = []
+
+    for t_start in sweep_positions:
+        t_end = t_start + WINDOW_DURATION
+        label = f"{int(t_start*1000)}-{int(t_end*1000)}ms"
+
+        all_y_true, all_y_pred, all_y_prob = [], [], []
+        n_train_total = 0
+        n_test_total = 0
+
+        for test_idx in range(n_runs):
+            # Fit PCA on train TDE segments only
+            train_tde_all = []
+            for i in range(n_runs):
+                if i != test_idx:
+                    train_tde_all.extend(all_run_tde[i])
+
+            import io, contextlib
+            with contextlib.redirect_stdout(io.StringIO()):
+                pca_model = fit_global_pca(train_tde_all, TDE_PCA_COMPONENTS)
+
+            # Extract CHANGE features for this window
+            train_parts_X, train_parts_y = [], []
+            for i in range(n_runs):
+                if i == test_idx:
+                    continue
+                rd = precomputed[i]
+                change_f = extract_window_tde_pca(
+                    all_run_tde[i], pca_model, t_start, win_samples,
+                    rd["sfreq"], rd["tmin"])
+
+                # NO_CHANGE: extract from pre-windows with this PCA
+                pre_parts = []
+                for pre_start, _pre_end in PRE_WINDOWS:
+                    pf = extract_window_tde_pca(
+                        all_run_tde[i], pca_model, pre_start, win_samples,
+                        rd["sfreq"], rd["tmin"])
+                    pre_parts.append(pf)
+                pre_pool = np.vstack(pre_parts)
+                n_ep = rd["n_ep"]
+                indices = rng.choice(len(pre_pool), size=n_ep, replace=False)
+                nochange_f = pre_pool[indices]
+
+                X_run = np.vstack([change_f, nochange_f])
+                y_run = np.concatenate([np.ones(n_ep), np.zeros(n_ep)]).astype(int)
+                train_parts_X.append(X_run)
+                train_parts_y.append(y_run)
+
+            X_train = np.vstack(train_parts_X)
+            y_train = np.concatenate(train_parts_y)
+
+            # Test set
+            rd_test = precomputed[test_idx]
+            n_ep_test = rd_test["n_ep"]
+            change_f_test = extract_window_tde_pca(
+                all_run_tde[test_idx], pca_model, t_start, win_samples,
+                rd_test["sfreq"], rd_test["tmin"])
+            pre_parts_test = []
+            for pre_start, _pre_end in PRE_WINDOWS:
+                pf = extract_window_tde_pca(
+                    all_run_tde[test_idx], pca_model, pre_start, win_samples,
+                    rd_test["sfreq"], rd_test["tmin"])
+                pre_parts_test.append(pf)
+            pre_pool_test = np.vstack(pre_parts_test)
+            indices_test = rng.choice(len(pre_pool_test), size=n_ep_test, replace=False)
+            nochange_f_test = pre_pool_test[indices_test]
+
+            X_test = np.vstack([change_f_test, nochange_f_test])
+            y_test = np.concatenate([np.ones(n_ep_test), np.zeros(n_ep_test)]).astype(int)
+
+            n_train_total += len(y_train)
+            n_test_total += len(y_test)
+
+            best_c = _select_best_c(X_train, y_train)
+            pipe = _build_pipeline(best_c)
+            pipe.fit(X_train, y_train)
+
+            all_y_true.extend(y_test)
+            all_y_pred.extend(pipe.predict(X_test))
+            all_y_prob.extend(pipe.predict_proba(X_test)[:, 1])
+
+        y_true = np.array(all_y_true)
+        res = {
+            "accuracy": float(accuracy_score(y_true, np.array(all_y_pred))),
+            "auc_roc": float(roc_auc_score(y_true, np.array(all_y_prob))),
+            "n_total": len(y_true),
+            "n_train_avg": int(n_train_total / n_runs),
+            "n_test_avg": int(n_test_total / n_runs),
+            "window": label,
+            "t_start_ms": int(t_start * 1000),
+            "t_end_ms": int(t_end * 1000),
+            "feature": "tde_pca_var",
+            "n_features": TDE_PCA_COMPONENTS,
+        }
+        results.append(res)
         print(f"    {label}: acc={res['accuracy']:.3f}  AUC={res['auc_roc']:.3f}")
 
     return results
@@ -452,11 +649,19 @@ def run_pipeline(subject: str) -> None:
 
     for feat_type in ["bandpower_filtered", "raw_signal"]:
         print(f"  === {feat_type} ===")
-        # Pre-compute NO_CHANGE pool
         nc_pool = precompute_nochange_pool(precomputed, win_samples, feat_type)
         results = run_sweep(precomputed, nc_pool, feat_type, win_samples,
                             sweep_positions)
         all_results.extend(results)
+
+    # --- TDE (PCA fit per LORO fold) ---
+    print(f"\n  === tde_pca_var ===")
+    print("  Pre-computing TDE segments...")
+    all_run_tde = precompute_tde_data(precomputed)
+    print("  Running sweep with per-fold PCA...")
+    tde_results = run_sweep_tde(precomputed, all_run_tde, None,
+                                win_samples, sweep_positions)
+    all_results.extend(tde_results)
 
     # Save JSON
     json_path = output_dir / f"sub-{subject}_sweep_results.json"
@@ -467,13 +672,16 @@ def run_pipeline(subject: str) -> None:
     plot_sweep(all_results, output_dir, subject)
 
     # Print peak windows
-    for feat in ["bandpower_filtered", "raw_signal"]:
+    for feat in ["bandpower_filtered", "raw_signal", "tde_pca_var"]:
         subset = [r for r in all_results if r["feature"] == feat]
+        if not subset:
+            continue
         best_acc = max(subset, key=lambda r: r["accuracy"])
         best_auc = max(subset, key=lambda r: r["auc_roc"])
         print(f"\n  {feat}:")
         print(f"    Peak accuracy: {best_acc['accuracy']:.3f} at {best_acc['window']}")
         print(f"    Peak AUC:      {best_auc['auc_roc']:.3f} at {best_auc['window']}")
+        print(f"    n_train_avg: {best_acc['n_train_avg']}, n_test_avg: {best_acc['n_test_avg']}")
 
     print(f"\nDone. Output in {output_dir}")
 
