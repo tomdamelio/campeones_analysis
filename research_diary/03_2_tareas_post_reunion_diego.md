@@ -348,6 +348,61 @@ Output en `results/validation/photo_decoding_focused_1000ms/sub-27/`.
 
 ---
 
+## Tarea 9.2: Decoding Post-Estímulo vs Pre-Estímulo (mismo onset) ✅
+
+### Objetivo
+Clasificar actividad post-estímulo vs pre-estímulo usando los mismos onsets de CHANGE_PHOTO. A diferencia de Tarea 9 (donde NO_CHANGE eran eventos separados en momentos de fijación), aquí ambas clases provienen del mismo onset: la única diferencia es temporal (post vs pre cambio de luminancia).
+
+### Diseño de épocas
+- Para cada uno de los 74 onsets de CHANGE_PHOTO:
+  - **Post-estímulo (clase 1):** [+0.05, +0.55]s post-onset (500ms)
+  - **Pre-estímulo (clase 0):** [-0.55, -0.05]s pre-onset (500ms)
+- Epoch ancho (-1.5 a 1.5s), baseline (-1.5, -1.0)s, luego crop a cada ventana.
+- Dataset: 74 post + 74 pre = 148 épocas, balanceado.
+- LORO CV por run (7 folds).
+
+### Implementación
+- Script: `scripts/validation/27b_decoding_pre_vs_post.py --subject 27`
+- 32 canales EEG, LogisticRegression L2 con C=1.0 fijo.
+- 3 feature sets: bandpower_welch (160 feat), tde_cov (210 feat), raw_pca (100 feat).
+
+### Resultados (sub-27, C=1.0)
+
+| Feature set | N features | Accuracy | F1 | AUC-ROC |
+|---|---|---|---|---|
+| bandpower_welch | 160 | 72.3% | 0.717 | 0.718 |
+| tde_cov | 210 | 62.2% | 0.600 | 0.659 |
+| raw_pca | 100 (de 4064) | 64.9% | 0.649 | 0.717 |
+
+**Accuracy por fold:**
+
+| Fold | bandpower_welch | tde_cov | raw_pca | n_train | n_test |
+|---|---|---|---|---|---|
+| task-01_acq-a_run-002 | 0.458 | 0.500 | 0.583 | 124 | 24 |
+| task-02_acq-a_run-003 | 0.750 | 0.812 | 0.688 | 132 | 16 |
+| task-03_acq-a_run-004 | 0.750 | 0.600 | 0.500 | 128 | 20 |
+| task-04_acq-a_run-006 | 0.583 | 0.500 | 0.458 | 124 | 24 |
+| task-01_acq-b_run-007 | 0.833 | 0.667 | 0.792 | 124 | 24 |
+| task-03_acq-b_run-009 | 0.938 | 0.625 | 0.812 | 132 | 16 |
+| task-04_acq-b_run-010 | 0.833 | 0.708 | 0.750 | 124 | 24 |
+
+### Interpretación
+
+1. **Bandpower Welch sigue siendo el mejor feature set (72.3%, AUC=0.718).** Consistente con Tarea 9, la señal discriminativa es predominantemente espectral. La performance es menor que en Tarea 9 (85.8% con 500ms) porque aquí la clase NO_CHANGE es actividad pre-estímulo del mismo trial (más similar a la post-estímulo) en vez de momentos de fijación separados.
+
+2. **Raw_pca supera a TDE_cov (64.9% vs 62.2%).** Con épocas de 500ms, raw_pca tiene 4064 features reducidos a 100 por PCA, capturando patrones temporales que TDE no logra con la covarianza.
+
+3. **La caída respecto a Tarea 9 (~13 pp en bandpower) es esperable.** En Tarea 9, NO_CHANGE eran momentos de fijación sin estímulo (actividad de fondo pura). Aquí, la ventana pre-estímulo [-0.55, -0.05]s está temporalmente adyacente al cambio de luminancia, por lo que puede contener actividad anticipatoria o preparatoria que reduce el contraste.
+
+4. **Alta varianza entre folds.** Los folds con n_test=16 (runs con 8 onsets) muestran accuracy extrema (0.75-0.94), mientras los folds grandes (n_test=24) son más estables. El fold task-01_acq-a sigue siendo problemático (0.458 en bandpower).
+
+**Archivos generados:**
+- `results/validation/photo_decoding_pre_vs_post/sub-27/sub-27_pre_vs_post_results.json`
+- `results/validation/photo_decoding_pre_vs_post/sub-27/sub-27_decoding_summary.png`
+
+---
+
+
 ## Tarea 10: Decoding con Micro-Épocas de 50ms (diseño de Enzo)
 
 ### Objetivo
@@ -541,6 +596,8 @@ Tarea 8 (Simulaciones + potencia absoluta) ✅
     └── 8.4 Chequeo de magnitud cruda vs promediado ✅
     ↓
 Tarea 9 (Decoding con épocas largas, 32 ch) ✅
+    ↓
+Tarea 9.2 (Decoding post vs pre-estímulo, mismo onset) ✅
     ↓
 Tarea 10 (Decoding con micro-épocas 50ms — diseño Enzo) ✅
     ├── 10.1 Performance por ventana temporal post-estímulo ✅

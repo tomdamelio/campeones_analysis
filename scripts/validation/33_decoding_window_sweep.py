@@ -283,22 +283,24 @@ def extract_window_tde_pca(
     sfreq: float,
     tmin: float,
 ) -> np.ndarray:
-    """Project TDE data with PCA, then extract variance per component in window.
+    """Project TDE data with PCA, then extract covariance upper triangle in window.
 
     TDE removes TDE_WINDOW_HALF samples from each end, so sample indices
     need to be offset accordingly.
 
-    Returns: (n_ep, TDE_PCA_COMPONENTS)
+    Returns: (n_ep, TDE_PCA_COMPONENTS * (TDE_PCA_COMPONENTS + 1) // 2)
     """
     from campeones_analysis.luminance.tde_glhmm import apply_global_pca
+    from campeones_analysis.luminance.features import compute_epoch_covariance
 
     s0_epoch = _time_to_sample(t_start, sfreq, tmin)
-    # TDE trims TDE_WINDOW_HALF from start → offset
+    # TDE trims TDE_WINDOW_HALF from start -> offset
     s0_tde = s0_epoch - TDE_WINDOW_HALF
     s1_tde = s0_tde + win_samples
 
     n_ep = len(run_tde)
-    features = np.empty((n_ep, TDE_PCA_COMPONENTS))
+    n_feat = TDE_PCA_COMPONENTS * (TDE_PCA_COMPONENTS + 1) // 2
+    features = np.empty((n_ep, n_feat))
     for i in range(n_ep):
         pca_data = apply_global_pca(run_tde[i], pca_model)
         n_valid = pca_data.shape[0]
@@ -308,8 +310,9 @@ def extract_window_tde_pca(
         if s1_c <= s0_c:
             features[i] = 0.0
         else:
-            features[i] = np.var(pca_data[s0_c:s1_c], axis=0)
+            features[i] = compute_epoch_covariance(pca_data[s0_c:s1_c])
     return features
+
 
 
 # ---------------------------------------------------------------------------
@@ -567,8 +570,8 @@ def run_sweep_tde(
             "window": label,
             "t_start_ms": int(t_start * 1000),
             "t_end_ms": int(t_end * 1000),
-            "feature": "tde_pca_var",
-            "n_features": TDE_PCA_COMPONENTS,
+            "feature": "tde_pca_cov",
+            "n_features": TDE_PCA_COMPONENTS * (TDE_PCA_COMPONENTS + 1) // 2,
         }
         results.append(res)
         print(f"    {label}: acc={res['accuracy']:.3f}  AUC={res['auc_roc']:.3f}")
@@ -666,7 +669,7 @@ def run_pipeline(subject: str, fixed_c: float | None = FIXED_C) -> None:
         all_results.extend(results)
 
     # --- TDE (PCA fit per LORO fold) ---
-    print(f"\n  === tde_pca_var ===")
+    print(f"\n  === tde_pca_cov ===")
     print("  Pre-computing TDE segments...")
     all_run_tde = precompute_tde_data(precomputed)
     print("  Running sweep with per-fold PCA...")
@@ -684,7 +687,7 @@ def run_pipeline(subject: str, fixed_c: float | None = FIXED_C) -> None:
     plot_sweep(all_results, output_dir, subject)
 
     # Print peak windows
-    for feat in ["bandpower_filtered", "raw_signal", "tde_pca_var"]:
+    for feat in ["bandpower_filtered", "raw_signal", "tde_pca_cov"]:
         subset = [r for r in all_results if r["feature"] == feat]
         if not subset:
             continue
