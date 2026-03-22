@@ -602,4 +602,43 @@ Tarea 9.2 (Decoding post vs pre-estímulo, mismo onset) ✅
 Tarea 10 (Decoding con micro-épocas 50ms — diseño Enzo) ✅
     ├── 10.1 Performance por ventana temporal post-estímulo ✅
     └── 10.2 Barrido sistemático de ventanas (10ms steps) ✅
+```
 
+---
+
+## Mensaje de Update a Diego (Slack) — 2026-03-22
+
+Hola Diego, espero que todo vaya bien por Japón! Te mando un update de todo lo que estuvimos trabajando desde la última reunión.
+
+Solo para dar contexto, estábamos haciendo unas pruebas de calidad de los datos, comparando ERPs entre CHANGE (épocas centradas al momento de cambio de luminancia) y NO_CHANGE (épocas sampleadas en momentos de fijación sin cambio). En los plots iniciales aparecía algo raro: en las épocas NO_CHANGE se veía una sincronía de fase oscilatoria que no debería existir, e incluso en CHANGE había actividad oscilatoria antes de los 0ms (i.e. momento de inicio de cambio de luminancia, que dura 1s total).
+📎 `results/validation/photo_erp_tfr/sub-27_pre_jitter/sub-27_erp_Occipital.png`
+
+Para entender la oscilación residual en NO_CHANGE generamos épocas completamente random como condición nula y corrí también algunas simulaciones. Me vino bien conversar esto en reunión de grupo porque Fede pensó que hacer esto era una buena idea. Y de hecho lo fue! El resultado fue bastante claro: cuando promediás señales con alfa dominante y N baja, la frecuencia alfa no se cancela completamente — el RMS de este residuo de actividad alfa sigue la curva teórica 1/√N. Con N=74 el residuo en Occipital es ~0.6µV, y baja gradualmente al aumentar N. Lo validamos también en datos reales usando un pool de 700 épocas random. La conclusión entonces es que la oscilación en NO_CHANGE es un artefacto esperado del promediado con N finito, y no otra cosa. Los plots que te paso son de las simulaciones. Así que esto son buenas noticias!
+📎 `results/validation/alpha_simulation/fig2_n_sweep_symmetric.png`
+📎 `results/validation/alpha_simulation/fig4_comparison_n_sweep.png`
+
+Y así se ve cómo bajan los residuos de alfa en los datos reales al aumentar el N de épocas:
+📎 `results/validation/alpha_residual_real/sub-27/sub-27_alpha_rms_vs_n.png`
+
+Ahora sí, que terminamos de hacer el chequeo de los datos, pasamos a lo que más nos interesa que es hacer decoding (empezando por decoding de luminancia).
+
+Evaluamos tres tipos de features con Leave-One-Run-Out CV:
+- *Bandpower Welch*: PSD en 5 bandas × 32 canales = 160 features
+- *TDE + covarianza*: Time-Delay Embedding ±10 lags → PCA(20 componentes, fit solo en train) → covarianza upper triangle de los PCs = 210 features
+- *Señal cruda + PCA*: vectorización → PCA(100) = 100 features
+
+Y corrimos dos análisis distintos con esos features:
+
+Primero hicimos una comparación pre-estímulo (baseline) vs post-estímulo (Change luminance) con ventanas de 500ms ([+50,+550]ms como CHANGE vs [-550,-50]ms como NO_CHANGE). En esa comparación, Bandpower Welch alcanza **72.3% accuracy / AUC=0.718**, TDE+cov **62.2%**, y señal cruda **64.9%**. Pienso que TDE+cov no tiene una performance muy alta. Tal vez es porque tenemos muchos features (210) por la cantidad de épocas total (148 épocas)? Una posibilidad sería quedarnos con menos componentes principales antes del cálculo de cov?
+📎 `results/validation/photo_decoding_pre_vs_post/sub-27/sub-27_decoding_summary.png`
+
+Después, para entender mejor en qué momento se produce un pico de performance, hice un barrido temporal deslizando ventanas de 50ms desde 0 hasta 500ms post-onset en pasos de 10ms (comparando esas ventanas post inicio de cambio de luminancia con ventanas baseline), donde la señal discriminativa parece emerger ~50ms post-onset y pica entre 130-330ms según el feature set (raw_signal temprano ~130ms, bandpower y TDE más tarde ~280ms), con un máximo global de ~69% accuracy.
+📎 `results/validation/photo_decoding_sweep/sub-27/sub-27_sweep_results.png`
+
+**Próximos pasos:** Teniendo estos benchmarks como base, la idea sería avanzar hacia una tarea de clasificación más cercana al escenario de predicción continua. El diseño experimental que tenemos (1s baseline → 1s cambio de luminancia → 1s retorno) me parece que se presta para definir **4 condiciones** con igual duración (~500ms cada una), usando ventanas de 100ms con 50ms de solapamiento:
+- *Baseline*: [-250, 0ms] pre-onset + [1500, 1750ms] post-offset (pooled)
+- *ChangeUp*: [0, 500ms] — respuesta al onset del aumento de luminancia
+- *Luminance*: [500, 1000ms] — período de luminancia sostenida
+- *ChangeDown*: [1000, 1500ms] — respuesta al offset (retorno a baseline)
+
+La idea sería hacer benchmarking con TDE en esta tarea de 4 clases (que están balanceadas). Esto un poco simula el escenario de decoding de estados continuos que nos vamos a encontrar más adelante con las pantallas verdes (donde la luminancia cambia de forma continua durante 1 minuto) o incluso en los escenarios de decoding afectivo. Me parece mejor arrancar acá porque los cambios de luminancia son más marcados (y fuertes), lo que debería dar señal más limpia antes de pasar a la tarea continua que es más difícil. Qué te parece este plan?
