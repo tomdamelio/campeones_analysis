@@ -25,6 +25,8 @@ import json
 import sys
 from pathlib import Path
 
+from joblib import Parallel, delayed
+
 import matplotlib
 matplotlib.use("Agg")
 
@@ -239,6 +241,28 @@ def extract_raw_features(data: np.ndarray) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
+# Covariance mask helper (ablation)
+# ---------------------------------------------------------------------------
+
+def _get_cov_mask(k: int, mode: str) -> np.ndarray:
+    """Boolean mask over the upper-triangle (including diagonal) of a k×k matrix.
+
+    mode:
+        "full"    → all k*(k+1)//2 elements
+        "diag"    → only the k diagonal elements (power per PC)
+        "offdiag" → only the k*(k-1)//2 off-diagonal elements (connectivity)
+    """
+    rows, cols = np.triu_indices(k)
+    if mode == "full":
+        return np.ones(len(rows), dtype=bool)
+    elif mode == "diag":
+        return rows == cols
+    elif mode == "offdiag":
+        return rows != cols
+    raise ValueError(f"Unknown cov_mode: {mode!r}")
+
+
+# ---------------------------------------------------------------------------
 # Classifier helpers
 # ---------------------------------------------------------------------------
 
@@ -250,7 +274,7 @@ def _build_pipeline(use_pca: bool, n_samples: int, n_features: int):
     steps.append(LogisticRegressionCV(
         Cs=C_GRID, cv=INNER_CV_FOLDS, l1_ratios=(0,), solver="saga",
         max_iter=2000, random_state=RANDOM_SEED, scoring="accuracy",
-        use_legacy_attributes=False,
+        use_legacy_attributes=False, n_jobs=1,  # outer folds are already parallel
     ))
     return make_pipeline(*steps)
 
@@ -259,17 +283,57 @@ def _build_pipeline(use_pca: bool, n_samples: int, n_features: int):
 # LORO CV
 # ---------------------------------------------------------------------------
 
+def _run_one_fold_standard(
+    test_idx: int,
+    run_features: list,
+    run_labels: list,
+    run_names: list,
+    use_pca: bool,
+) -> tuple:
+    """Execute one LORO fold for bandpower_welch or raw_pca.
+
+    Returns (y_test, y_pred, y_prob, fold_info, n_features_effective).
+    """
+    n_runs = len(run_features)
+    X_train = np.vstack([run_features[i] for i in range(n_runs) if i != test_idx])
+    y_train = np.concatenate([run_labels[i] for i in range(n_runs) if i != test_idx])
+    X_test = run_features[test_idx]
+    y_test = run_labels[test_idx]
+
+    n_features_effective = X_train.shape[1]
+    if use_pca:
+        n_comp = min(RAW_PCA_COMPONENTS, X_train.shape[0], X_train.shape[1])
+        scaler_outer = StandardScaler()
+        X_train_sc = scaler_outer.fit_transform(X_train)
+        X_test_sc = scaler_outer.transform(X_test)
+        pca_model_outer = PCA(n_components=n_comp)
+        X_train = pca_model_outer.fit_transform(X_train_sc)
+        X_test = pca_model_outer.transform(X_test_sc)
+        n_features_effective = n_comp
+
+    pipe = _build_pipeline(False, X_train.shape[0], X_train.shape[1])
+    pipe.fit(X_train, y_train)
+    best_c = float(np.atleast_1d(pipe[-1].C_)[0])
+    y_pred = pipe.predict(X_test)
+    y_prob = pipe.predict_proba(X_test)[:, 1]
+
+    fold_acc = float(accuracy_score(y_test, y_pred))
+    fold_info = {
+        "fold": run_names[test_idx], "best_C": best_c,
+        "accuracy": fold_acc,
+        "n_train": int(len(y_train)), "n_test": int(len(y_test)),
+    }
+    return y_test, y_pred, y_prob, fold_info, n_features_effective
+
+
 def run_loro_standard(
     runs_data: list[tuple],
     feature_name: str,
 ) -> dict:
-    """LORO CV for bandpower_welch and raw_pca."""
+    """LORO CV for bandpower_welch and raw_pca (folds run in parallel)."""
     use_pca = (feature_name == "raw_pca")
 
-    # Pre-extract features per run
-    run_features = []
-    run_labels = []
-    run_names = []
+    run_features, run_labels, run_names = [], [], []
     for X_post, X_pre, _data_wide, sfreq, run_label in runs_data:
         if feature_name == "bandpower_welch":
             feat_post = extract_bandpower_welch(X_post, sfreq)
@@ -292,42 +356,21 @@ def run_loro_standard(
     n_features_raw = run_features[0].shape[1]
     print(f"    N features (raw): {n_features_raw}")
 
-    all_y_true, all_y_pred, all_y_prob = [], [], []
-    fold_metrics = []
+    fold_results = Parallel(n_jobs=-1)(
+        delayed(_run_one_fold_standard)(
+            test_idx, run_features, run_labels, run_names, use_pca
+        )
+        for test_idx in range(n_runs)
+    )
+
+    all_y_true, all_y_pred, all_y_prob, fold_metrics = [], [], [], []
     n_features_effective = n_features_raw
-
-    for test_idx in range(n_runs):
-        X_train = np.vstack([run_features[i] for i in range(n_runs) if i != test_idx])
-        y_train = np.concatenate([run_labels[i] for i in range(n_runs) if i != test_idx])
-        X_test = run_features[test_idx]
-        y_test = run_labels[test_idx]
-
-        pca_model_outer = None
-        if use_pca:
-            n_comp = min(RAW_PCA_COMPONENTS, X_train.shape[0], X_train.shape[1])
-            scaler_outer = StandardScaler()
-            X_train_sc = scaler_outer.fit_transform(X_train)
-            X_test_sc = scaler_outer.transform(X_test)
-            pca_model_outer = PCA(n_components=n_comp)
-            X_train = pca_model_outer.fit_transform(X_train_sc)
-            X_test = pca_model_outer.transform(X_test_sc)
-            n_features_effective = n_comp
-
-        pipe = _build_pipeline(False, X_train.shape[0], X_train.shape[1])
-        pipe.fit(X_train, y_train)
-        best_c = float(np.atleast_1d(pipe[-1].C_)[0])
-        y_pred = pipe.predict(X_test)
-        y_prob = pipe.predict_proba(X_test)[:, 1]
-
-        all_y_true.extend(y_test)
-        all_y_pred.extend(y_pred)
-        all_y_prob.extend(y_prob)
-
-        fold_metrics.append({
-            "fold": run_names[test_idx], "best_C": best_c,
-            "accuracy": float(accuracy_score(y_test, y_pred)),
-            "n_train": int(len(y_train)), "n_test": int(len(y_test)),
-        })
+    for y_test, y_pred, y_prob, fold_info, n_feat_eff in fold_results:
+        all_y_true.extend(y_test.tolist() if hasattr(y_test, "tolist") else y_test)
+        all_y_pred.extend(y_pred.tolist() if hasattr(y_pred, "tolist") else y_pred)
+        all_y_prob.extend(y_prob.tolist() if hasattr(y_prob, "tolist") else y_prob)
+        fold_metrics.append(fold_info)
+        n_features_effective = n_feat_eff  # same across folds
 
     y_true = np.array(all_y_true)
     y_pred_arr = np.array(all_y_pred)
@@ -348,16 +391,93 @@ def run_loro_standard(
     }
 
 
-def run_loro_tde_cov(
-    runs_data: list[tuple],
-) -> dict:
-    """LORO CV for tde_cov with PCA fit on train only per fold."""
-    from campeones_analysis.luminance.tde_glhmm import (
-        apply_tde_only, fit_global_pca, apply_global_pca,
-    )
+def _run_one_fold_tde(
+    test_idx: int,
+    run_tde_post: list,
+    run_tde_pre: list,
+    run_n_onsets: list,
+    run_names: list,
+    tde_pca_components: int,
+    n_features: int,
+    cov_mode: str = "full",
+) -> tuple:
+    """Execute one LORO fold for tde_cov.
+
+    Imports inside function so joblib workers can pickle/call it cleanly.
+    Returns (y_test, y_pred, y_prob, fold_info).
+    """
+    from campeones_analysis.luminance.tde_glhmm import fit_global_pca, apply_global_pca
     from campeones_analysis.luminance.features import compute_epoch_covariance
 
-    feature_name = "tde_cov"
+    n_runs = len(run_tde_post)
+    print(f"    Fold {test_idx+1}/{n_runs}: {run_names[test_idx]}")
+
+    mask = _get_cov_mask(tde_pca_components, cov_mode)
+
+    train_segments = []
+    for i in range(n_runs):
+        if i != test_idx:
+            train_segments.extend(run_tde_post[i])
+            train_segments.extend(run_tde_pre[i])
+    pca_model = fit_global_pca(train_segments, tde_pca_components)
+
+    X_train_parts, y_train_parts = [], []
+    for i in range(n_runs):
+        if i != test_idx:
+            n = run_n_onsets[i]
+            feats_post = np.empty((n, n_features))
+            for j, seg in enumerate(run_tde_post[i]):
+                feats_post[j] = compute_epoch_covariance(
+                    apply_global_pca(seg, pca_model, standardise_pc=False))[mask]
+            feats_pre = np.empty((n, n_features))
+            for j, seg in enumerate(run_tde_pre[i]):
+                feats_pre[j] = compute_epoch_covariance(
+                    apply_global_pca(seg, pca_model, standardise_pc=False))[mask]
+            X_train_parts.append(np.vstack([feats_post, feats_pre]))
+            y_train_parts.append(np.concatenate([np.ones(n), np.zeros(n)]))
+
+    X_train = np.vstack(X_train_parts)
+    y_train = np.concatenate(y_train_parts)
+
+    n_test = run_n_onsets[test_idx]
+    feats_post = np.empty((n_test, n_features))
+    for j, seg in enumerate(run_tde_post[test_idx]):
+        feats_post[j] = compute_epoch_covariance(
+            apply_global_pca(seg, pca_model, standardise_pc=False))[mask]
+    feats_pre = np.empty((n_test, n_features))
+    for j, seg in enumerate(run_tde_pre[test_idx]):
+        feats_pre[j] = compute_epoch_covariance(
+            apply_global_pca(seg, pca_model, standardise_pc=False))[mask]
+
+    X_test = np.vstack([feats_post, feats_pre])
+    y_test = np.concatenate([np.ones(n_test), np.zeros(n_test)])
+
+    pipe = _build_pipeline(False, X_train.shape[0], X_train.shape[1])
+    pipe.fit(X_train, y_train)
+    best_c = float(np.atleast_1d(pipe[-1].C_)[0])
+    y_pred = pipe.predict(X_test)
+    y_prob = pipe.predict_proba(X_test)[:, 1]
+
+    fold_acc = float(accuracy_score(y_test, y_pred))
+    fold_info = {
+        "fold": run_names[test_idx], "best_C": best_c,
+        "accuracy": fold_acc,
+        "n_train": int(len(y_train)), "n_test": int(len(y_test)),
+    }
+    return y_test, y_pred, y_prob, fold_info
+
+
+def run_loro_tde_cov(
+    runs_data: list[tuple],
+    cov_mode: str = "full",
+) -> dict:
+    """LORO CV for tde_cov with PCA fit on train only per fold (folds in parallel).
+
+    cov_mode: "full" (153), "diag" (17), or "offdiag" (136)
+    """
+    from campeones_analysis.luminance.tde_glhmm import apply_tde_only
+
+    feature_name = f"tde_cov_{cov_mode}" if cov_mode != "full" else "tde_cov"
     n_runs = len(runs_data)
     if n_runs < 2:
         print(f"    {feature_name}: need >= 2 runs, got {n_runs}")
@@ -407,76 +527,25 @@ def run_loro_tde_cov(
         run_tde_post.append(post_segments)
         run_tde_pre.append(pre_segments)
 
-    n_features = TDE_PCA_COMPONENTS * (TDE_PCA_COMPONENTS + 1) // 2
-    print(f"    N features: {n_features}")
+    n_features = int(_get_cov_mask(TDE_PCA_COMPONENTS, cov_mode).sum())
+    print(f"    N features: {n_features}  (cov_mode={cov_mode})")
 
-    all_y_true, all_y_pred, all_y_prob = [], [], []
-    fold_metrics = []
+    run_names = [rd[4] for rd in runs_data]
 
-    for test_idx in range(n_runs):
-        print(f"    Fold {test_idx+1}/{n_runs}: {runs_data[test_idx][4]}")
+    fold_results = Parallel(n_jobs=-1)(
+        delayed(_run_one_fold_tde)(
+            test_idx, run_tde_post, run_tde_pre, run_n_onsets,
+            run_names, TDE_PCA_COMPONENTS, n_features, cov_mode,
+        )
+        for test_idx in range(n_runs)
+    )
 
-        # Collect all train TDE segments (post + pre) for PCA fitting
-        train_segments = []
-        for i in range(n_runs):
-            if i != test_idx:
-                train_segments.extend(run_tde_post[i])
-                train_segments.extend(run_tde_pre[i])
-
-        pca_model = fit_global_pca(train_segments, TDE_PCA_COMPONENTS)
-
-        # Extract cov features for train
-        X_train_parts = []
-        y_train_parts = []
-        for i in range(n_runs):
-            if i != test_idx:
-                n = run_n_onsets[i]
-                # Post epochs (class 1)
-                feats_post = np.empty((n, n_features))
-                for j, seg in enumerate(run_tde_post[i]):
-                    pca_data = apply_global_pca(seg, pca_model)
-                    feats_post[j] = compute_epoch_covariance(pca_data)
-                # Pre epochs (class 0)
-                feats_pre = np.empty((n, n_features))
-                for j, seg in enumerate(run_tde_pre[i]):
-                    pca_data = apply_global_pca(seg, pca_model)
-                    feats_pre[j] = compute_epoch_covariance(pca_data)
-
-                X_train_parts.append(np.vstack([feats_post, feats_pre]))
-                y_train_parts.append(np.concatenate([np.ones(n), np.zeros(n)]))
-
-        X_train = np.vstack(X_train_parts)
-        y_train = np.concatenate(y_train_parts)
-
-        # Extract cov features for test
-        n_test = run_n_onsets[test_idx]
-        feats_post = np.empty((n_test, n_features))
-        for j, seg in enumerate(run_tde_post[test_idx]):
-            pca_data = apply_global_pca(seg, pca_model)
-            feats_post[j] = compute_epoch_covariance(pca_data)
-        feats_pre = np.empty((n_test, n_features))
-        for j, seg in enumerate(run_tde_pre[test_idx]):
-            pca_data = apply_global_pca(seg, pca_model)
-            feats_pre[j] = compute_epoch_covariance(pca_data)
-
-        X_test = np.vstack([feats_post, feats_pre])
-        y_test = np.concatenate([np.ones(n_test), np.zeros(n_test)])
-
-        pipe = _build_pipeline(False, X_train.shape[0], X_train.shape[1])
-        pipe.fit(X_train, y_train)
-        best_c = float(np.atleast_1d(pipe[-1].C_)[0])
-        y_pred = pipe.predict(X_test)
-        y_prob = pipe.predict_proba(X_test)[:, 1]
-
-        all_y_true.extend(y_test)
-        all_y_pred.extend(y_pred)
-        all_y_prob.extend(y_prob)
-
-        fold_metrics.append({
-            "fold": runs_data[test_idx][4], "best_C": best_c,
-            "accuracy": float(accuracy_score(y_test, y_pred)),
-            "n_train": int(len(y_train)), "n_test": int(len(y_test)),
-        })
+    all_y_true, all_y_pred, all_y_prob, fold_metrics = [], [], [], []
+    for y_test, y_pred, y_prob, fold_info in fold_results:
+        all_y_true.extend(y_test.tolist())
+        all_y_pred.extend(y_pred.tolist())
+        all_y_prob.extend(y_prob.tolist())
+        fold_metrics.append(fold_info)
 
     y_true = np.array(all_y_true)
     y_pred_arr = np.array(all_y_pred)
@@ -528,7 +597,10 @@ def plot_summary(all_results: list[dict], output_dir: Path, subject: str) -> Non
 # Main pipeline
 # ---------------------------------------------------------------------------
 
-def run_pipeline(subject: str) -> None:
+def run_pipeline(subject: str, features: list[str] | None = None) -> None:
+    if features is None:
+        features = ["bandpower_welch", "tde_cov", "tde_cov_diag", "tde_cov_offdiag", "raw_pca"]
+
     print("=" * 60)
     print(f"27b -- Pre vs Post decoding -- sub-{subject}")
     print(f"     Post window: [{POST_CROP_START}, {POST_CROP_END}]s")
@@ -553,35 +625,19 @@ def run_pipeline(subject: str) -> None:
 
     all_results = []
 
-    # 1. Bandpower Welch
-    print(f"  Feature set: bandpower_welch")
-    res = run_loro_standard(runs_data, "bandpower_welch")
-    if res:
-        all_results.append(res)
-        print(f"    Acc={res['accuracy']:.3f}  F1={res['f1']:.3f}  AUC={res['auc_roc']:.3f}")
-        for f in res["folds"]:
-            print(f"      {f['fold']}: acc={f['accuracy']:.3f} "
-                  f"(best_C={f['best_C']}, n_train={f['n_train']}, n_test={f['n_test']})")
-
-    # 2. TDE + Cov
-    print(f"\n  Feature set: tde_cov")
-    res = run_loro_tde_cov(runs_data)
-    if res:
-        all_results.append(res)
-        print(f"    Acc={res['accuracy']:.3f}  F1={res['f1']:.3f}  AUC={res['auc_roc']:.3f}")
-        for f in res["folds"]:
-            print(f"      {f['fold']}: acc={f['accuracy']:.3f} "
-                  f"(best_C={f['best_C']}, n_train={f['n_train']}, n_test={f['n_test']})")
-
-    # 3. Raw + PCA
-    print(f"\n  Feature set: raw_pca")
-    res = run_loro_standard(runs_data, "raw_pca")
-    if res:
-        all_results.append(res)
-        print(f"    Acc={res['accuracy']:.3f}  F1={res['f1']:.3f}  AUC={res['auc_roc']:.3f}")
-        for f in res["folds"]:
-            print(f"      {f['fold']}: acc={f['accuracy']:.3f} "
-                  f"(best_C={f['best_C']}, n_train={f['n_train']}, n_test={f['n_test']})")
+    for feat in features:
+        print(f"\n  Feature set: {feat}")
+        if feat.startswith("tde_cov"):
+            cov_mode = feat[len("tde_cov_"):] if "_" in feat[7:] else "full"
+            res = run_loro_tde_cov(runs_data, cov_mode=cov_mode)
+        else:
+            res = run_loro_standard(runs_data, feat)
+        if res:
+            all_results.append(res)
+            print(f"    Acc={res['accuracy']:.3f}  F1={res['f1']:.3f}  AUC={res['auc_roc']:.3f}")
+            for f in res["folds"]:
+                print(f"      {f['fold']}: acc={f['accuracy']:.3f} "
+                      f"(best_C={f['best_C']}, n_train={f['n_train']}, n_test={f['n_test']})")
 
     # Save JSON
     json_path = output_dir / f"sub-{subject}_pre_vs_post_results.json"
@@ -600,9 +656,15 @@ def parse_args() -> argparse.Namespace:
         description="Decode post-stimulus vs pre-stimulus (Task 9.2)",
     )
     parser.add_argument("--subject", type=str, required=True)
+    parser.add_argument(
+        "--features", nargs="+",
+        choices=["bandpower_welch", "tde_cov", "tde_cov_diag", "tde_cov_offdiag", "raw_pca"],
+        default=["bandpower_welch", "tde_cov", "tde_cov_diag", "tde_cov_offdiag", "raw_pca"],
+        help="Feature sets to run (default: all five)",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    run_pipeline(args.subject)
+    run_pipeline(args.subject, features=args.features)
