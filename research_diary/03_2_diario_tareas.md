@@ -642,3 +642,62 @@ Después, para entender mejor en qué momento se produce un pico de performance,
 - *ChangeDown*: [1000, 1500ms] — respuesta al offset (retorno a baseline)
 
 La idea sería hacer benchmarking con TDE en esta tarea de 4 clases (que están balanceadas). Esto un poco simula el escenario de decoding de estados continuos que nos vamos a encontrar más adelante con las pantallas verdes (donde la luminancia cambia de forma continua durante 1 minuto) o incluso en los escenarios de decoding afectivo. Me parece mejor arrancar acá porque los cambios de luminancia son más marcados (y fuertes), lo que debería dar señal más limpia antes de pasar a la tarea continua que es más difícil. Qué te parece este plan?
+
+---
+
+## Tarea 9.3: Revisión del pipeline de decoding pre/post — LogisticRegressionCV + features equiparadas (2026-03-25)
+
+### Motivación
+
+Diego señaló dos problemas en la comparación de features del análisis pre/post (Tarea 9.2):
+
+1. **Sesgo por dimensionalidad**: comparar 160 features (bandpower), 210 (tde_cov) y 100 (raw_pca) con el mismo C fijo es injusto — la regularización óptima depende del número de features.
+2. **C fijo arbitrario**: usar C=1.0 fijo sin validación cruzada puede favorecer o perjudicar sistemáticamente a un feature set.
+
+Solución propuesta por Diego: usar `LogisticRegressionCV` (scikit-learn) que cross-valida C internamente, de forma independiente por cada feature set.
+
+### Implementación (`27b_decoding_pre_vs_post.py`)
+
+**Cross-validación de C:**
+- Reemplazado `LogisticRegression(C=fixed)` por `LogisticRegressionCV` en todo el pipeline
+- Grid de C: `[0.001, 0.01, 0.1, 1.0, 10.0, 100.0]`
+- Inner CV: 5-fold estratificado sobre el training set de cada fold LORO (~252 samples → ~50 por inner fold)
+- Cada feature set elige su propio C* por fold → comparación más justa
+- Solver actualizado a `saga` (requerido por la nueva API elastic net de sklearn 1.8+), con `l1_ratios=(0,)` para pure L2 (ridge)
+
+**Equiparación de features (~160 para los tres):**
+- `TDE_PCA_COMPONENTS`: 20 → 17 (covarianza: 17×18/2 = **153 features**)
+- `RAW_PCA_COMPONENTS`: 100 → 160 (**160 features**)
+- bandpower_welch: 32 ch × 5 bandas = **160 features** (sin cambio)
+
+### Resultados (sub-27, LORO 7-fold, 2026-03-25)
+
+| Feature set | N features | Acc | F1 | AUC |
+|---|---|---|---|---|
+| bandpower_welch | 160 | **68.9%** | 0.689 | **0.725** |
+| raw_pca | 160 | 65.5% | 0.662 | 0.696 |
+| tde_cov | 153 | 62.8% | 0.621 | 0.685 |
+
+**Por fold (bandpower_welch):**
+- run-002: 45.8% (C=0.1) | run-003: 75.0% (C=1.0) | run-004: 75.0% (C=10.0)
+- run-006: 54.2% (C=0.01) | run-007: 79.2% (C=0.1) | run-009: 93.8% (C=1.0) | run-010: 70.8% (C=0.01)
+
+**Por fold (tde_cov):**
+- run-002: 41.7% (C=0.001) | run-003: 75.0% (C=0.01) | run-004: 65.0% (C=0.1)
+- run-006: 54.2% (C=0.001) | run-007: 66.7% (C=0.01) | run-009: 75.0% (C=1.0) | run-010: 70.8% (C=0.1)
+
+**Por fold (raw_pca):**
+- Todos los folds eligieron C=0.001 → regularización fuerte necesaria para 160 PCs de señal cruda
+
+### Interpretaciones
+
+- **Ranking se mantiene**: bandpower > raw_pca ≈ tde_cov, incluso con features equiparadas y C cross-validado. La ventaja de bandpower es robusta.
+- **C muy inestable entre folds**: para bandpower varía de 0.01 a 10.0; para tde_cov de 0.001 a 1.0. Con ~50 samples en el inner fold, la selección de C es ruidosa — se espera con N pequeño.
+- **raw_pca elige siempre C=0.001**: 160 PCs de señal cruda tienen mucho ruido; la regularización fuerte es consistentemente necesaria.
+- **tde_cov con 17 PCs (84% varianza)**: leve caída vs 20 PCs (86% varianza); el trade-off dimensionalidad/información no fue favorable.
+- **Interpretación del resultado**: la tarea de luminancia genera principalmente un cambio de potencia alfa por canal → bandpower lo captura directamente. TDE-cov captura también conectividad (off-diagonal), que no es informativa aquí, diluyendo la señal útil.
+
+### Archivo de resultados
+
+`results/validation/photo_decoding_pre_vs_post/sub-27/sub-27_pre_vs_post_results.json`
+`results/validation/photo_decoding_pre_vs_post/sub-27/sub-27_decoding_summary.png`

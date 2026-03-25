@@ -11,7 +11,8 @@ Both classes come from the SAME onset, so the contrast is purely
 temporal: post-stimulus vs pre-stimulus activity.
 
 Feature sets: bandpower_welch, tde_cov, raw_pca.
-Classifier: LogisticRegression (L2), Leave-One-Run-Out CV.
+Classifier: LogisticRegressionCV (L2, C cross-validated per feature set),
+Leave-One-Run-Out CV outer loop.
 
 Usage
 -----
@@ -33,11 +34,10 @@ import numpy as np
 import pandas as pd
 from scipy.signal import welch as scipy_welch
 from sklearn.decomposition import PCA
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegressionCV
 from sklearn.metrics import (
     accuracy_score, f1_score, precision_score, recall_score, roc_auc_score,
 )
-from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -90,11 +90,12 @@ SPECTRAL_BANDS = {
     "gamma": (30.0, 45.0),
 }
 
-C_GRID = [0.001, 0.01, 0.1, 1.0, 10.0]
+C_GRID = [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
+INNER_CV_FOLDS = 5
 RANDOM_SEED = 42
 TDE_WINDOW_HALF = 10
-TDE_PCA_COMPONENTS = 20
-RAW_PCA_COMPONENTS = 100
+TDE_PCA_COMPONENTS = 17   # → 17*18//2 = 153 cov features (≈ bandpower 160)
+RAW_PCA_COMPONENTS = 160  # ≈ bandpower 160
 
 
 # ---------------------------------------------------------------------------
@@ -241,39 +242,17 @@ def extract_raw_features(data: np.ndarray) -> np.ndarray:
 # Classifier helpers
 # ---------------------------------------------------------------------------
 
-def _build_pipeline(use_pca: bool, c_val: float, n_samples: int, n_features: int):
+def _build_pipeline(use_pca: bool, n_samples: int, n_features: int):
     steps = [StandardScaler()]
     if use_pca:
         n_comp = min(RAW_PCA_COMPONENTS, n_samples, n_features)
         steps.append(PCA(n_components=n_comp))
-    steps.append(LogisticRegression(C=c_val, max_iter=1000,
-                                    random_state=RANDOM_SEED))
+    steps.append(LogisticRegressionCV(
+        Cs=C_GRID, cv=INNER_CV_FOLDS, l1_ratios=(0,), solver="saga",
+        max_iter=2000, random_state=RANDOM_SEED, scoring="accuracy",
+        use_legacy_attributes=False,
+    ))
     return make_pipeline(*steps)
-
-
-def _select_best_c(X_train, y_train, use_pca: bool,
-                   fixed_c: float | None = None) -> float:
-    if fixed_c is not None:
-        return fixed_c
-    inner_cv = StratifiedKFold(n_splits=min(3, max(2, len(np.unique(y_train)))),
-                               shuffle=True, random_state=RANDOM_SEED)
-    best_c, best_score = C_GRID[0], -1.0
-    for c_val in C_GRID:
-        scores = []
-        try:
-            for tr_idx, val_idx in inner_cv.split(X_train, y_train):
-                pipe = _build_pipeline(use_pca, c_val,
-                                       X_train[tr_idx].shape[0],
-                                       X_train[tr_idx].shape[1])
-                pipe.fit(X_train[tr_idx], y_train[tr_idx])
-                scores.append(pipe.score(X_train[val_idx], y_train[val_idx]))
-        except ValueError:
-            continue
-        mean_score = np.mean(scores)
-        if mean_score > best_score:
-            best_score = mean_score
-            best_c = c_val
-    return best_c
 
 
 # ---------------------------------------------------------------------------
@@ -283,7 +262,6 @@ def _select_best_c(X_train, y_train, use_pca: bool,
 def run_loro_standard(
     runs_data: list[tuple],
     feature_name: str,
-    fixed_c: float | None = None,
 ) -> dict:
     """LORO CV for bandpower_welch and raw_pca."""
     use_pca = (feature_name == "raw_pca")
@@ -335,11 +313,9 @@ def run_loro_standard(
             X_test = pca_model_outer.transform(X_test_sc)
             n_features_effective = n_comp
 
-        best_c = _select_best_c(X_train, y_train, use_pca=False,
-                               fixed_c=fixed_c)
-
-        pipe = _build_pipeline(False, best_c, X_train.shape[0], X_train.shape[1])
+        pipe = _build_pipeline(False, X_train.shape[0], X_train.shape[1])
         pipe.fit(X_train, y_train)
+        best_c = float(np.atleast_1d(pipe[-1].C_)[0])
         y_pred = pipe.predict(X_test)
         y_prob = pipe.predict_proba(X_test)[:, 1]
 
@@ -348,7 +324,7 @@ def run_loro_standard(
         all_y_prob.extend(y_prob)
 
         fold_metrics.append({
-            "fold": run_names[test_idx], "C": best_c,
+            "fold": run_names[test_idx], "best_C": best_c,
             "accuracy": float(accuracy_score(y_test, y_pred)),
             "n_train": int(len(y_train)), "n_test": int(len(y_test)),
         })
@@ -374,7 +350,6 @@ def run_loro_standard(
 
 def run_loro_tde_cov(
     runs_data: list[tuple],
-    fixed_c: float | None = None,
 ) -> dict:
     """LORO CV for tde_cov with PCA fit on train only per fold."""
     from campeones_analysis.luminance.tde_glhmm import (
@@ -400,7 +375,6 @@ def run_loro_tde_cov(
 
         # Compute TDE on wide epoch, then we'll extract post/pre windows
         # from the TDE-transformed data
-        wide_n_times = data_wide.shape[2]
         post_segments = []
         pre_segments = []
 
@@ -414,9 +388,7 @@ def run_loro_tde_cov(
             # Map crop times to TDE indices
             # Wide epoch: WIDE_TMIN to WIDE_TMAX
             # TDE removes TDE_WINDOW_HALF samples from each end
-            tde_sfreq = sfreq
             tde_offset = TDE_WINDOW_HALF  # samples lost at start
-            wide_times = np.arange(wide_n_times) / sfreq + WIDE_TMIN
 
             # Post window: POST_CROP_START to POST_CROP_END
             post_start_idx = int(round((POST_CROP_START - WIDE_TMIN) * sfreq)) - tde_offset
@@ -490,11 +462,9 @@ def run_loro_tde_cov(
         X_test = np.vstack([feats_post, feats_pre])
         y_test = np.concatenate([np.ones(n_test), np.zeros(n_test)])
 
-        best_c = _select_best_c(X_train, y_train, use_pca=False,
-                               fixed_c=fixed_c)
-
-        pipe = _build_pipeline(False, best_c, X_train.shape[0], X_train.shape[1])
+        pipe = _build_pipeline(False, X_train.shape[0], X_train.shape[1])
         pipe.fit(X_train, y_train)
+        best_c = float(np.atleast_1d(pipe[-1].C_)[0])
         y_pred = pipe.predict(X_test)
         y_prob = pipe.predict_proba(X_test)[:, 1]
 
@@ -503,7 +473,7 @@ def run_loro_tde_cov(
         all_y_prob.extend(y_prob)
 
         fold_metrics.append({
-            "fold": runs_data[test_idx][4], "C": best_c,
+            "fold": runs_data[test_idx][4], "best_C": best_c,
             "accuracy": float(accuracy_score(y_test, y_pred)),
             "n_train": int(len(y_train)), "n_test": int(len(y_test)),
         })
@@ -532,7 +502,6 @@ def run_loro_tde_cov(
 
 def plot_summary(all_results: list[dict], output_dir: Path, subject: str) -> None:
     metrics = ["accuracy", "precision", "recall", "f1", "auc_roc"]
-    labels = [r["feature"] for r in all_results]
     x = np.arange(len(metrics))
     width = 0.8 / len(all_results)
 
@@ -559,17 +528,14 @@ def plot_summary(all_results: list[dict], output_dir: Path, subject: str) -> Non
 # Main pipeline
 # ---------------------------------------------------------------------------
 
-def run_pipeline(subject: str, fixed_c: float | None = None) -> None:
+def run_pipeline(subject: str) -> None:
     print("=" * 60)
     print(f"27b -- Pre vs Post decoding -- sub-{subject}")
     print(f"     Post window: [{POST_CROP_START}, {POST_CROP_END}]s")
     print(f"     Pre window:  [{PRE_CROP_START}, {PRE_CROP_END}]s")
     print(f"     Baseline: {BASELINE}")
     print(f"     Channels: {len(EEG_CHANNELS)}")
-    if fixed_c is not None:
-        print(f"     Fixed C={fixed_c}")
-    else:
-        print(f"     C grid search: {C_GRID}")
+    print(f"     C grid (LogisticRegressionCV, {INNER_CV_FOLDS}-fold inner): {C_GRID}")
     print("=" * 60)
 
     runs_data = load_pre_post_epochs_per_run(subject)
@@ -589,33 +555,33 @@ def run_pipeline(subject: str, fixed_c: float | None = None) -> None:
 
     # 1. Bandpower Welch
     print(f"  Feature set: bandpower_welch")
-    res = run_loro_standard(runs_data, "bandpower_welch", fixed_c=fixed_c)
+    res = run_loro_standard(runs_data, "bandpower_welch")
     if res:
         all_results.append(res)
         print(f"    Acc={res['accuracy']:.3f}  F1={res['f1']:.3f}  AUC={res['auc_roc']:.3f}")
         for f in res["folds"]:
             print(f"      {f['fold']}: acc={f['accuracy']:.3f} "
-                  f"(C={f['C']}, n_train={f['n_train']}, n_test={f['n_test']})")
+                  f"(best_C={f['best_C']}, n_train={f['n_train']}, n_test={f['n_test']})")
 
     # 2. TDE + Cov
     print(f"\n  Feature set: tde_cov")
-    res = run_loro_tde_cov(runs_data, fixed_c=fixed_c)
+    res = run_loro_tde_cov(runs_data)
     if res:
         all_results.append(res)
         print(f"    Acc={res['accuracy']:.3f}  F1={res['f1']:.3f}  AUC={res['auc_roc']:.3f}")
         for f in res["folds"]:
             print(f"      {f['fold']}: acc={f['accuracy']:.3f} "
-                  f"(C={f['C']}, n_train={f['n_train']}, n_test={f['n_test']})")
+                  f"(best_C={f['best_C']}, n_train={f['n_train']}, n_test={f['n_test']})")
 
     # 3. Raw + PCA
     print(f"\n  Feature set: raw_pca")
-    res = run_loro_standard(runs_data, "raw_pca", fixed_c=fixed_c)
+    res = run_loro_standard(runs_data, "raw_pca")
     if res:
         all_results.append(res)
         print(f"    Acc={res['accuracy']:.3f}  F1={res['f1']:.3f}  AUC={res['auc_roc']:.3f}")
         for f in res["folds"]:
             print(f"      {f['fold']}: acc={f['accuracy']:.3f} "
-                  f"(C={f['C']}, n_train={f['n_train']}, n_test={f['n_test']})")
+                  f"(best_C={f['best_C']}, n_train={f['n_train']}, n_test={f['n_test']})")
 
     # Save JSON
     json_path = output_dir / f"sub-{subject}_pre_vs_post_results.json"
@@ -634,15 +600,9 @@ def parse_args() -> argparse.Namespace:
         description="Decode post-stimulus vs pre-stimulus (Task 9.2)",
     )
     parser.add_argument("--subject", type=str, required=True)
-    parser.add_argument("--fixed-c", type=float, default=1.0,
-                        help="Fixed C for LogReg (default: 1.0). "
-                             "Set to 0 to enable inner CV.")
-    parser.add_argument("--inner-cv", action="store_true",
-                        help="Enable inner CV grid search for C.")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    c_val = None if args.inner_cv else (args.fixed_c if args.fixed_c > 0 else None)
-    run_pipeline(args.subject, fixed_c=c_val)
+    run_pipeline(args.subject)
