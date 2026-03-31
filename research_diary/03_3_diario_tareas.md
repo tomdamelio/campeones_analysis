@@ -347,22 +347,117 @@ Los folds más grandes tienen 12 onsets → 288 ventanas de test para tde_cov, q
 
 ---
 
+---
+
+## Tarea 10.3.4: Ablación de tde_cov — diagonal vs off-diagonal vs completa (2026-03-25)
+
+### Motivación
+
+La diagonal de la matriz de covarianza TDE-PCA representa la **potencia por componente principal** (17 valores, análogo a bandpower pero en espacio TDE). Los elementos off-diagonal representan la **conectividad/coherencia entre PCs** (136 valores). Como el fix de `standardise_pc=False` mejoró tde_cov principalmente porque restauró la información de potencia (diagonal), la hipótesis es que la diagonal contiene la mayor parte de la señal discriminativa.
+
+**Implementación:** función `_get_cov_mask(k, mode)` que genera una máscara booleana sobre el triángulo superior de la matriz k×k:
+- `"full"` → 153 features (diagonal + off-diagonal)
+- `"diag"` → 17 features (solo diagonal)
+- `"offdiag"` → 136 features (solo off-diagonal)
+
+La máscara se aplica al vector resultante de `compute_epoch_covariance()` antes de entregarlo al clasificador. No se re-calcula la PCA — el coste computacional es mínimo.
+
+### Resultados: script 34 (4 clases, chance=25%)
+
+| Feature set | N features | Acc | F1 macro | AUC macro | Baseline | ChangeUp | Luminance | ChangeDown |
+|---|---|---|---|---|---|---|---|---|
+| bandpower_welch | 160 | 30.9% | 0.308 | 0.570 | 34.7% | 26.4% | 25.2% | 37.4% |
+| tde_cov_full | 153 | 35.6% | 0.357 | 0.622 | 34.0% | 34.0% | 36.5% | 37.8% |
+| **tde_cov_diag** | **17** | **37.7%** | **0.377** | **0.643** | 30.9% | **42.8%** | **44.6%** | 32.7% |
+| tde_cov_offdiag | 136 | 31.2% | 0.311 | 0.573 | 33.1% | 24.1% | 32.2% | 35.4% |
+| raw_pca | 160 | 37.8% | 0.376 | 0.606 | 25.5% | 45.7% | 45.5% | 34.7% |
+
+### Resultados: script 27b (binario pre/post, chance=50%)
+
+| Feature set | N features | Acc | F1 | AUC |
+|---|---|---|---|---|
+| bandpower_welch | 160 | **68.9%** | 0.689 | **0.725** |
+| tde_cov_full | 153 | 62.2% | 0.600 | 0.624 |
+| tde_cov_diag | 17 | 61.5% | 0.596 | 0.664 |
+| tde_cov_offdiag | 136 | 59.5% | 0.538 | 0.573 |
+| raw_pca | 160 | 65.5% | 0.662 | 0.696 |
+
+### Interpretación
+
+**Resultado principal:** `tde_cov_diag` (17 features) **supera** a `tde_cov_full` (153 features) en la tarea de 4 clases en todas las métricas (Acc: 37.7% vs 35.6%, AUC: 0.643 vs 0.622). Esto prueba que:
+
+1. **La potencia por PC (diagonal) es la señal discriminativa en tde_cov.** Los 136 features off-diagonal no solo no ayudan, sino que añaden ruido que perjudica al clasificador.
+
+2. **tde_cov_offdiag ≈ bandpower en rendimiento global** (31.2% vs 30.9% Acc, 0.573 vs 0.570 AUC). La conectividad entre PCs no discrimina los estados temporales de luminancia más que el espectro estándar.
+
+3. **El patrón per-clase de tde_cov_diag se asemeja a raw_pca:** ambos destacan en ChangeUp (42.8% vs 45.7%) y Luminance (44.6% vs 45.5%), sugiriendo que la potencia por PC en el espacio TDE captura el mismo tipo de información espaciotemporal que el ERP crudo.
+
+4. **Para la tarea binaria (27b), la diagonal da peor AUC que full** (0.664 vs 0.624 — espera, peor AUC para full). En realidad la diagonal tiene *mejor* AUC que full en binario también (0.664 > 0.624), aunque peor que bandpower. La diferencia principal es que bandpower captura directamente bandas conocidas (alpha occipital en ~10 Hz) mientras que los PCs del TDE mezclan frecuencias en componentes que pueden no corresponder limpiamente a bandas.
+
+**Conclusión sobre el número de PCs:** dado que la diagonal (17 PCs) supera al full (153), el número de componentes PCA es un hiperparámetro relevante. Con más componentes la diagonal crece linealmente pero cada PC adicional captura menos varianza → posible trade-off rendimiento/ruido. Pendiente: analizar varianza explicada en función del número de PCs para elegir el valor óptimo.
+
+**Archivos:**
+- `scripts/validation/34_decoding_4class.py` — 5 feature sets (--features bandpower_welch tde_cov tde_cov_diag tde_cov_offdiag raw_pca)
+- `scripts/validation/27b_decoding_pre_vs_post.py` — ídem
+- `results/validation/photo_decoding_4class/sub-27/sub-27_4class_results.json`
+- `results/validation/photo_decoding_pre_vs_post/sub-27/sub-27_pre_vs_post_results.json`
+
+---
+
 ## Próximos Pasos
 
-### Paso 1: Ablación de features en tde_cov — diagonal vs off-diagonal vs completa
+### Paso 1: Elección de número de componentes PCA para tde_cov ✅
 
-La matriz de covarianza TDE tiene dos partes con significados distintos:
-- **Diagonal** (17 features): varianza de cada componente PCA = potencia por PC. Es análoga al bandpower, pero en el espacio TDE-PCA en lugar del espacio de canales/bandas.
-- **Off-diagonal** (136 features): covarianza entre pares de PCs = coherencia/conectividad temporal entre componentes. Captura algo que bandpower no captura.
+El número actual de 17 PCs se eligió para que la diagonal (153 features) ≈ 160 features de bandpower, con fines de equiparación. Pero dado que la ablación mostró que solo la diagonal importa (17 features), la pregunta ahora es: **¿con cuántos PCs se maximiza la información en la diagonal?**
 
-Propuesta: correr el mismo pipeline LORO con **3 variantes de features tde_cov**:
-1. `tde_cov_full` — 153 features: diagonal + off-diagonal (configuración actual)
-2. `tde_cov_diag` — 17 features: solo diagonal (potencia por PC)
-3. `tde_cov_offdiag` — 136 features: solo off-diagonal (coherencia/conectividad)
+Tradeoff esperado:
+- **Pocos PCs (<17):** cada PC explica más varianza, pero se descartan PCs que pueden ser informativos para discriminar clases.
+- **Muchos PCs (>17):** cada PC adicional captura varianza residual, que puede ser ruido — la diagonal crece linealmente pero el clasificador tiene más dimensiones irrelevantes.
+- **PCs intermedios:** posible sweet spot donde la varianza explicada marginal se vuelve pequeña (codo de la curva) pero los PCs todavía capturan señal relevante.
 
-Correr en ambos scripts: `27b_decoding_pre_vs_post.py` (tarea binaria) y `34_decoding_4class.py` (4 clases).
+**Script:** `scripts/validation/35_tde_pca_variance.py` — extrae TDE de todos los runs, ajusta PCA(100), y grafica varianza explicada acumulada y marginal.
 
-**Hipótesis:** para la tarea binaria pre/post, donde la señal principal es el cambio de potencia alfa, `tde_cov_diag` (potencia por PC) debería dar similar a `tde_cov_full`. Para la tarea de 4 clases, la connectividad (off-diagonal) podría aportar más. Si `tde_cov_diag` ≈ bandpower, confirmaría que TDE no añade información sobre bandpower para esta tarea. Si `tde_cov_full` > `tde_cov_diag`, la conectividad TDE tiene valor incremental.
+---
+
+## Tarea 10.3.5: Comparación de npc = 13, 17, 30 (2026-03-25)
+
+### Motivación
+
+La ablación (10.3.4) mostró que `tde_cov_diag` (solo la diagonal) supera al full con npc=17. Dado que npc=17 se eligió originalmente por equiparación de dimensionalidad (no por optimización), se comparan npc=13 (80% varianza), 17 (83.9%) y 30 (90%) para los tres tipos de features tde_cov.
+
+### Resultados
+
+| Feature | npc=13 (N feat) | Acc | AUC | npc=17 (N feat) | Acc | AUC | npc=30 (N feat) | Acc | AUC |
+|---|---|---|---|---|---|---|---|---|---|
+| tde_cov_full    | 91  | 33.8% | 0.601 | 153 | 35.6% | 0.622 | 465 | **37.4%** | **0.637** |
+| tde_cov_diag    | 13  | 37.3% | 0.626 | 17  | **37.7%** | **0.643** | 30  | 36.5% | 0.629 |
+| tde_cov_offdiag | 78  | 28.4% | 0.541 | 136 | 31.2% | 0.573 | 435 | **34.8%** | **0.608** |
+
+*Chance = 25%. Todos los valores son tarea de 4 clases, sub-27, LORO 7-fold.*
+
+### Interpretación
+
+**1. `tde_cov_diag` tiene su pico en npc=17 y baja con npc=30.**
+Con más componentes, cada PC explica menos varianza individualmente. La potencia por PC (diagonal) se vuelve menos informativa por unidad — los componentes adicionales capturan varianza residual que no discrimina entre clases. El sweet spot para la diagonal es npc=17 (o entre 13 y 17).
+
+**2. `tde_cov_offdiag` mejora monotónicamente con npc** (28.4% → 31.2% → 34.8%).
+Con 30 PCs más especializados, las correlaciones entre componentes capturan patrones de conectividad más específicos. Con 13–17 PCs, los componentes son mezclas amplias y sus cross-correlaciones no discriminan bien. Cuantos más componentes, más "ortogonales" son entre sí y más informativas sus co-varianzas.
+
+**3. `tde_cov_full` mejora monotónicamente** porque se beneficia de ambas fuentes: la diagonal sigue aportando y el off-diagonal mejora con npc.
+
+**4. Señal de presión por dimensionalidad en npc=30:**
+El clasificador full con npc=30 (465 features) elige C=0.001 en todos los folds — la regularización máxima del grid. Indica que el modelo está al límite de lo que puede estimar con los datos disponibles. Con más features habría que extender el grid de C.
+
+**5. El mejor modelo individual sigue siendo `tde_cov_diag` con npc=17:** 37.7% / AUC=0.643.
+Con npc=30, el full (37.4% / AUC=0.637) se acerca pero no supera a la diagonal en npc=17, y lo hace con 465 features vs 17 — una eficiencia muy inferior.
+
+### Conclusión sobre número de PCs
+
+npc=17 es el punto óptimo para `tde_cov_diag`. Para `tde_cov_full` y `tde_cov_offdiag`, npc=30 es mejor, pero con el costo de alta dimensionalidad. Dado que la diagonal es el feature set más informativo y eficiente, **npc=17 queda confirmado como la configuración óptima** para los análisis subsiguientes.
+
+**Archivos:**
+- `results/validation/photo_decoding_4class/sub-27/sub-27_4class_results_npc13.json`
+- `results/validation/photo_decoding_4class/sub-27/sub-27_4class_results_npc30.json`
 
 ---
 
@@ -446,7 +541,24 @@ Una vez validado el pipeline de 4 clases en luminancia (estímulo marcado y limp
             │   Fix mismatch train/test → refactorización en _run_one_fold_tde()
             │
             └── 10.3.3: Resultado final (250ms, fix aplicado) ✅
-                bandpower 30.9% / AUC=0.570
-                tde_cov   35.6% / AUC=0.622  ← mejor AUC
-                raw_pca   37.4% / AUC=0.614  ← mejor Acc
+            │   bandpower 30.9% / AUC=0.570
+            │   tde_cov   35.6% / AUC=0.622  ← mejor AUC
+            │   raw_pca   37.4% / AUC=0.614  ← mejor Acc
+            │
+            └── 10.3.4: Ablación tde_cov (diag/offdiag/full) ✅
+            │   Script 34 (4 clases):
+            │     tde_cov_diag    37.7% / AUC=0.643  ← MEJOR (17 features!)
+            │     tde_cov_full    35.6% / AUC=0.622
+            │     tde_cov_offdiag 31.2% / AUC=0.573
+            │   Script 27b (binario):
+            │     bandpower       68.9% / AUC=0.725  ← sigue siendo el mejor
+            │     tde_cov_full    62.2% / AUC=0.624
+            │     tde_cov_diag    61.5% / AUC=0.664
+            │     tde_cov_offdiag 59.5% / AUC=0.573
+            │
+            └── 10.3.5: Comparación npc=13/17/30 ✅
+                tde_cov_diag:    npc=13: 37.3%/0.626 | npc=17: 37.7%/0.643★ | npc=30: 36.5%/0.629
+                tde_cov_full:    npc=13: 33.8%/0.601 | npc=17: 35.6%/0.622  | npc=30: 37.4%/0.637
+                tde_cov_offdiag: npc=13: 28.4%/0.541 | npc=17: 31.2%/0.573  | npc=30: 34.8%/0.608
+                → npc=17 confirmado como óptimo para tde_cov_diag
 ```

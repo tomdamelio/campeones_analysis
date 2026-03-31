@@ -30,7 +30,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import warnings
 from pathlib import Path
+
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from joblib import Parallel, delayed
 
@@ -43,7 +47,7 @@ import numpy as np
 import pandas as pd
 from scipy.signal import welch as scipy_welch
 from sklearn.decomposition import PCA
-from sklearn.linear_model import LogisticRegressionCV
+from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, confusion_matrix
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
@@ -288,6 +292,15 @@ def _build_pipeline() -> object:
     return make_pipeline(*steps)
 
 
+def _build_pipeline_fixed_c(c: float = 1.0) -> object:
+    """Fixed-C logistic regression — no inner CV, for permutation tests."""
+    return make_pipeline(
+        StandardScaler(),
+        LogisticRegression(C=c, max_iter=5000, random_state=RANDOM_SEED,
+                           solver="saga", n_jobs=1),
+    )
+
+
 def _get_cov_mask(k: int, mode: str) -> np.ndarray:
     """Boolean mask over the upper-triangle (including diagonal) of a k×k matrix.
 
@@ -369,11 +382,15 @@ def _run_one_fold_standard(
     return y_test, y_pred, y_prob, fold_info
 
 
-def run_loro_standard(runs_data: list, feature_name: str) -> dict:
-    """LORO CV for bandpower_welch and raw_pca (folds run in parallel)."""
+def _extract_standard_features(
+    runs_data: list, feature_name: str
+) -> tuple[list, list, list, int, int]:
+    """Extract window-level features for all runs (one-time cost).
+
+    Returns (run_features, run_labels, run_names, n_features_raw, n_features_eff).
+    """
     use_pca = (feature_name == "raw_pca")
     class_windows = get_class_windows()
-
     print(f"    Extracting {feature_name} windows per run...")
     run_features, run_labels, run_names = [], [], []
     for data_wide, sfreq, run_label in runs_data:
@@ -381,36 +398,355 @@ def run_loro_standard(runs_data: list, feature_name: str) -> dict:
         run_features.append(X)
         run_labels.append(y)
         run_names.append(run_label)
-
-    n_runs = len(run_features)
     n_features_raw = run_features[0].shape[1]
     n_features_eff = (min(RAW_PCA_COMPONENTS, n_features_raw) if use_pca
                       else n_features_raw)
     print(f"    N features (raw): {n_features_raw}")
+    return run_features, run_labels, run_names, n_features_raw, n_features_eff
 
+
+def _loro_from_features(
+    run_features: list, run_labels: list, run_names: list, use_pca: bool
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, list]:
+    """Run LORO CV given pre-extracted features and labels.
+
+    Returns (y_true, y_pred, y_prob, fold_metrics).
+    """
+    n_runs = len(run_features)
     fold_results = Parallel(n_jobs=-1)(
         delayed(_run_one_fold_standard)(
             test_idx, run_features, run_labels, run_names, use_pca
         )
         for test_idx in range(n_runs)
     )
-
     all_y_true, all_y_pred, all_y_prob, fold_metrics = [], [], [], []
     for y_test, y_pred, y_prob, fold_info in fold_results:
         all_y_true.extend(y_test.tolist() if hasattr(y_test, "tolist") else y_test)
         all_y_pred.extend(y_pred.tolist() if hasattr(y_pred, "tolist") else y_pred)
         all_y_prob.extend(y_prob.tolist())
         fold_metrics.append(fold_info)
+    return (np.array(all_y_true), np.array(all_y_pred),
+            np.array(all_y_prob), fold_metrics)
+
+
+def _run_one_fold_fixed_c(
+    test_idx: int,
+    run_features: list,
+    run_labels: list,
+    use_pca: bool,
+    c: float = 1.0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """One LORO fold with fixed C — no inner CV, for permutation tests."""
+    n_runs = len(run_features)
+    X_train = np.vstack([run_features[i] for i in range(n_runs) if i != test_idx])
+    y_train = np.concatenate([run_labels[i] for i in range(n_runs) if i != test_idx])
+    X_test = run_features[test_idx]
+    y_test = run_labels[test_idx]
+
+    if use_pca:
+        scaler = StandardScaler()
+        X_train_sc = scaler.fit_transform(X_train)
+        X_test_sc = scaler.transform(X_test)
+        n_comp = min(RAW_PCA_COMPONENTS, X_train.shape[0] - 1, X_train.shape[1])
+        pca = PCA(n_components=n_comp)
+        X_train = pca.fit_transform(X_train_sc)
+        X_test = pca.transform(X_test_sc)
+
+    pipe = _build_pipeline_fixed_c(c)
+    pipe.fit(X_train, y_train)
+    return y_test, pipe.predict(X_test)
+
+
+def _run_one_permutation(
+    perm_idx: int,
+    run_features: list,
+    run_labels: list,
+    use_pca: bool,
+    base_seed: int,
+    c: float = 1.0,
+) -> float:
+    """One full LORO with within-run label permutation and fixed C.
+
+    Folds run sequentially — parallelism lives at the permutation level.
+    Each permutation gets a unique deterministic seed (base_seed + perm_idx).
+    """
+    rng = np.random.default_rng(base_seed + perm_idx)
+    perm_labels = [rng.permutation(labels) for labels in run_labels]
+
+    all_y_true, all_y_pred = [], []
+    for test_idx in range(len(run_features)):
+        y_test, y_pred = _run_one_fold_fixed_c(
+            test_idx, run_features, perm_labels, use_pca, c
+        )
+        all_y_true.extend(y_test.tolist())
+        all_y_pred.extend(y_pred.tolist())
+    return float(accuracy_score(np.array(all_y_true), np.array(all_y_pred)))
+
+
+def _precompute_fold_splits(
+    run_features: list,
+    run_labels: list,
+    use_pca: bool,
+) -> list[tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    """Scale (and optionally PCA-transform) each LORO fold split once.
+
+    Since features don't change between permutations — only labels do —
+    the scaler and PCA can be fit once and reused across all permutations.
+
+    Returns list of (X_train_sc, X_test_sc, y_test_original) per fold.
+    y_test_original is stored for reference but permutation workers use
+    their own permuted labels.
+    """
+    n_runs = len(run_features)
+    fold_splits = []
+    for test_idx in range(n_runs):
+        X_train = np.vstack([run_features[i] for i in range(n_runs) if i != test_idx])
+        X_test = run_features[test_idx]
+        scaler = StandardScaler()
+        X_train_sc = scaler.fit_transform(X_train)
+        X_test_sc = scaler.transform(X_test)
+        if use_pca:
+            n_comp = min(RAW_PCA_COMPONENTS, X_train_sc.shape[0] - 1, X_train_sc.shape[1])
+            pca = PCA(n_components=n_comp)
+            X_train_sc = pca.fit_transform(X_train_sc)
+            X_test_sc = pca.transform(X_test_sc)
+        fold_splits.append((X_train_sc, X_test_sc, run_labels[test_idx]))
+    return fold_splits
+
+
+def _run_one_permutation_fast(
+    perm_idx: int,
+    fold_splits: list,
+    run_labels: list,
+    base_seed: int,
+    c: float = 1.0,
+) -> float:
+    """One permutation on pre-scaled fold splits.
+
+    Per-permutation work: only label permutation + LogisticRegression fit.
+    No stacking, no scaling, no PCA — all pre-computed in fold_splits.
+    Uses lbfgs (faster than saga for this data size).
+    """
+    rng = np.random.default_rng(base_seed + perm_idx)
+    perm_labels = [rng.permutation(labels) for labels in run_labels]
+
+    n_runs = len(fold_splits)
+    all_y_true, all_y_pred = [], []
+    for test_idx, (X_train_sc, X_test_sc, _) in enumerate(fold_splits):
+        y_train = np.concatenate(
+            [perm_labels[i] for i in range(n_runs) if i != test_idx]
+        )
+        y_test = perm_labels[test_idx]
+        clf = LogisticRegression(C=c, max_iter=500, solver="lbfgs")
+        clf.fit(X_train_sc, y_train)
+        all_y_true.extend(y_test.tolist())
+        all_y_pred.extend(clf.predict(X_test_sc).tolist())
+    return float(accuracy_score(np.array(all_y_true), np.array(all_y_pred)))
+
+
+def run_loro_standard(runs_data: list, feature_name: str) -> dict:
+    """LORO CV for bandpower_welch and raw_pca (folds run in parallel)."""
+    use_pca = (feature_name == "raw_pca")
+    (run_features, run_labels, run_names,
+     n_features_raw, n_features_eff) = _extract_standard_features(runs_data, feature_name)
+
+    y_true, y_pred_arr, y_prob_arr, fold_metrics = _loro_from_features(
+        run_features, run_labels, run_names, use_pca
+    )
+    for fold_info in fold_metrics:
         print(f"      {fold_info['fold']}: acc={fold_info['accuracy']:.3f} "
               f"(best_C={fold_info['best_C']})")
-
-    y_true = np.array(all_y_true)
-    y_pred_arr = np.array(all_y_pred)
-    y_prob_arr = np.array(all_y_prob)
 
     m = _metrics(y_true, y_pred_arr, y_prob_arr)
     return {"feature": feature_name, "n_features": int(n_features_eff),
             "n_features_raw": int(n_features_raw), **m, "folds": fold_metrics}
+
+
+# ---------------------------------------------------------------------------
+# Permutation test (Opción B: shuffle labels within each run independently)
+# ---------------------------------------------------------------------------
+
+def _run_permutation_from_splits(
+    fold_splits: list,
+    run_labels: list,
+    observed_acc: float,
+    n_permutations: int,
+    feature_name: str,
+    seed: int = RANDOM_SEED,
+    fixed_c: float = 1.0,
+) -> dict:
+    """Core permutation test logic given pre-computed fold splits.
+
+    Shared by all feature types (bandpower, raw_pca, tde_cov).
+    Runs 1 permutation first to estimate time, then the rest in parallel.
+    """
+    import os
+    import time
+
+    print(f"    Fixed C={fixed_c}, lbfgs, permutations parallelized across cores (n_jobs=-1)")
+    print(f"    Timing 1st permutation...")
+    t0 = time.time()
+    first_acc = _run_one_permutation_fast(0, fold_splits, run_labels, seed, fixed_c)
+    t_single = time.time() - t0
+    n_cores = os.cpu_count() or 1
+    print(f"      1 permutation (sequential): {t_single:.1f}s")
+    print(f"      Estimated total ({n_cores} cores): ~{t_single * n_permutations / n_cores / 60:.1f} min "
+          f"for n={n_permutations}")
+    print(f"      Estimated for n=1000 : ~{t_single * 1000 / n_cores / 60:.1f} min")
+    print(f"      Estimated for n=10000: ~{t_single * 10000 / n_cores / 60:.1f} min")
+
+    print(f"    Running {n_permutations - 1} remaining permutations in parallel...")
+    rest_accs = Parallel(n_jobs=-1)(
+        delayed(_run_one_permutation_fast)(i, fold_splits, run_labels, seed, fixed_c)
+        for i in range(1, n_permutations)
+    )
+    t_total = time.time() - t0
+    print(f"    Done. Total wall time: {t_total/60:.1f} min")
+
+    null_accs = [first_acc] + list(rest_accs)
+    null_arr = np.array(null_accs)
+    p_value = float((null_arr >= observed_acc).sum() / n_permutations)
+    z_score = float((observed_acc - null_arr.mean()) / (null_arr.std() + 1e-10))
+
+    print(f"\n    === Permutation test result ({feature_name}) ===")
+    print(f"    Observed acc : {observed_acc:.4f}")
+    print(f"    Null mean±std: {null_arr.mean():.4f} ± {null_arr.std():.4f}")
+    print(f"    p-value      : {p_value:.4f}  (n_perm={n_permutations})")
+    print(f"    z-score      : {z_score:.2f}")
+
+    return {
+        "feature": feature_name,
+        "observed_acc": observed_acc,
+        "null_mean": float(null_arr.mean()),
+        "null_std": float(null_arr.std()),
+        "p_value": p_value,
+        "z_score": z_score,
+        "n_permutations": n_permutations,
+        "fixed_c": fixed_c,
+        "t_single_s": round(t_single, 2),
+        "null_distribution": null_accs,
+    }
+
+
+def run_permutation_test_standard(
+    runs_data: list,
+    feature_name: str,
+    observed_acc: float,
+    n_permutations: int,
+    seed: int = RANDOM_SEED,
+    fixed_c: float = 1.0,
+) -> dict:
+    """Permutation test for bandpower_welch or raw_pca."""
+    use_pca = (feature_name == "raw_pca")
+    (run_features, run_labels, run_names,
+     _, _) = _extract_standard_features(runs_data, feature_name)
+
+    print(f"    Pre-computing scaled fold splits (one-time cost)...")
+    fold_splits = _precompute_fold_splits(run_features, run_labels, use_pca)
+
+    return _run_permutation_from_splits(
+        fold_splits, run_labels, observed_acc, n_permutations, feature_name, seed, fixed_c
+    )
+
+
+def _precompute_fold_splits_tde(
+    run_tde: list,
+    cov_mode: str,
+    tde_pca_components: int,
+) -> tuple[list, list]:
+    """Pre-compute PCA→covariance→scale for each LORO fold (one-time cost).
+
+    The PCA is fit on the training TDE windows, which are fixed across
+    permutations — only labels change. Returns (fold_splits, run_labels)
+    where fold_splits is a list of (X_train_sc, X_test_sc, y_test) per fold.
+    """
+    from campeones_analysis.luminance.tde_glhmm import fit_global_pca, apply_global_pca
+    from campeones_analysis.luminance.features import compute_epoch_covariance
+
+    n_runs = len(run_tde)
+    k = tde_pca_components
+    mask = _get_cov_mask(k, cov_mode)
+
+    # Extract per-run label arrays (same structure as run_labels for standard features)
+    run_labels = [np.array([label for _, label in run_windows])
+                  for run_windows in run_tde]
+
+    fold_splits = []
+    for test_idx in range(n_runs):
+        print(f"      Pre-computing fold {test_idx + 1}/{n_runs}...")
+
+        train_tde_segs = [seg for i in range(n_runs) if i != test_idx
+                          for seg, _ in run_tde[i]]
+        pca_model = fit_global_pca(train_tde_segs, k)
+
+        X_train = np.array([
+            compute_epoch_covariance(apply_global_pca(seg, pca_model, standardise_pc=False))[mask]
+            for i in range(n_runs) if i != test_idx
+            for seg, _ in run_tde[i]
+        ])
+        X_test = np.array([
+            compute_epoch_covariance(apply_global_pca(seg, pca_model, standardise_pc=False))[mask]
+            for seg, _ in run_tde[test_idx]
+        ])
+        y_test = run_labels[test_idx]
+
+        scaler = StandardScaler()
+        X_train_sc = scaler.fit_transform(X_train)
+        X_test_sc = scaler.transform(X_test)
+
+        fold_splits.append((X_train_sc, X_test_sc, y_test))
+
+    return fold_splits, run_labels
+
+
+def run_permutation_test_tde(
+    runs_data: list,
+    cov_mode: str,
+    tde_pca_components: int,
+    observed_acc: float,
+    n_permutations: int,
+    seed: int = RANDOM_SEED,
+    fixed_c: float = 1.0,
+) -> dict:
+    """Permutation test for tde_cov (any cov_mode: full, diag, offdiag).
+
+    Pre-computes PCA→covariance→scale for each fold once, then parallelizes
+    permutations using fixed-C lbfgs — same strategy as standard features.
+    """
+    from campeones_analysis.luminance.tde_glhmm import apply_tde_only
+
+    feature_name = f"tde_cov_{cov_mode}" if cov_mode != "full" else "tde_cov"
+    class_windows = get_class_windows()
+
+    # --- Extract TDE windows per run ---
+    print(f"    Pre-computing TDE windows per run...")
+    run_tde: list = []
+    for data_wide, sfreq, run_label in runs_data:
+        n_trials = data_wide.shape[0]
+        run_windows = []
+        n_win = int(round(WIN_SIZE_S * sfreq))
+        tde_offset = TDE_WINDOW_HALF
+        for i in range(n_trials):
+            epoch_data = data_wide[i].T
+            n_t = epoch_data.shape[0]
+            tde_data, _ = apply_tde_only(epoch_data, np.array([[0, n_t]]), TDE_WINDOW_HALF)
+            for t_start, t_end, label in class_windows:
+                s0 = int(round((t_start - WIDE_TMIN) * sfreq)) - tde_offset
+                s1 = s0 + n_win
+                s0 = max(0, s0)
+                s1 = min(tde_data.shape[0], s1)
+                if s1 > s0:
+                    run_windows.append((tde_data[s0:s1], label))
+        run_tde.append(run_windows)
+        print(f"      {run_label}: {n_trials} trials → {len(run_windows)} TDE windows")
+
+    # --- Pre-compute fold splits (PCA + cov + scale, one time per fold) ---
+    print(f"    Pre-computing fold splits (PCA→cov→scale, one-time cost)...")
+    fold_splits, run_labels = _precompute_fold_splits_tde(run_tde, cov_mode, tde_pca_components)
+
+    return _run_permutation_from_splits(
+        fold_splits, run_labels, observed_acc, n_permutations, feature_name, seed, fixed_c
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -484,17 +820,19 @@ def _run_one_fold_tde(
     return y_test, y_pred, y_prob, fold_info
 
 
-def run_loro_tde_cov(runs_data: list, cov_mode: str = "full") -> dict:
+def run_loro_tde_cov(runs_data: list, cov_mode: str = "full",
+                     tde_pca_components: int = TDE_PCA_COMPONENTS) -> dict:
     """LORO CV for tde_cov (folds run in parallel).
 
     TDE applied to full wide epoch per trial; PCA fit on train TDE segments
     per fold; covariance computed per 250ms window after PCA projection.
 
-    cov_mode: "full" (153), "diag" (17), or "offdiag" (136)
+    cov_mode: "full", "diag", or "offdiag"
+    tde_pca_components: number of PCA components (overrides module default)
     """
     from campeones_analysis.luminance.tde_glhmm import apply_tde_only
 
-    k = TDE_PCA_COMPONENTS
+    k = tde_pca_components
     feature_name = f"tde_cov_{cov_mode}" if cov_mode != "full" else "tde_cov"
     n_features = int(_get_cov_mask(k, cov_mode).sum())
     class_windows = get_class_windows()
@@ -535,7 +873,7 @@ def run_loro_tde_cov(runs_data: list, cov_mode: str = "full") -> dict:
     n_runs = len(run_tde)
 
     fold_results = Parallel(n_jobs=-1)(
-        delayed(_run_one_fold_tde)(test_idx, run_tde, run_names, TDE_PCA_COMPONENTS, cov_mode)
+        delayed(_run_one_fold_tde)(test_idx, run_tde, run_names, k, cov_mode)
         for test_idx in range(n_runs)
     )
 
@@ -623,16 +961,20 @@ def plot_per_class_accuracy(all_results: list[dict], output_dir: Path, subject: 
 # Main pipeline
 # ---------------------------------------------------------------------------
 
-def run_pipeline(subject: str, features: list[str] | None = None) -> None:
+def run_pipeline(subject: str, features: list[str] | None = None,
+                 tde_pca_components: int = TDE_PCA_COMPONENTS,
+                 n_permutations: int = 0) -> None:
     if features is None:
         features = ["bandpower_welch", "tde_cov", "tde_cov_diag", "tde_cov_offdiag", "raw_pca"]
+    npc = tde_pca_components
+    n_cov_full = npc * (npc + 1) // 2
     print("=" * 60)
     print(f"34 -- 4-class decoding -- sub-{subject}")
     print(f"     Window: {int(WIN_SIZE_S*1000)}ms, step {int(WIN_STEP_S*1000)}ms")
     print(f"     Classes: {list(CLASS_NAMES.values())}")
     print(f"     Channels: {len(EEG_CHANNELS)}")
     print(f"     C grid (LogisticRegressionCV, {INNER_CV_FOLDS}-fold inner): {C_GRID}")
-    print(f"     TDE_PCA_COMPONENTS={TDE_PCA_COMPONENTS} -> {TDE_PCA_COMPONENTS*(TDE_PCA_COMPONENTS+1)//2} cov features")
+    print(f"     TDE_PCA_COMPONENTS={npc} -> {n_cov_full} cov features")
     print(f"     RAW_PCA_COMPONENTS={RAW_PCA_COMPONENTS}")
     print("=" * 60)
 
@@ -648,6 +990,8 @@ def run_pipeline(subject: str, features: list[str] | None = None) -> None:
 
     output_dir = RESULTS_ROOT / f"sub-{subject}"
     output_dir.mkdir(parents=True, exist_ok=True)
+    # Use suffix when not the default 17 PCs
+    npc_suffix = f"_npc{npc}" if npc != TDE_PCA_COMPONENTS else ""
 
     all_results = []
 
@@ -655,20 +999,63 @@ def run_pipeline(subject: str, features: list[str] | None = None) -> None:
         print(f"\n  Feature set: {feat}")
         if feat.startswith("tde_cov"):
             cov_mode = feat[len("tde_cov_"):] if "_" in feat[7:] else "full"
-            res = run_loro_tde_cov(runs_data, cov_mode=cov_mode)
+            res = run_loro_tde_cov(runs_data, cov_mode=cov_mode,
+                                   tde_pca_components=npc)
         else:
             res = run_loro_standard(runs_data, feat)
         if res:
+            # Tag result with n_components when non-default
+            if npc_suffix and feat.startswith("tde_cov"):
+                res["tde_pca_components"] = npc
             all_results.append(res)
             print(f"    Acc={res['accuracy']:.3f}  F1={res['f1_macro']:.3f}  "
                   f"AUC={res['auc_roc_macro']:.3f}")
             print(f"    Per-class: {res['per_class_accuracy']}")
 
     # Save JSON
-    json_path = output_dir / f"sub-{subject}_4class_results.json"
+    json_path = output_dir / f"sub-{subject}_4class_results{npc_suffix}.json"
     with open(json_path, "w") as f:
         json.dump(all_results, f, indent=2)
     print(f"\n  Results saved to {json_path}")
+
+    # Permutation test — supported for all feature types
+    if n_permutations > 0:
+        perm_results = []
+        for feat in features:
+            obs_res = next((r for r in all_results if r["feature"] == feat), None)
+            if obs_res is None:
+                continue
+            print(f"\n  Permutation test: {feat} (n={n_permutations})")
+            if feat.startswith("tde_cov"):
+                cov_mode = feat[len("tde_cov_"):] if "_" in feat[7:] else "full"
+                perm_res = run_permutation_test_tde(
+                    runs_data, cov_mode, npc, obs_res["accuracy"], n_permutations
+                )
+            else:
+                perm_res = run_permutation_test_standard(
+                    runs_data, feat, obs_res["accuracy"], n_permutations
+                )
+            perm_results.append(perm_res)
+
+        if perm_results:
+            perm_path = output_dir / f"sub-{subject}_4class_permutation{npc_suffix}.json"
+            with open(perm_path, "w") as f:
+                json.dump(perm_results, f, indent=2)
+            print(f"\n  Permutation results saved to {perm_path}")
+
+            import os
+            n_cores = os.cpu_count() or 1
+            print(f"\n  {'='*58}")
+            print(f"  TIMING SUMMARY  ({n_cores} cores)")
+            print(f"  {'='*58}")
+            print(f"  {'Feature':<20} {'1 perm':>8} {'n=1000':>12} {'n=10000':>12}")
+            print(f"  {'-'*58}")
+            for pr in perm_results:
+                t = pr["t_single_s"]
+                print(f"  {pr['feature']:<20} {t:>7.1f}s "
+                      f"{t*1000/n_cores/60:>10.1f}min "
+                      f"{t*10000/n_cores/60:>10.1f}min")
+            print(f"  {'='*58}")
 
     if all_results:
         plot_results(all_results, output_dir, subject)
@@ -688,9 +1075,20 @@ def parse_args() -> argparse.Namespace:
         default=["bandpower_welch", "tde_cov", "tde_cov_diag", "tde_cov_offdiag", "raw_pca"],
         help="Feature sets to run (default: all five)",
     )
+    parser.add_argument(
+        "--tde_pca_components", type=int, default=TDE_PCA_COMPONENTS,
+        help=f"Number of PCA components for TDE pipeline (default: {TDE_PCA_COMPONENTS})",
+    )
+    parser.add_argument(
+        "--permute", type=int, default=0, metavar="N",
+        help="Run N permutations (labels shuffled within each run) for statistical testing. "
+             "Supported for bandpower_welch and raw_pca. Default: 0 (disabled).",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    run_pipeline(args.subject, features=args.features)
+    run_pipeline(args.subject, features=args.features,
+                 tde_pca_components=args.tde_pca_components,
+                 n_permutations=args.permute)
