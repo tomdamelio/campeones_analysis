@@ -35,190 +35,189 @@ La respuesta a esta pregunta determina si las interpretaciones actuales son vál
 
 ---
 
-## Tarea 1: Validación de Significancia Estadística (Test de Permutación)
+## Tarea 1: Validación de Significancia Estadística (Test de Permutación) ✅
 
-### Objetivos
+### Definición
 
-Verificar si las accuracies observadas (scripts 27b y 34) son robustas comparadas con una distribución nula construida con etiquetas aleatorias.
+Verificar si las accuracies observadas (script 34, 4 clases) son robustas comparadas con una distribución nula construida con etiquetas aleatorias.
 
-### Modelos a evaluar
+**Modelos a evaluar:** 3 feature sets del script 34 — bandpower_welch, tde_cov, raw_pca.
 
-- **Script 27b** (Pre vs Post): 3 feature sets — bandpower_welch, TDE, raw_pca.
-- **Script 34** (4 clases): los mismos 3 feature sets.
+**Diseño del test:**
 
-### Diseño del test de permutación
+1. Repetir el pipeline LORO completo N veces.
+2. En cada repetición, permutar las etiquetas de clase **dentro de cada run** (no entre runs, para conservar la variabilidad inter-run en la distribución nula).
+3. El p-valor es la proporción de permutaciones que superan o igualan la accuracy observada: `p = #{acc_perm >= acc_obs} / N`.
+4. Criterio de significancia: p < 0.05.
 
-**Procedimiento:**
+**Por qué permutar dentro de runs:** si se permutan entre runs, el clasificador podría aprender diferencias sistemáticas entre runs (drift de impedancia, estado del sujeto) que no tienen nada que ver con el estímulo.
 
-1. Repetir el pipeline LORO completo N veces (ver abajo la decisión sobre N).
-2. En cada repetición, permutar aleatoriamente las etiquetas de clase **dentro de cada run** (no entre runs, para conservar la estructura de variabilidad inter-run en la distribución nula).
-3. Registrar la accuracy de cada permutación.
-4. El p-valor es la proporción de permutaciones que superan o igualan la accuracy real observada:
-   ```
-   p = #{accuracy_perm >= accuracy_real} / N
-   ```
-5. Criterio de significancia: p < 0.05.
+**Implementación:** flag `--permute N` en `scripts/validation/34_decoding_4class.py`. Optimizaciones: C=1.0 fijo con lbfgs (mismo clasificador en LORO observado y permutaciones), splits pre-computados, paralelización across permutaciones (threads, n_jobs=-1).
 
-**Por qué permutar dentro de runs y no globalmente:** si se permutan etiquetas entre runs, el clasificador podría aprender diferencias sistemáticas entre runs (drift de impedancia, estado del sujeto, artefactos) que no tienen nada que ver con el estímulo. Permutar dentro de cada run mantiene esas diferencias intactas en la distribución nula, de modo que lo que estamos testeando es exclusivamente si la etiqueta de clase (pre/post, o clase 0-3) está relacionada con la señal.
+**Nota metodológica:** tanto el LORO observado como las permutaciones usan `LogisticRegression(C=1.0, lbfgs)`. Esto garantiza que se compara el mismo estimador con etiquetas reales vs aleatorias, sin inflar artificialmente la accuracy observada con inner CV.
 
-### Decisión sobre número de permutaciones (N)
+### Resultados definitivos (n=1000 — 2026-03-31, C=1.0 fijo)
 
-**Criterio de precisión estadística:**
-- Con N=100: el p-valor tiene resolución de 0.01 → suficiente para una prueba de concepto.
-- Con N=1.000: resolución de 0.001 → adecuado para reportar p < 0.05 con confianza.
-- Con N=10.000: resolución de 0.0001 → necesario si se quiere reportar p < 0.001.
+| Feature set | Acc obs | Null mean ± std | p-valor | z-score |
+|---|---|---|---|---|
+| bandpower_welch | 31.7% | 25.0% ± 1.1% | **0.000** | 6.00 |
+| tde_cov | 34.9% | 24.9% ± 1.2% | **0.000** | 8.62 |
+| raw_pca | 37.4% | 25.0% ± 1.2% | **0.000** | 10.61 |
 
-**Propuesta escalonada:**
+Los 3 modelos son estadísticamente significativos (p < 0.001). Ninguna permutación de las 1000 igualó la accuracy observada. Los z-scores confirman señal robusta, especialmente en raw_pca (10.6σ) y tde_cov (8.6σ).
 
-**Paso 1 — Prueba de concepto (N=100, un solo feature set):**
-- Correr solo con `bandpower_welch` en el script 34 (4 clases), que es el más rápido de calcular.
-- Medir el tiempo de una permutación individual.
-- Extrapolar el tiempo total para N=1.000 y N=10.000.
-- Decidir N final basándose en esa estimación.
+**Tiempos reales (12 workers, n_jobs=-3):**
 
-**Paso 2 — Permutaciones completas (N=1.000 o el N que resulte viable):**
-- Correr para los 3 feature sets en los 2 scripts.
-- Reportar: accuracy observada, distribución nula (media ± std), p-valor, z-score.
-
-**Estimación de tiempo esperada (orden de magnitud):**
-- Un fold LORO tarda ~X segundos (a medir en Paso 1). El pipeline completo son 7 folds.
-- 1 permutación = 7 folds en paralelo (con joblib) → ~X segundos / factor_paralelización.
-- N=1.000 permutaciones × ese tiempo = total estimado.
-- Si el tiempo es > 1 hora para N=1.000 con un feature set, reconsiderar reducir N o usar un subset de folds.
-
-**Output del test de permutación:**
-```
-Script 27b — Pre vs Post:
-  bandpower_welch:  obs=68.9%  null_mean=??%  null_std=??%  p=??  z=??
-  tde_cov:          obs=62.2%  ...
-  raw_pca:          obs=65.5%  ...
-
-Script 34 — 4 clases:
-  bandpower_welch:  obs=30.9%  null_mean=??%  null_std=??%  p=??  z=??
-  tde_cov:          obs=35.6%  ...
-  raw_pca:          obs=37.4%  ...
-```
+| Feature | 1 perm | n=1000 (wall) |
+|---|---|---|
+| bandpower_welch | 0.4s | 8.6 min |
+| tde_cov | 0.2s | 6.4 min |
+| raw_pca | 0.4s | 9.0 min |
 
 ### Criterio de éxito y consecuencias
 
-- **Si las accuracies son significativas (p < 0.05):** validar las interpretaciones ya planteadas en `03_3_diario_tareas.md` (alfa occipital, ERPs transientes, etc.) y proceder con la Tarea 3 (predicción de luminancia percibida).
-- **Si no son significativas:** revisar las interpretaciones; el pipeline puede estar capturando artefactos, estructura de run, o simplemente hay insuficiente señal en sub-27. Alternativas a explorar: más sujetos, features alternativos, revisión del preprocesamiento.
+- **Si p < 0.05:** validar las interpretaciones de `03_3_diario_tareas.md` y proceder con la Tarea 3.
+- **Si p ≥ 0.05:** revisar pipeline; candidatos — más sujetos, revisión del preprocesamiento, features alternativos.
 
 ---
 
-## Tarea 2: Clarificación Metodológica del PCA
+## Tarea 2: Clarificación Metodológica del PCA ✅
 
-*Esta tarea es conceptual — no requiere análisis adicionales sino entender con precisión lo que ya está implementado, para poder explicarlo correctamente ante Enzo y Diego.*
+### Definición
 
-### El problema
+Entender con precisión qué hace el PCA en cada pipeline, para poder explicarlo ante Enzo y Diego. La duda técnica central: en `raw_pca`, ¿el recorte a 160 componentes ocurre sobre el dominio del tiempo, los canales, o un flatten espacio-temporal?
 
-En las conversaciones del proyecto se mencionan dos usos distintos de PCA que pueden confundirse fácilmente:
+### Solución
 
-1. **PCA global en `tde_cov`**: se ajusta sobre todos los datos de entrenamiento del fold (no sobre una ventana individual). Reduce las 672 dimensiones TDE a 17 componentes. Luego, **para cada ventana**, se proyectan los datos sobre esos 17 PCs y se calcula la covarianza de 62 muestras × 17 PCs.
+*Verificado leyendo `scripts/validation/34_decoding_4class.py`, `src/campeones_analysis/luminance/tde_glhmm.py` y `features.py`. Shapes para sub-27, sfreq=250 Hz, ventana 250ms.*
 
-2. **PCA en `raw_pca`**: se ajusta sobre vectores aplanados (flatten) de cada ventana completa — es decir, para una ventana de 62 muestras × 32 canales = 1984 valores, se concatenan en un vector de 1984 dimensiones y se aplica PCA(160). Reduce esos 1984 valores a 160 componentes.
+#### Tabla comparativa
 
-### Duda técnica específica a resolver
+| Aspecto | bandpower_welch | raw_pca | tde_cov |
+|---|---|---|---|
+| **Input por ventana** | (32 ch, 63 muestras) | (32 ch, 63 muestras) | (32 ch, 63 muestras) |
+| **Transformación previa** | Ninguna | Flatten → (2016,) | TDE ±10 lags → (63, 672) |
+| **¿Se aplica PCA?** | No | Sí | Sí |
+| **Observaciones en el fit** | — | ~6.000 ventanas de train (por fold) | ~75.600 timepoints concatenados (por fold) |
+| **Features en el fit** | — | 2.016 (32 ch × 63 muestras) | 672 (32 canales × 21 lags TDE) |
+| **Dominio del PCA** | — | Espacio-tiempo aplanado | Temporal (cada timepoint = observación) |
+| **Componentes** | — | 160 | 17 |
+| **Feature final** | (160,) = 32×5 bandas | (160,) scores de PCA | (153,) covarianza upper triangle |
 
-Para `raw_pca`: ¿el recorte a 160 componentes ocurre en el dominio del **tiempo**, del **espacio** (canales), o del **espacio-tiempo conjunto** (flatten)?
+#### Pipeline 1: `bandpower_welch` — Sin PCA
 
-**Respuesta:** en `raw_pca` el flatten es espacio-temporal — se aplana la ventana entera (tiempo × canales) en un vector y luego PCA opera sobre ese vector. Los 160 componentes resultantes son combinaciones lineales de todas las muestras de todos los canales de la ventana. Esto contrasta con:
-- `bandpower_welch`: opera por canal (espectro de cada canal independientemente) → los features son combinaciones de frecuencia × espacio.
-- `tde_cov`: el PCA opera sobre las 672 dimensiones TDE en el eje **temporal** (cada muestra del segmento de entrenamiento es una observación), luego la covarianza opera sobre el eje temporal de la ventana → los features son combinaciones de **tiempo × canales** de una forma estructurada (primero TDE, luego PCA, luego cov).
+```
+Ventana: (32, 63)
+→ Por canal: Welch PSD → integrar 5 bandas
+→ Output: (160,) = 32 canales × 5 bandas
+→ Directo al clasificador
+```
 
-### Por qué importa clarificarlo
+Los 160 features son directamente interpretables: potencia espectral por banda por canal.
 
-La presentación ante Diego requiere poder responder con precisión: "¿qué está aprendiendo el PCA?". La respuesta incorrecta ("el PCA reduce canales") puede llevar a interpretaciones equivocadas sobre la naturaleza de los features.
+#### Pipeline 2: `raw_pca` — PCA sobre espacio-tiempo aplanado
 
-### Acción concreta
+```
+Ventana: (32, 63)
+→ .reshape(-1) → (2016,)   # flatten: [ch0_t0, ch0_t1, ..., ch31_t62]
 
-Leer el código de las tres funciones de extracción de features en `34_decoding_4class.py` y `27b_decoding_pre_vs_post.py`, trazar el shape de los arrays en cada paso, y redactar una descripción en 3-5 líneas por feature set que sea verificable y presentable.
+Por fold LORO:
+  X_train: (~6.000 ventanas, 2.016 features)   ← PCA se ajusta aquí
+  StandardScaler → PCA(160)
+  → X_train_pca: (~6.000, 160)
+  → X_test_pca:  (~250, 160)
+```
+
+**Respuesta a la duda técnica:** el PCA opera sobre el espacio **espacio-temporal aplanado** de 2.016 dimensiones — no sobre tiempo ni canales por separado. Cada componente es una combinación lineal de todos los pares (canal, muestra_temporal). Captura patrones espacio-temporales conjuntos (e.g. un ERP con forma y topografía específicas). Los 160 componentes son las 160 direcciones de mayor varianza estimadas sobre ~6.000 ventanas de entrenamiento.
+
+**Implicación:** `raw_pca` puede capturar ERPs que `bandpower` no ve, porque opera sobre amplitud cruda sin asumir estructura frecuencial.
+
+#### Pipeline 3: `tde_cov` — PCA sobre espacio TDE-expandido
+
+```
+Ventana: (32, 63) → TDE ±10 lags → (63, 672)   # 32 ch × 21 lags
+
+Por fold LORO (PCA global):
+  Concatenar todos los timepoints de train:
+    ~75.600 timepoints × 672 features   ← PCA se ajusta aquí
+  PCA(17) → 17 componentes = 83-85% varianza explicada
+
+Por ventana individual:
+  (63, 672) → proyectar → (63, 17)
+  Covarianza temporal → (17, 17) → upper triangle → (153,) features
+```
+
+**Dominio del PCA:** temporal — cada timepoint es una observación en el espacio de 672 dimensiones TDE. Los 17 PCs son los 17 modos dinámicos más comunes en la señal.
+
+**Diferencia clave con `raw_pca`:**
+- `raw_pca`: observación = ventana completa (250ms). Captura variabilidad *entre* ventanas.
+- `tde_cov`: observación = 1 timepoint en espacio TDE. Captura estructura *dentro* de la dinámica temporal, luego la resume via covarianza.
+
+La diagonal de la covarianza (potencia por PC) captura cuánta energía hay en cada modo dinámico; los off-diagonal capturan coherencia entre modos.
 
 ---
 
 ## Tarea 3: Predicción de Luminancia Percibida
 
-*Esta tarea está condicionada al éxito de la Tarea 1 — solo se procede si las accuracies son estadísticamente significativas.*
+*Condicionada al éxito de la Tarea 1 — solo se procede si las accuracies son estadísticamente significativas.*
 
-### Motivación
+### Definición
 
-El pipeline actual discrimina entre **estados temporales discretos** del protocolo (Pre/Post, o las 4 clases). El siguiente paso es aplicar el decoding a un problema más continuo y ecológico: predecir la **respuesta subjetiva a la luminancia** a partir de la señal EEG.
+Predecir la **respuesta subjetiva a la luminancia** a partir del EEG, usando como proxy los **cambios en el canal verde** de la pantalla.
 
-La variable objetivo no es la luminancia física del estímulo (conocida y controlada), sino la **luminancia percibida**, operacionalizada a partir de los **cambios en el canal verde** de la pantalla (proxy de luminancia visual).
+**Diseño:**
+- **Evento de "cambio":** momentos de cambio real de luminancia en el canal verde.
+- **Control ("no cambio"):** momentos aleatorios sin cambio, misma distribución temporal.
+- **Modelo base:** el mejor feature set de las tareas anteriores.
+- **Análisis comparativo:** modelar el delay entre luminancia real y percibida.
 
-### Diseño experimental
-
-**Definición de eventos:**
-- **Evento de "cambio":** muestrear momentos en que hay un cambio real de luminancia en el canal verde (eventos CHANGE_PHOTO o equivalentes del paradigma de pantallas verdes).
-- **Control ("no cambio"):** muestrear momentos aleatorios del canal verde donde no hay cambio de luminancia, con la misma distribución temporal que los eventos reales.
-
-**Tarea de decoding:**
-- **Contraste:** "momento de cambio de luminancia" vs "momento sin cambio".
-- **Modelo base:** usar el mejor feature set de las tareas anteriores (presumiblemente `bandpower_welch` para binario, `tde_cov_diag` para 4 clases, o el que resulte óptimo tras la validación).
-- **Variable predictora:** cambios en el canal verde (proxy de luminancia percibida).
-
-**Análisis comparativo — luminancia real vs percibida:**
-- Modelar el **delay temporal** entre el cambio físico de luminancia (onset del estímulo) y la respuesta neural (pico de decodificación).
-- Comparar con el barrido temporal del script 10.2 (pico de accuracy ~130-330ms post-onset), que ya es una medida indirecta de este delay.
-- Posible análisis adicional: correlación entre la magnitud del cambio de luminancia (verde) y la magnitud de la respuesta neural (accuracy del clasificador o peso de los features).
-
-### Pendientes antes de empezar
-
+**Pendientes antes de empezar:**
 1. ✅ Tarea 1: confirmar significancia estadística.
-2. ✅ Tarea 2: aclarar arquitectura del PCA para seleccionar el modelo correcto.
-3. Definir exactamente qué señal del canal verde usamos como proxy de luminancia — ¿intensidad media del frame? ¿cambio frame a frame? ¿banda de frecuencia del video?
-4. Verificar disponibilidad de la señal de canal verde sincronizada con el EEG en los archivos de datos.
+2. ✅ Tarea 2: aclarar arquitectura del PCA.
+3. Definir la señal del canal verde como proxy de luminancia (intensidad media del frame, cambio frame a frame, etc.).
+4. Verificar disponibilidad de la señal sincronizada con el EEG.
 
 ---
 
 ## Orden de Ejecución
 
 ```
-[Inicio] Estado actual: scripts 27b y 34 funcionando con 3 feature sets, sub-27 ✅
+[Inicio] Estado actual: scripts 27b y 34 funcionando, sub-27 ✅
     │
-    ├─► Tarea 2: Clarificación PCA (conceptual, sin análisis)
-    │   → Leer código, trazar shapes, redactar descripción por feature set
-    │   → Criterio de cierre: puedo explicar sin ambigüedad qué hace el PCA en cada pipeline
+    ├─► Tarea 2: Clarificación PCA ✅
+    │   → Shapes verificados en el código
+    │   → raw_pca = flatten espacio-temporal (2016 dims)
+    │   → tde_cov = PCA sobre timepoints en espacio TDE (672 dims)
     │
     └─► Tarea 1: Test de permutación
             │
-            ├── Paso 1a: Prueba de concepto (N=100, bandpower, script 34)
-            │   → Medir tiempo de 1 permutación
-            │   → Estimar tiempo total para N=1.000 y N=10.000
+            ├── Prueba de concepto (N=10, 3 features) ✅
+            │   → bandpower: z=4.90 | tde_cov: z=7.32 | raw_pca: z=14.39
+            │   → Todos superan el nulo; tiempo estimado ~5 min para N=1000
             │
-            ├── Paso 1b: Decidir N final según estimación de tiempo
-            │   → Umbral propuesto: si N=1.000 tarda < 2h para los 3 features, proceder
-            │   → Si no: N=500 o reducir a 1 script primero
+            ├── Permutaciones N=1000 (3 features) ✅
+            │   → bandpower: p=0.000, z=6.00
+            │   → tde_cov:   p=0.000, z=8.62
+            │   → raw_pca:   p=0.000, z=10.61
             │
-            └── Paso 1c: Permutaciones completas (N elegido)
-                → Correr 3 features × 2 scripts
-                → Output: p-valor y z-score por feature set y tarea
-                │
-                ├── [Si p < 0.05 en al menos un modelo]
-                │   → Validar interpretaciones de 03_3_diario_tareas.md
-                │   └── Tarea 3: Predicción de luminancia percibida
-                │       → Definir proxy de luminancia (canal verde)
-                │       → Diseñar contraste cambio vs no-cambio
-                │       → Modelar delay luminancia real vs percibida
-                │
-                └── [Si p >= 0.05 en todos]
-                    → Revisión de pipeline y supuestos
-                    → Candidatos a investigar:
-                        • Más sujetos (salir de sub-27)
-                        • Revisar preprocesamiento (artefactos, filtrado)
-                        • Features alternativos
+            ├── [Si p < 0.05 en al menos un modelo]
+            │   → Validar interpretaciones de 03_3_diario_tareas.md
+            │   └── Tarea 3: Predicción de luminancia percibida
+            │
+            └── [Si p ≥ 0.05 en todos]
+                → Revisión de pipeline y supuestos
 ```
 
 ---
 
 ## Cierre e Iteración
 
-Al finalizar los análisis de esta agenda, se presentarán los resultados ante **Enzo** y **Diego** para definir la continuidad del proyecto:
+Al finalizar, presentar resultados ante **Enzo** y **Diego**:
 
-- **Hallazgos significativos:** proceder con el paradigma de pantallas verdes (Paso 6 del diario anterior) — decoding continuo de estados emocionales/afectivos.
-- **Hallazgos no significativos:** redefinir el alcance del proyecto; posiblemente ampliar a más sujetos antes de interpretar cualquier resultado.
+- **Hallazgos significativos:** proceder con el paradigma de pantallas verdes — decoding continuo de estados emocionales/afectivos.
+- **Hallazgos no significativos:** redefinir el alcance; posiblemente ampliar a más sujetos.
 
 La reunión de cierre debe incluir:
-1. Tabla de p-valores por feature set y tarea.
-2. Descripción precisa de la arquitectura PCA (Tarea 2).
-3. Propuesta de diseño para la predicción de luminancia percibida (si aplica).
+1. Tabla de p-valores por feature set (Tarea 1).
+2. Descripción precisa de la arquitectura PCA (Tarea 2 ✅).
+3. Propuesta de diseño para la predicción de luminancia percibida (Tarea 3, si aplica).

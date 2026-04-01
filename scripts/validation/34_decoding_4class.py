@@ -18,7 +18,7 @@ Feature sets (~160 features each):
   tde_cov         : TDE(±10 lags) -> PCA(17) -> cov upper triangle = 153 features
   raw_pca         : vectorize -> PCA(160) = 160 features
 
-Classifier: LogisticRegressionCV (L2, C cross-validated per feature set),
+Classifier: LogisticRegression (L2, C=1.0 fixed, lbfgs),
 Leave-One-Run-Out CV outer loop.
 
 Usage
@@ -30,11 +30,18 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import threading
 import warnings
 from pathlib import Path
 
+# Flush stdout on every newline so progress appears immediately in background runs
+sys.stdout.reconfigure(line_buffering=True)
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
+from sklearn.exceptions import ConvergenceWarning
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 from joblib import Parallel, delayed
 
@@ -47,7 +54,7 @@ import numpy as np
 import pandas as pd
 from scipy.signal import welch as scipy_welch
 from sklearn.decomposition import PCA
-from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, confusion_matrix
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
@@ -111,8 +118,7 @@ SPECTRAL_BANDS = {
     "gamma": (30.0, 45.0),
 }
 
-C_GRID = [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
-INNER_CV_FOLDS = 5
+FIXED_C = 1.0
 RANDOM_SEED = 42
 TDE_WINDOW_HALF = 10
 TDE_PCA_COMPONENTS = 17   # -> 17*18//2 = 153 cov features  (≈ bandpower 160)
@@ -283,21 +289,10 @@ def _build_run_features_standard(
 # ---------------------------------------------------------------------------
 
 def _build_pipeline() -> object:
-    steps = [StandardScaler()]
-    steps.append(LogisticRegressionCV(
-        Cs=C_GRID, cv=INNER_CV_FOLDS, l1_ratios=(0,), solver="saga",
-        max_iter=5000, random_state=RANDOM_SEED, scoring="accuracy",
-        use_legacy_attributes=False, n_jobs=1,  # outer folds are already parallel
-    ))
-    return make_pipeline(*steps)
-
-
-def _build_pipeline_fixed_c(c: float = 1.0) -> object:
-    """Fixed-C logistic regression — no inner CV, for permutation tests."""
     return make_pipeline(
         StandardScaler(),
-        LogisticRegression(C=c, max_iter=5000, random_state=RANDOM_SEED,
-                           solver="saga", n_jobs=1),
+        LogisticRegression(C=FIXED_C, max_iter=5000, random_state=RANDOM_SEED,
+                           solver="lbfgs"),
     )
 
 
@@ -367,14 +362,12 @@ def _run_one_fold_standard(
 
     pipe = _build_pipeline()
     pipe.fit(X_train, y_train)
-    best_c = float(np.atleast_1d(pipe[-1].C_)[0])
     y_pred = pipe.predict(X_test)
     y_prob = pipe.predict_proba(X_test)
 
     fold_acc = float(accuracy_score(y_test, y_pred))
     fold_info = {
         "fold": run_names[test_idx],
-        "best_C": best_c,
         "accuracy": fold_acc,
         "n_train": int(len(y_train)),
         "n_test": int(len(y_test)),
@@ -413,7 +406,7 @@ def _loro_from_features(
     Returns (y_true, y_pred, y_prob, fold_metrics).
     """
     n_runs = len(run_features)
-    fold_results = Parallel(n_jobs=-1)(
+    fold_results = Parallel(n_jobs=-3)(
         delayed(_run_one_fold_standard)(
             test_idx, run_features, run_labels, run_names, use_pca
         )
@@ -434,9 +427,8 @@ def _run_one_fold_fixed_c(
     run_features: list,
     run_labels: list,
     use_pca: bool,
-    c: float = 1.0,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """One LORO fold with fixed C — no inner CV, for permutation tests."""
+    """One LORO fold with fixed C — for permutation tests."""
     n_runs = len(run_features)
     X_train = np.vstack([run_features[i] for i in range(n_runs) if i != test_idx])
     y_train = np.concatenate([run_labels[i] for i in range(n_runs) if i != test_idx])
@@ -452,7 +444,7 @@ def _run_one_fold_fixed_c(
         X_train = pca.fit_transform(X_train_sc)
         X_test = pca.transform(X_test_sc)
 
-    pipe = _build_pipeline_fixed_c(c)
+    pipe = _build_pipeline()
     pipe.fit(X_train, y_train)
     return y_test, pipe.predict(X_test)
 
@@ -463,7 +455,6 @@ def _run_one_permutation(
     run_labels: list,
     use_pca: bool,
     base_seed: int,
-    c: float = 1.0,
 ) -> float:
     """One full LORO with within-run label permutation and fixed C.
 
@@ -476,7 +467,7 @@ def _run_one_permutation(
     all_y_true, all_y_pred = [], []
     for test_idx in range(len(run_features)):
         y_test, y_pred = _run_one_fold_fixed_c(
-            test_idx, run_features, perm_labels, use_pca, c
+            test_idx, run_features, perm_labels, use_pca
         )
         all_y_true.extend(y_test.tolist())
         all_y_pred.extend(y_pred.tolist())
@@ -514,12 +505,32 @@ def _precompute_fold_splits(
     return fold_splits
 
 
+class _PermCounter:
+    """Thread-safe permutation progress counter."""
+    def __init__(self, total: int, feature_name: str, report_every: int = 0):
+        self._n = 0
+        self._lock = threading.Lock()
+        self.total = total
+        self.feature = feature_name
+        # Report every ~10% by default
+        self.report_every = report_every if report_every > 0 else max(1, total // 10)
+
+    def tick(self) -> None:
+        with self._lock:
+            self._n += 1
+            n = self._n
+        if n % self.report_every == 0 or n == self.total:
+            print(f"    [{self.feature}] {n}/{self.total} permutaciones "
+                  f"({n / self.total * 100:.0f}%)")
+
+
 def _run_one_permutation_fast(
     perm_idx: int,
     fold_splits: list,
     run_labels: list,
     base_seed: int,
     c: float = 1.0,
+    counter: "_PermCounter | None" = None,
 ) -> float:
     """One permutation on pre-scaled fold splits.
 
@@ -541,7 +552,10 @@ def _run_one_permutation_fast(
         clf.fit(X_train_sc, y_train)
         all_y_true.extend(y_test.tolist())
         all_y_pred.extend(clf.predict(X_test_sc).tolist())
-    return float(accuracy_score(np.array(all_y_true), np.array(all_y_pred)))
+    acc = float(accuracy_score(np.array(all_y_true), np.array(all_y_pred)))
+    if counter is not None:
+        counter.tick()
+    return acc
 
 
 def run_loro_standard(runs_data: list, feature_name: str) -> dict:
@@ -554,8 +568,7 @@ def run_loro_standard(runs_data: list, feature_name: str) -> dict:
         run_features, run_labels, run_names, use_pca
     )
     for fold_info in fold_metrics:
-        print(f"      {fold_info['fold']}: acc={fold_info['accuracy']:.3f} "
-              f"(best_C={fold_info['best_C']})")
+        print(f"      {fold_info['fold']}: acc={fold_info['accuracy']:.3f}")
 
     m = _metrics(y_true, y_pred_arr, y_prob_arr)
     return {"feature": feature_name, "n_features": int(n_features_eff),
@@ -583,25 +596,27 @@ def _run_permutation_from_splits(
     import os
     import time
 
-    print(f"    Fixed C={fixed_c}, lbfgs, permutations parallelized across cores (n_jobs=-1)")
-    print(f"    Timing 1st permutation...")
+    print(f"    Fixed C={fixed_c}, lbfgs, permutations parallelizadas (n_jobs=-3, 2 cores libres)")
+    print(f"    Timing 1ra permutacion...")
     t0 = time.time()
     first_acc = _run_one_permutation_fast(0, fold_splits, run_labels, seed, fixed_c)
     t_single = time.time() - t0
     n_cores = os.cpu_count() or 1
-    print(f"      1 permutation (sequential): {t_single:.1f}s")
-    print(f"      Estimated total ({n_cores} cores): ~{t_single * n_permutations / n_cores / 60:.1f} min "
-          f"for n={n_permutations}")
-    print(f"      Estimated for n=1000 : ~{t_single * 1000 / n_cores / 60:.1f} min")
-    print(f"      Estimated for n=10000: ~{t_single * 10000 / n_cores / 60:.1f} min")
+    n_workers = max(1, n_cores - 2)
+    print(f"      1 permutacion (secuencial): {t_single:.1f}s")
+    print(f"      Estimado ({n_workers} workers): ~{t_single * n_permutations / n_workers / 60:.1f} min "
+          f"para n={n_permutations}")
+    print(f"      Estimado para n=1000 : ~{t_single * 1000 / n_workers / 60:.1f} min")
+    print(f"      Estimado para n=10000: ~{t_single * 10000 / n_workers / 60:.1f} min")
 
-    print(f"    Running {n_permutations - 1} remaining permutations in parallel...")
-    rest_accs = Parallel(n_jobs=-1)(
-        delayed(_run_one_permutation_fast)(i, fold_splits, run_labels, seed, fixed_c)
+    counter = _PermCounter(n_permutations - 1, feature_name)
+    print(f"    Corriendo {n_permutations - 1} permutaciones en paralelo...")
+    rest_accs = Parallel(n_jobs=-3, prefer="threads")(  # leaves 2 cores free
+        delayed(_run_one_permutation_fast)(i, fold_splits, run_labels, seed, fixed_c, counter)
         for i in range(1, n_permutations)
     )
     t_total = time.time() - t0
-    print(f"    Done. Total wall time: {t_total/60:.1f} min")
+    print(f"    Listo. Tiempo total: {t_total/60:.1f} min")
 
     null_accs = [first_acc] + list(rest_accs)
     null_arr = np.array(null_accs)
@@ -805,14 +820,12 @@ def _run_one_fold_tde(
 
     pipe = _build_pipeline()
     pipe.fit(X_train, y_train)
-    best_c = float(np.atleast_1d(pipe[-1].C_)[0])
     y_pred = pipe.predict(X_test)
     y_prob = pipe.predict_proba(X_test)
 
     fold_acc = float(accuracy_score(y_test, y_pred))
     fold_info = {
         "fold": run_names[test_idx],
-        "best_C": best_c,
         "accuracy": fold_acc,
         "n_train": int(len(y_train)),
         "n_test": int(len(y_test)),
@@ -872,7 +885,7 @@ def run_loro_tde_cov(runs_data: list, cov_mode: str = "full",
 
     n_runs = len(run_tde)
 
-    fold_results = Parallel(n_jobs=-1)(
+    fold_results = Parallel(n_jobs=-3)(
         delayed(_run_one_fold_tde)(test_idx, run_tde, run_names, k, cov_mode)
         for test_idx in range(n_runs)
     )
@@ -883,8 +896,7 @@ def run_loro_tde_cov(runs_data: list, cov_mode: str = "full",
         all_y_pred.extend(y_pred.tolist())
         all_y_prob.extend(y_prob.tolist())
         fold_metrics.append(fold_info)
-        print(f"      {fold_info['fold']}: acc={fold_info['accuracy']:.3f} "
-              f"(best_C={fold_info['best_C']})")
+        print(f"      {fold_info['fold']}: acc={fold_info['accuracy']:.3f}")
 
     y_true = np.array(all_y_true)
     y_pred_arr = np.array(all_y_pred)
@@ -973,7 +985,7 @@ def run_pipeline(subject: str, features: list[str] | None = None,
     print(f"     Window: {int(WIN_SIZE_S*1000)}ms, step {int(WIN_STEP_S*1000)}ms")
     print(f"     Classes: {list(CLASS_NAMES.values())}")
     print(f"     Channels: {len(EEG_CHANNELS)}")
-    print(f"     C grid (LogisticRegressionCV, {INNER_CV_FOLDS}-fold inner): {C_GRID}")
+    print(f"     Classifier: LogisticRegression(C={FIXED_C}, lbfgs)")
     print(f"     TDE_PCA_COMPONENTS={npc} -> {n_cov_full} cov features")
     print(f"     RAW_PCA_COMPONENTS={RAW_PCA_COMPONENTS}")
     print("=" * 60)
@@ -994,9 +1006,12 @@ def run_pipeline(subject: str, features: list[str] | None = None,
     npc_suffix = f"_npc{npc}" if npc != TDE_PCA_COMPONENTS else ""
 
     all_results = []
+    n_features_total = len(features)
 
-    for feat in features:
-        print(f"\n  Feature set: {feat}")
+    for feat_idx, feat in enumerate(features, start=1):
+        print(f"\n  [{feat_idx}/{n_features_total}] Feature set: {feat}")
+        import time as _time
+        t_feat = _time.time()
         if feat.startswith("tde_cov"):
             cov_mode = feat[len("tde_cov_"):] if "_" in feat[7:] else "full"
             res = run_loro_tde_cov(runs_data, cov_mode=cov_mode,
@@ -1008,8 +1023,8 @@ def run_pipeline(subject: str, features: list[str] | None = None,
             if npc_suffix and feat.startswith("tde_cov"):
                 res["tde_pca_components"] = npc
             all_results.append(res)
-            print(f"    Acc={res['accuracy']:.3f}  F1={res['f1_macro']:.3f}  "
-                  f"AUC={res['auc_roc_macro']:.3f}")
+            print(f"    ✓ LORO listo ({_time.time()-t_feat:.1f}s) — "
+                  f"Acc={res['accuracy']:.3f}  AUC={res['auc_roc_macro']:.3f}")
             print(f"    Per-class: {res['per_class_accuracy']}")
 
     # Save JSON
@@ -1021,11 +1036,12 @@ def run_pipeline(subject: str, features: list[str] | None = None,
     # Permutation test — supported for all feature types
     if n_permutations > 0:
         perm_results = []
-        for feat in features:
+        for feat_idx, feat in enumerate(features, start=1):
             obs_res = next((r for r in all_results if r["feature"] == feat), None)
             if obs_res is None:
                 continue
-            print(f"\n  Permutation test: {feat} (n={n_permutations})")
+            print(f"\n  [{feat_idx}/{n_features_total}] Permutation test: {feat} "
+                  f"(n={n_permutations})")
             if feat.startswith("tde_cov"):
                 cov_mode = feat[len("tde_cov_"):] if "_" in feat[7:] else "full"
                 perm_res = run_permutation_test_tde(
@@ -1036,6 +1052,8 @@ def run_pipeline(subject: str, features: list[str] | None = None,
                     runs_data, feat, obs_res["accuracy"], n_permutations
                 )
             perm_results.append(perm_res)
+            print(f"    ✓ Feature set {feat_idx}/{n_features_total} completo "
+                  f"(p={perm_res['p_value']:.4f}, z={perm_res['z_score']:.2f})")
 
         if perm_results:
             perm_path = output_dir / f"sub-{subject}_4class_permutation{npc_suffix}.json"
