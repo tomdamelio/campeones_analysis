@@ -157,7 +157,7 @@ La diagonal de la covarianza (potencia por PC) captura cuánta energía hay en c
 
 ---
 
-## Tarea 3: Decoding 3 clases en Ensayos de Luminancia (60s) ✅ Condición desbloqueada
+## Tarea 3: Decoding 3 clases en Ensayos de Luminancia (60s) ✅ Completada
 
 *Condicionada al éxito de la Tarea 1 — **desbloqueada** dado p=0.000 en los 3 feature sets.*
 
@@ -186,11 +186,11 @@ Dos scripts previos abordaron problemas parecidos pero no idénticos:
 |---|---|
 | Datos | Epoch `video_luminance` (~60s, 1 por run, 7 runs) |
 | Señal de referencia | CSV verde: `green_intensity_video_{id}.csv` (`timestamp`, `luminance` 0–255) |
-| Ventanas EEG | 250ms, step 50ms (igual que script 34) |
+| Ventanas EEG | 250ms, 6 offsets [0,50,100,150,200,250ms], tope derecho 500ms |
 | Clases | 0=NoChange, 1=ChangeUp, 2=ChangeDown |
-| ΔL por ventana | L_mean(ventana actual) − L_mean(ventana anterior) |
-| Umbral | ΔL > +5 → ChangeUp, ΔL < -5 → ChangeDown, \|ΔL\| ≤ 5 → candidato NoChange |
-| Criterio NoChange | \|ΔL\| ≤ umbral en la ventana actual **Y** estabilidad en el último 1s previo (≈20 ventanas a 50ms) |
+| Derivada de luminancia | frame-level: `ΔL[t] = L[t] - L[t-1]` |
+| Umbral ChangeUp/Down | `\|ΔL\| > 2.0` (frame-level) |
+| Umbral NoChange | `\|ΔL\| < 1.0` en ventana actual **Y** estabilidad en el último 1s previo |
 | Feature sets | bandpower_welch, tde_cov, raw_pca |
 | CV | LORO (Leave-One-Run-Out, 7 folds) |
 | Clasificador | LogisticRegression(C=1.0, lbfgs) |
@@ -198,16 +198,93 @@ Dos scripts previos abordaron problemas parecidos pero no idénticos:
 
 **Nota sobre NoChange:** el 1s de estabilidad previa filtra ventanas de "post-cambio" que aún no volvieron al baseline. Solo se etiquetan como NoChange los períodos donde el sistema lleva ≥1s sin ningún cambio detectable.
 
-**Fuentes de código reutilizable:**
-- Sincronización luminancia↔EEG: `src/campeones_analysis/luminance/sync.py` (`load_luminance_csv`, `interpolate_luminance_to_epochs`)
-- Carga EEG: mismo patrón que `34_decoding_4class.py` (`load_epochs_per_run`)
-- Feature extraction: copiar directamente de script 34
+### Distribución de ventanas (sub-27, 7 runs)
 
-### Implementación pendiente
+| Run | NoChange | ChangeUp | ChangeDown | Total |
+|---|---|---|---|---|
+| run-002 (vid12 p1) | 108 | 48 | 60 | 216 |
+| run-003 (vid9 p1) | 66 | 36 | 30 | 132 |
+| run-004 (vid3 p1) | 66 | 30 | 36 | 132 |
+| run-006 (vid7 p1) | 24 | 18 | 6 | 48 |
+| run-007 (vid12 p2) | 108 | 48 | 60 | 216 |
+| run-009 (vid9 p2) | 66 | 36 | 30 | 132 |
+| run-010 (vid7 p2) | 24 | 18 | 6 | 48 |
+| **Total** | **462** | **234** | **228** | **924** |
 
-- [ ] Script `scripts/validation/36_decoding_luminance_3class.py`
-- [ ] Correr para sub-27 con los 3 feature sets
-- [ ] Evaluar accuracy vs chance (33.3%) y comparar con script 20 (binario)
+NoChange representa ~50% de las ventanas (vs 33.3% de chance uniforme). Las clases ChangeUp y ChangeDown están aproximadamente balanceadas (~25% cada una).
+
+### Resultados definitivos con test de permutación (sub-27, 2026-04-01, n=1000)
+
+| Feature set | Acc | F1 (macro) | AUC | Null mean±std | p-valor | z-score |
+|---|---|---|---|---|---|---|
+| bandpower_welch | 41.5% | 0.357 | 0.524 | 38.6% ± 2.1% | 0.090 | 1.31 |
+| tde_cov | 38.3% | 0.302 | 0.501 | 36.8% ± 2.1% | 0.256 | 0.70 |
+| raw_pca | 42.1% | 0.357 | 0.541 | 38.9% ± 1.6% | **0.022** | 2.05 |
+
+**Chance nominal: 33.3% — Chance efectivo (nulo): ~37–39%**
+
+#### Accuracy por clase
+
+| Feature set | NoChange | ChangeUp | ChangeDown |
+|---|---|---|---|
+| bandpower_welch | 58.7% | 18.4% | 30.3% |
+| tde_cov | 61.0% | 11.1% | 20.2% |
+| raw_pca | 60.8% | 25.6% | 21.1% |
+
+### Interpretación de los resultados
+
+**1. El hallazgo central: el chance efectivo no es 33.3% sino ~38–39%.**
+
+Este es el resultado más importante del test de permutación. La distribución nula (etiquetas aleatorizadas dentro de cada run) no converge en 33.3% sino en **~37–39%**, porque NoChange representa el 50% de las ventanas. Un clasificador que aprende el sesgo de la distribución de clases — sin capturar ninguna señal EEG real — naturalmente predice "NoChange" con más frecuencia y obtiene ~38% de accuracy global. El test de permutación revela ese baseline real.
+
+**Consecuencia directa:** la "ganancia" observada de 38–42% sobre el 33.3% nominal es en gran parte artefacto del desbalance de clases. La ganancia real sobre el nulo es solo **0–3 puntos porcentuales**.
+
+**2. Solo raw_pca es estadísticamente significativo (p=0.022).**
+
+raw_pca supera el umbral α=0.05, pero con z=2.05 — un efecto modesto. bandpower_welch está en el límite (p=0.090) y tde_cov es claramente no significativo (p=0.256). Comparado con la Tarea 1, donde los 3 feature sets tenían p=0.000 y z>6, aquí la señal es mucho más débil.
+
+**3. Por qué la señal es más débil que en la Tarea 1.**
+
+En la Tarea 1 (4 clases en foto-eventos), los eventos eran temporalmente precisos: un flash de foto tiene un onset definido al milisegundo. En la Tarea 3, los "eventos" de cambio de luminancia son graduales (el video cambia suavemente) y la derivada del canal verde es ruidosa. La señal EEG en las ventanas de 250–500ms post-onset es más variable y el clasificador tiene menos qué aprender.
+
+Además, los 6 offsets por evento (0–250ms post-onset) asumen que hay una respuesta EEG distribuida en esa ventana, pero si el cambio de luminancia es muy gradual, el onset preciso del procesamiento neural es incierto.
+
+**4. tde_cov falla completamente en esta tarea (z=0.70, p=0.256).**
+
+tde_cov captura estructura dinámica a través de la covarianza de modos TDE. Esto funciona bien para estados sostenidos (Tarea 1: 4 clases en epochs de 6s con ~24 ventanas por trial). Pero en la Tarea 3 cada run tiene solo 8–36 eventos de cambio, y las ventanas son cortas (250ms). Con tan pocos datos, la covarianza TDE per-ventana es muy ruidosa y no captura diferencias entre clases.
+
+**5. raw_pca lidera porque captura ERPs transientes.**
+
+El único modelo significativo (raw_pca) opera sobre la amplitud cruda de la señal, lo que le permite detectar respuestas N1/P2 occipitales que aparecen ~100–200ms post-onset de cualquier cambio visual. Esto es exactamente lo que distingue ChangeUp/Down de NoChange, aunque no necesariamente la *dirección* del cambio.
+
+**6. Comparación directa con Tarea 1.**
+
+| Métrica | Tarea 1 (4 clases, foto) | Tarea 3 (3 clases, luminancia) |
+|---|---|---|
+| Mejor acc obs. | 37.4% (raw_pca) | 42.1% (raw_pca) |
+| Mejor z | 10.61 (raw_pca) | 2.05 (raw_pca) |
+| N feature sets significativos | 3/3 | 1/3 |
+| Null mean | ~25% (= chance nominal) | ~38–39% (>> chance nominal) |
+
+La Tarea 1 es estadísticamente mucho más sólida. El null de la Tarea 1 converge en el 25% teórico porque las clases estaban balanceadas. Aquí el desbalance (50% NC, 25% cada cambio) enmascara la señal real.
+
+### Diagnóstico y recomendaciones
+
+El resultado actual no es un fracaso del paradigma — es una señal de que hay un **problema de diseño en la Tarea 3** que vale la pena corregir antes de generalizar a más sujetos:
+
+1. **Rebalancear clases estrictamente**: submuestrear NoChange al mismo N que ChangeUp+ChangeDown/2, de modo que las 3 clases queden en 33-33-33. El null convergería en 33.3% y los resultados serían comparables con la Tarea 1.
+
+2. **Examinar la distribución de eventos por run**: run-006 y run-010 tienen solo 48 ventanas totales (muy pocas), lo que puede hacer que esos folds sean muy ruidosos.
+
+3. **Considerar una tarea binaria**: colapsar ChangeUp+ChangeDown en una clase "Change" contra NoChange (binario, como script 27). Con más muestras de cambio, el clasificador tendría más que aprender.
+
+### Outputs guardados
+
+- `results/validation/luminance_3class/sub-27/sub-27_3class_results.json`
+- `results/validation/luminance_3class/sub-27/sub-27_3class_permutation.json`
+- `results/validation/luminance_3class/sub-27/sub-27_3class_confusion.png`
+- `results/validation/luminance_3class/sub-27/sub-27_3class_per_class_acc.png`
+- `results/validation/luminance_3class/sub-27/diagnostic_plots/*_diagnostic.png` (7 plots)
 
 ---
 
