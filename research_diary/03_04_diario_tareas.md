@@ -157,25 +157,57 @@ La diagonal de la covarianza (potencia por PC) captura cuánta energía hay en c
 
 ---
 
-## Tarea 3: Predicción de Luminancia Percibida
+## Tarea 3: Decoding 3 clases en Ensayos de Luminancia (60s) ✅ Condición desbloqueada
 
-*Condicionada al éxito de la Tarea 1 — solo se procede si las accuracies son estadísticamente significativas.*
+*Condicionada al éxito de la Tarea 1 — **desbloqueada** dado p=0.000 en los 3 feature sets.*
 
 ### Definición
 
-Predecir la **respuesta subjetiva a la luminancia** a partir del EEG, usando como proxy los **cambios en el canal verde** de la pantalla.
+Dentro de cada ensayo de **luminancia continua (60 segundos)** — hay uno por run, ~7 en total — predecir a nivel de ventana si el EEG corresponde a un momento de:
 
-**Diseño:**
-- **Evento de "cambio":** momentos de cambio real de luminancia en el canal verde.
-- **Control ("no cambio"):** momentos aleatorios sin cambio, misma distribución temporal.
-- **Modelo base:** el mejor feature set de las tareas anteriores.
-- **Análisis comparativo:** modelar el delay entre luminancia real y percibida.
+- **ChangeUp**: subida de luminancia en el canal verde
+- **ChangeDown**: bajada de luminancia en el canal verde
+- **NoChange**: sin cambio significativo
 
-**Pendientes antes de empezar:**
-1. ✅ Tarea 1: confirmar significancia estadística.
-2. ✅ Tarea 2: aclarar arquitectura del PCA.
-3. Definir la señal del canal verde como proxy de luminancia (intensidad media del frame, cambio frame a frame, etc.).
-4. Verificar disponibilidad de la señal sincronizada con el EEG.
+Tarea de **clasificación 3 clases**, con LORO CV (Leave-One-Run-Out) y los **mismos 3 feature sets** que la Tarea 1 (bandpower_welch, tde_cov, raw_pca).
+
+### Diferencia con intentos anteriores
+
+Dos scripts previos abordaron problemas parecidos pero no idénticos:
+
+- [`scripts/validation/27_decoding_photo_change.py`](../scripts/validation/27_decoding_photo_change.py): clasificación **binaria** (CHANGE_PHOTO vs NO_CHANGE_PHOTO) en los eventos breves de foto — no en los ensayos de 60s. Resultados no alentadores.
+- [`scripts/modeling/20_change_classifier.py`](../scripts/modeling/20_change_classifier.py): clasificación **binaria** (cambio vs estabilidad) dentro de los ensayos de 60s, con pipeline de GLHMM distinta. Resultados pobres.
+
+**Lo nuevo:** diseño **3 clases** (ChangeUp / ChangeDown / NoChange) sobre los ensayos de 60s, con la misma arquitectura de ventanas deslizantes y feature sets benchmarkeados en la Tarea 1.
+
+### Diseño técnico
+
+| Elemento | Descripción |
+|---|---|
+| Datos | Epoch `video_luminance` (~60s, 1 por run, 7 runs) |
+| Señal de referencia | CSV verde: `green_intensity_video_{id}.csv` (`timestamp`, `luminance` 0–255) |
+| Ventanas EEG | 250ms, step 50ms (igual que script 34) |
+| Clases | 0=NoChange, 1=ChangeUp, 2=ChangeDown |
+| ΔL por ventana | L_mean(ventana actual) − L_mean(ventana anterior) |
+| Umbral | ΔL > +5 → ChangeUp, ΔL < -5 → ChangeDown, \|ΔL\| ≤ 5 → candidato NoChange |
+| Criterio NoChange | \|ΔL\| ≤ umbral en la ventana actual **Y** estabilidad en el último 1s previo (≈20 ventanas a 50ms) |
+| Feature sets | bandpower_welch, tde_cov, raw_pca |
+| CV | LORO (Leave-One-Run-Out, 7 folds) |
+| Clasificador | LogisticRegression(C=1.0, lbfgs) |
+| Chance level | 33.3% (3 clases) |
+
+**Nota sobre NoChange:** el 1s de estabilidad previa filtra ventanas de "post-cambio" que aún no volvieron al baseline. Solo se etiquetan como NoChange los períodos donde el sistema lleva ≥1s sin ningún cambio detectable.
+
+**Fuentes de código reutilizable:**
+- Sincronización luminancia↔EEG: `src/campeones_analysis/luminance/sync.py` (`load_luminance_csv`, `interpolate_luminance_to_epochs`)
+- Carga EEG: mismo patrón que `34_decoding_4class.py` (`load_epochs_per_run`)
+- Feature extraction: copiar directamente de script 34
+
+### Implementación pendiente
+
+- [ ] Script `scripts/validation/36_decoding_luminance_3class.py`
+- [ ] Correr para sub-27 con los 3 feature sets
+- [ ] Evaluar accuracy vs chance (33.3%) y comparar con script 20 (binario)
 
 ---
 
