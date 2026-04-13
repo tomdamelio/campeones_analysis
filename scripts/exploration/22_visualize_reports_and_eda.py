@@ -10,11 +10,12 @@ from scipy.stats import spearmanr
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 # --- CONFIGURACIÓN ---
-SUBJECT_ID = "28"
+SUBJECT_ID = "19"
 BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
 EDA_PREPROC_PATH = rf"data/derivatives/eda_preproc_tests/sub-{SUBJECT_ID}"
 SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"
 RESULTS_PATH = rf"results/eda_preproc_tests/sub-{SUBJECT_ID}/physio/multimodal_per_stimulus"
+SHOW_PLOTS = True
 os.makedirs(RESULTS_PATH, exist_ok=True)
 
 JOYSTICK_CHANNEL = 'joystick_x'
@@ -216,9 +217,13 @@ def process_multimodal_per_stimulus(eeg_filepath):
             plt.savefig(out_filepath, dpi=300)
             print(f"     💾 Gráfico guardado en: {out_filepath}")
             
-            # Comenta esta línea si no quieres que el script se pause en cada video
-            plt.show(block=True) 
-            plt.close(fig) # Liberar memoria
+            # Bloque condicional para mostrar el gráfico
+            if SHOW_PLOTS:
+                print("     👁️  Mostrando gráfico. Cierra la ventana para ver el siguiente video...")
+                plt.show(block=True) 
+            
+            # Liberar memoria SIEMPRE (imprescindible porque está dentro de un bucle for)
+            plt.close(fig)
 
 # --- EJECUCIÓN ---
 if __name__ == "__main__":

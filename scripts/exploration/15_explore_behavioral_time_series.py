@@ -3,15 +3,12 @@ import matplotlib.pyplot as plt
 import os
 import pandas as pd
 import numpy as np
+import argparse
 
 # --- CONFIGURACIÓN ---
-SUBJECT_ID = "30"
-BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
-SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"
-
 CHANNEL_TO_PLOT = 'joystick_x'
 
-def plot_time_series_with_events(eeg_filepath, channel_to_plot):
+def plot_time_series_with_events(eeg_filepath, channel_to_plot, sourcedata_path):
     """
     Carga un archivo EEG y su .tsv de eventos. Lee un archivo .xlsx de diseño para decidir
     si invierte la señal completa del canal y luego genera el gráfico con etiquetas de video personalizadas.
@@ -40,7 +37,7 @@ def plot_time_series_with_events(eeg_filepath, channel_to_plot):
     task_num = int(task_id.split('-')[1])
     acq_char = acq_id.split('-')[1].upper()
     excel_filename = f"order_matrix_{subject_id}_{acq_char}_block{task_num}_VR.xlsx"
-    excel_filepath = os.path.join(SOURCEDATA_PATH, excel_filename)
+    excel_filepath = os.path.join(sourcedata_path, excel_filename)
 
     # Inicializar variables antes del try para evitar errores
     inversion_instruction = None 
@@ -124,8 +121,25 @@ def plot_time_series_with_events(eeg_filepath, channel_to_plot):
     plt.show()
 
 # --- SCRIPT PRINCIPAL (Sin cambios) ---
+# --- SCRIPT PRINCIPAL (Modificado) ---
 if __name__ == "__main__":
-    all_files = os.listdir(BASE_PATH)
+    # 1. Configurar el parser para leer argumentos de la terminal
+    parser = argparse.ArgumentParser(description="Visualiza los datos de EEG preprocesados de un sujeto.")
+    parser.add_argument('--subject', type=str, required=True, help='El ID del sujeto a procesar (ej: 19).')
+    args = parser.parse_args()
+
+    # 2. Construir las rutas dinámicamente usando el argumento
+    SUBJECT_ID = args.subject
+    BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
+    SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"
+
+    # 3. El resto del script es similar, pero ahora usa las rutas dinámicas
+    try:
+        all_files = os.listdir(BASE_PATH)
+    except FileNotFoundError:
+        print(f"¡ERROR! No se encontró la carpeta para el sujeto {SUBJECT_ID}: {BASE_PATH}")
+        exit() # Termina el script si la carpeta no existe
+
     files_to_process = [
         os.path.join(BASE_PATH, f) for f in all_files 
         if f.endswith("_desc-preproc_eeg.vhdr")
@@ -135,9 +149,10 @@ if __name__ == "__main__":
     if not files_to_process:
         print(f"No se encontraron archivos '_desc-preproc_eeg.vhdr' en la carpeta: {BASE_PATH}")
     else:
-        print(f"Se encontraron {len(files_to_process)} archivos para visualizar.")
+        print(f"Se encontraron {len(files_to_process)} archivos para visualizar del sujeto {SUBJECT_ID}.")
+        # 4. Modificamos la llamada a la función para pasarle la ruta
         for eeg_file in files_to_process:
-            plot_time_series_with_events(eeg_file, CHANNEL_TO_PLOT)
+            plot_time_series_with_events(eeg_file, CHANNEL_TO_PLOT, SOURCEDATA_PATH)
     
     print("-" * 50)
     print("¡Proceso completado! Se han visualizado todos los archivos.")

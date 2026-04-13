@@ -703,6 +703,9 @@ if __name__ == "__main__":
         "--acq", type=str, help="Process specific acquisition/day (e.g., 'b')"
     )
     parser.add_argument(
+        "--run", type=str, help="Process specific run/block (e.g., '02')"
+    )
+    parser.add_argument(
         "--test", action="store_true", help="Process only the first XDF file found (for testing)"
     )
     parser.add_argument(
@@ -900,7 +903,11 @@ if __name__ == "__main__":
                     if args.acq and acq != args.acq:
                         logger.debug(f"⏭️  OMITIENDO: {filename} - No coincide con acq='{args.acq}'")
                         continue
-                    
+
+                    if args.run and run != args.run:
+                        logger.debug(f"⏭️  OMITIENDO: {filename} - No coincide con run='{args.run}'")
+                        continue
+                        
                     # Check if file has already been processed (unless force flag is used)
                     if not args.force and is_already_processed(subject, session, task, run, acq):
                         logger.info(f"⏭️  OMITIENDO: {filename} - Ya fue procesado")

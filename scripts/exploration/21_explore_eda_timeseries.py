@@ -6,12 +6,21 @@ import neurokit2 as nk
 import biosppy
 import matplotlib.pyplot as plt
 import json
+import argparse
+import cvxeda
 
 # --- CONFIGURACIÓN ---
-SUBJECT_ID = "30"
+parser = argparse.ArgumentParser(description="Procesa los datos de EDA para un sujeto específico.")
+parser.add_argument("--subject", type=str, required=True, help="El ID del sujeto a procesar (ej: '19', '05').")
+parser.add_argument("--show", action="store_true", help="Mostrar gráficos de la señal EDA.")
+args = parser.parse_args()
+
+# 2. Asignar el ID del sujeto y construir las rutas dinámicamente
+SUBJECT_ID = args.subject
 BASE_PATH = rf"data/derivatives/campeones_preproc/sub-{SUBJECT_ID}/ses-vr/eeg"
 OUTPUT_PATH = rf"data/derivatives/eda_preproc_tests/sub-{SUBJECT_ID}"
 SOURCEDATA_PATH = rf"data/sourcedata/xdf/sub-{SUBJECT_ID}"
+SHOW_PLOTS = args.show
 
 RESULTS_PATH = rf"results/eda_preproc_tests/sub-{SUBJECT_ID}/physio/features_timeseries"
 os.makedirs(OUTPUT_PATH, exist_ok=True)
@@ -58,28 +67,33 @@ def process_eda_emotiphai(eda_signal, sampling_rate=250.0, min_amplitude=0.05):
         print(f"   ❌ Emotiphai EDA processing failed: {e}")
         return None
 
-def process_eda_cvx_decomposition(eda_signal, sampling_rate=250.0):
+def process_eda_cvx_decomposition(eda_signal, sampling_rate=250.0, alpha=8e-3, gamma=8e-2):
     """
-    Process EDA signal using BioSPPy cvx_decomposition method to extract EDA components.
-    (Función original de preprocess_phys.py)
+    Process EDA signal using the standalone cvxEDA package to control penalization parameters.
+    
+    - alpha (curvatura del Tónico): Auméntalo (ej. 8e-2, 1e-1) si el Tónico es muy flexible.
+    - gamma (penalización del SMNA): Auméntalo (ej. 8e-2, 2e-1) si el SMNA capta mucho ruido.
     """
     try:
-        # Aplicar el método CVX
-        cvx_result = biosppy.signals.eda.cvx_decomposition(
-            signal=np.array(eda_signal),
-            sampling_rate=sampling_rate
+        delta = 1.0 / sampling_rate
+        
+        # Llamada a la función original del paquete cvxEDA.
+        # Devuelve 7 valores, guardamos los 3 primeros y descartamos el resto con "_"
+        edr, smna, edl, _, _, _, _ = cvxeda.cvxEDA(
+            np.array(eda_signal), 
+            delta, 
+            alpha=alpha, 
+            gamma=gamma
         )
-        
-        # Extraer componentes (adaptado para manejar la salida de BioSPPy)
-        if hasattr(cvx_result, 'edr'):
-            edr, smna, edl = cvx_result.edr, cvx_result.smna, cvx_result.edl
-        else:
-            edr, smna, edl = cvx_result[0], cvx_result[1], cvx_result[2]
 
-        # Crear DataFrame
-        cvx_df = pd.DataFrame({'EDR': edr, 'SMNA': smna, 'EDL': edl})
+        # Crear DataFrame convirtiendo las matrices de cvxopt a arrays 1D de numpy
+        cvx_df = pd.DataFrame({
+            'EDR': np.array(edr).flatten(),
+            'SMNA': np.array(smna).flatten(),
+            'EDL': np.array(edl).flatten()
+        })
         
-        print(f"   ✅ CVX Decomposition: {len(cvx_df)} muestras procesadas.")
+        print(f"   ✅ CVX Decomposition: {len(cvx_df)} muestras procesadas (alpha={alpha}, gamma={gamma}).")
         return cvx_df
         
     except Exception as e:
@@ -170,8 +184,8 @@ def process_and_plot_eda_block(eeg_filepath, eda_channel_name=EDA_CHANNEL):
             offset = onset + row['duration']
             
             # Definir tiempos con 5 segundos previos y posteriores (respetando los límites de la señal)
-            onset_pad = max(0.0, onset - 5.0)
-            offset_pad = min(times[-1], offset + 5.0)
+            onset_pad = max(0.0, onset - 15.0)
+            offset_pad = min(times[-1], offset + 15.0)
             
             # Convertir tiempos a índices
             idx_start_pad = int(onset_pad * sfreq)
@@ -295,7 +309,6 @@ def process_and_plot_eda_block(eeg_filepath, eda_channel_name=EDA_CHANNEL):
     axes[-1].set_xlabel("Tiempo (s)")
     plt.tight_layout(rect=[0, 0, 1, 0.96]) # Ajustar para el supertítulo
     
-    print("  👁️  Mostrando gráfico. Cierra la ventana para procesar el siguiente bloque...")
     
     # Guardar figura en carpeta results con nomenclatura BIDS
     fig_bids_name = f"sub-{SUBJECT_ID}_ses-{acq_id}_task-{task_id}_desc-edatimeseries_fig.png"
@@ -304,7 +317,11 @@ def process_and_plot_eda_block(eeg_filepath, eda_channel_name=EDA_CHANNEL):
     plt.savefig(fig_path, dpi=300)
     print(f"  📊 Gráfico guardado en: {fig_path}")
     
-    plt.show(block=True)
+    if SHOW_PLOTS:
+        print("  👁️  Mostrando gráfico. Cierra la ventana para procesar el siguiente bloque...")
+        plt.show(block=True)
+    else:
+        plt.close(fig)
 
 # --- SCRIPT DE EJECUCIÓN PRINCIPAL ---
 if __name__ == "__main__":

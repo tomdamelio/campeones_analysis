@@ -1,0 +1,34 @@
+==============================
+MODELO 1: VALENCIA ~ AROUSAL
+==============================
+Linear mixed model fit by REML. t-tests use Satterthwaite's method ['lmerModLmerTest']
+Formula: as.formula(formula_str)
+   Data: df
+Control: lmerControl(optimizer = "bobyqa")
+
+REML criterion at convergence: -784.9
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-4.5578 -0.4693  0.0009  0.5457  4.0896 
+
+Random effects:
+ Groups           Name        Variance Std.Dev.
+ Subject:Stimulus (Intercept) 0.037260 0.19303 
+ Subject          (Intercept) 0.031348 0.17705 
+ Stimulus         (Intercept) 0.002448 0.04948 
+ Residual                     0.048908 0.22115 
+Number of obs: 8539, groups:  Subject:Stimulus, 201; Subject, 19; Stimulus, 14
+
+Fixed effects:
+                    Estimate Std. Error        df t value Pr(>|t|)    
+(Intercept)        3.132e-01  4.875e-02 2.332e+01   6.425 1.39e-06 ***
+Arousal            2.126e-01  8.023e-03 8.487e+03  26.496  < 2e-16 ***
+OrderValence_First 9.169e-02  3.931e-02 1.169e+01   2.332   0.0384 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) Arousl
+Arousal     -0.024       
+OrdrVlnc_Fr -0.357 -0.013

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 
 # --- CONFIGURACIÓN ---
-SUBJECT_ID = "27"
+SUBJECT_ID = "33"
 RESULTS_PATH = rf"results/eda_preproc_tests/sub-{SUBJECT_ID}/beh"
 TSV_PATH = os.path.join(RESULTS_PATH, f"sub-{SUBJECT_ID}_desc-videoratings_beh.tsv")
 

@@ -52,7 +52,7 @@ dist/
 .DS_Store
 Thumbs.db
 
-
+data/derivatives/reaction_times/
 
 # Generated documentation files
 site/

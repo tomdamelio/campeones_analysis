@@ -25,11 +25,11 @@ bids_root = project_root / "data" / "raw"
 results_dir = project_root / "results"
 results_dir.mkdir(parents=True, exist_ok=True) # Crea la carpeta results si no existe
 
-log_file_path = results_dir / "validation_log.json"
+log_file_path = results_dir / "physio_validation_log.json"
 
 # --- LISTAS PARA ITERAR ---
 # Modifica estas listas según los datos que necesites validar
-subjects = ["30"]
+subjects = ["46"]
 sessions = ["vr"]
 tasks = ["01", "02", "03", "04"]
 runs = ["002", "003", "004", "005", "006", "007", "008", "009"]
