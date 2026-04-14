@@ -398,8 +398,7 @@ Con ventanas de 500ms a 250Hz, la autocorrelación tiene solo ~5 ciclos de alpha
 - MVNN+SVC occ_temp es el nuevo benchmark single-subject
 
 **Próximos pasos:**
-- [ ] 3.6 Tarea sutil — pantalla verde continua
-- [ ] 5.2 Responder a Yongjie: compartir resultados de 77.0%, preguntar sobre pseudo-trials y pipeline general (20 vs 20 videos)
+- [ ] 3.6 Tarea sutil — pantalla verde continua (esto va a ir bastante despues, despues de preprocesar mas participantes)
+- [x] 5.2 Responder a Yongjie: compartir resultados de 77.0%, preguntar sobre pseudo-trials y pipeline general (20 vs 20 videos)
 - [ ] Extender MVNN+SVC a más sujetos
-- [ ] Permutation test para MVNN+SVC occ_temp
 

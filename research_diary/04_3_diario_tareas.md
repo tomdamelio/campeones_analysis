@@ -10,12 +10,11 @@
 
 * * *
 
-## Tareas pendientes (continuadas del diario anterior)
+## Tareas futuras (continuadas del diario anterior)
 
-- [ ] 3.6 Tarea sutil — pantalla verde continua
-- [ ] 5.2 Responder a Yongjie: compartir resultados de 77.0%, preguntar sobre pseudo-trials y pipeline general (20 vs 20 videos)
 - [ ] Extender MVNN+SVC a más sujetos (bloqueada por preprocesamiento)
-- [ ] Permutation test para MVNN+SVC occ_temp (bloqueada por preprocesamiento)
+- [ ] Pasar a prediccion de pantalla verde continua
+
 
 * * *
 
