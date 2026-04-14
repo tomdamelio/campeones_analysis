@@ -98,6 +98,11 @@ RANDOM_SEED = 42
 TDE_WINDOW_HALF = 10
 TDE_PCA_COMPONENTS = 17   # → 17*18//2 = 153 cov features (≈ bandpower 160)
 RAW_PCA_COMPONENTS = 160  # ≈ bandpower 160
+N_AUTOCORR_LAGS = 25      # 25 lags × 4ms/lag = 100ms → covers full alpha cycle
+# Log-spaced lags: np.unique(np.round(np.geomspace(1, 25, 8)).astype(int))
+# Covers 4-100ms at 250Hz with equal log-scale spacing.
+# Includes lag 12 (48ms ≈ beta period) and lag 25 (100ms ≈ alpha period).
+LOG_LAGS = [1, 2, 3, 4, 7, 12, 20, 25]  # 8 lags → 32×8 = 256 features
 
 
 # ---------------------------------------------------------------------------
@@ -240,6 +245,73 @@ def extract_raw_features(data: np.ndarray) -> np.ndarray:
     return data.reshape(data.shape[0], -1)
 
 
+def extract_autocorrelation_features(
+    data: np.ndarray,
+    n_lags: int = N_AUTOCORR_LAGS,
+) -> np.ndarray:
+    """Normalized autocorrelation at lags 1..n_lags for each channel.
+
+    For each epoch and channel, computes R(k) = E[(x_t - mu)(x_{t+k} - mu)] / Var(x)
+    for k = 1..n_lags. At 250 Hz, lag 25 = 100 ms (one full alpha cycle).
+
+    Args:
+        data: (n_epochs, n_channels, n_times)
+        n_lags: number of lags (default N_AUTOCORR_LAGS = 25)
+
+    Returns:
+        (n_epochs, n_channels * n_lags) — channel-major ordering:
+        [ch0_lag1, ch0_lag2, ..., ch0_lagN, ch1_lag1, ..., chM_lagN]
+    """
+    n_ep, n_ch, _ = data.shape
+    features = np.empty((n_ep, n_ch * n_lags), dtype=np.float64)
+
+    for i in range(n_ep):
+        for ch in range(n_ch):
+            x = data[i, ch]
+            x_dm = x - x.mean()
+            var = np.mean(x_dm ** 2)
+            if var == 0:
+                features[i, ch * n_lags : (ch + 1) * n_lags] = 0.0
+                continue
+            for k in range(1, n_lags + 1):
+                features[i, ch * n_lags + (k - 1)] = (
+                    np.mean(x_dm[:-k] * x_dm[k:]) / var
+                )
+
+    return features
+
+
+def extract_autocorr_lags(
+    data: np.ndarray,
+    lags: list[int],
+) -> np.ndarray:
+    """Autocorrelation at arbitrary lag indices (not necessarily consecutive).
+
+    Args:
+        data: (n_epochs, n_channels, n_times)
+        lags: list of lag indices (in samples), e.g. [1, 2, 3, 4, 7, 12, 20, 25]
+
+    Returns:
+        (n_epochs, n_channels * len(lags)) — channel-major ordering.
+    """
+    n_ep, n_ch, _ = data.shape
+    n_lags = len(lags)
+    features = np.empty((n_ep, n_ch * n_lags), dtype=np.float64)
+
+    for i in range(n_ep):
+        for ch in range(n_ch):
+            x    = data[i, ch]
+            x_dm = x - x.mean()
+            var  = np.mean(x_dm ** 2)
+            if var == 0:
+                features[i, ch * n_lags : (ch + 1) * n_lags] = 0.0
+                continue
+            for j, k in enumerate(lags):
+                features[i, ch * n_lags + j] = np.mean(x_dm[:-k] * x_dm[k:]) / var
+
+    return features
+
+
 # ---------------------------------------------------------------------------
 # Covariance mask helper (ablation)
 # ---------------------------------------------------------------------------
@@ -338,6 +410,12 @@ def run_loro_standard(
         if feature_name == "bandpower_welch":
             feat_post = extract_bandpower_welch(X_post, sfreq)
             feat_pre = extract_bandpower_welch(X_pre, sfreq)
+        elif feature_name == "autocorr":
+            feat_post = extract_autocorrelation_features(X_post)
+            feat_pre = extract_autocorrelation_features(X_pre)
+        elif feature_name == "autocorr_log":
+            feat_post = extract_autocorr_lags(X_post, LOG_LAGS)
+            feat_pre  = extract_autocorr_lags(X_pre,  LOG_LAGS)
         else:  # raw_pca
             feat_post = extract_raw_features(X_post)
             feat_pre = extract_raw_features(X_pre)
@@ -566,6 +644,113 @@ def run_loro_tde_cov(
 
 
 # ---------------------------------------------------------------------------
+# Autocorr + PCA variants
+# ---------------------------------------------------------------------------
+
+def run_loro_autocorr_pca(
+    runs_data: list[tuple],
+    pca_components: int,
+) -> dict:
+    """LORO CV for autocorr features with PCA compression.
+
+    Extracts 800 autocorrelation features (32 ch x 25 lags), then reduces
+    to pca_components via PCA fitted on training data only per fold.
+    Folds run sequentially to avoid Windows multiprocessing issues.
+
+    Args:
+        runs_data: output of load_pre_post_epochs_per_run
+        pca_components: number of PCA components to retain
+
+    Returns:
+        Result dict including mean_explained_variance across folds.
+    """
+    feature_name = f"autocorr_pca{pca_components}"
+
+    run_features, run_labels, run_names = [], [], []
+    for X_post, X_pre, _data_wide, _sfreq, run_label in runs_data:
+        feat_post = extract_autocorrelation_features(X_post)
+        feat_pre = extract_autocorrelation_features(X_pre)
+        X = np.vstack([feat_post, feat_pre])
+        y = np.concatenate([np.ones(len(feat_post)), np.zeros(len(feat_pre))])
+        run_features.append(X)
+        run_labels.append(y)
+        run_names.append(run_label)
+
+    n_runs = len(run_features)
+    n_features_raw = run_features[0].shape[1]
+    print(f"    N features (raw): {n_features_raw}  target PCA components: {pca_components}")
+
+    all_y_true, all_y_pred, all_y_prob = [], [], []
+    fold_metrics = []
+    explained_variances = []
+
+    for test_idx in range(n_runs):
+        X_train = np.vstack([run_features[i] for i in range(n_runs) if i != test_idx])
+        y_train = np.concatenate([run_labels[i] for i in range(n_runs) if i != test_idx])
+        X_test = run_features[test_idx]
+        y_test = run_labels[test_idx]
+
+        scaler = StandardScaler()
+        X_train_sc = scaler.fit_transform(X_train)
+        X_test_sc = scaler.transform(X_test)
+
+        n_comp = min(pca_components, X_train_sc.shape[0] - 1, X_train_sc.shape[1])
+        pca_model = PCA(n_components=n_comp, svd_solver="full")
+        X_train_pca = pca_model.fit_transform(X_train_sc)
+        X_test_pca = pca_model.transform(X_test_sc)
+        ev = float(np.sum(pca_model.explained_variance_ratio_))
+        explained_variances.append(ev)
+
+        clf = LogisticRegressionCV(
+            Cs=C_GRID, cv=INNER_CV_FOLDS, solver="saga",
+            max_iter=2000, random_state=RANDOM_SEED, scoring="accuracy",
+            use_legacy_attributes=False, n_jobs=1,
+        )
+        clf.fit(X_train_pca, y_train)
+        best_c = float(np.atleast_1d(clf.C_)[0])
+        y_pred = clf.predict(X_test_pca)
+        y_prob = clf.predict_proba(X_test_pca)[:, 1]
+
+        fold_acc = float(accuracy_score(y_test, y_pred))
+        print(f"      {run_names[test_idx]}: acc={fold_acc:.3f} "
+              f"(C={best_c}, ev={ev:.3f}, n_comp={n_comp})")
+
+        all_y_true.extend(y_test.tolist())
+        all_y_pred.extend(y_pred.tolist())
+        all_y_prob.extend(y_prob.tolist())
+        fold_metrics.append({
+            "fold": run_names[test_idx],
+            "best_C": best_c,
+            "accuracy": fold_acc,
+            "explained_variance": ev,
+            "n_components": n_comp,
+            "n_train": int(len(y_train)),
+            "n_test": int(len(y_test)),
+        })
+
+    y_true = np.array(all_y_true)
+    y_pred_arr = np.array(all_y_pred)
+    y_prob_arr = np.array(all_y_prob)
+    mean_ev = float(np.mean(explained_variances))
+    print(f"    Mean explained variance: {mean_ev:.3f}")
+
+    return {
+        "feature": feature_name,
+        "n_features": pca_components,
+        "n_features_raw": int(n_features_raw),
+        "mean_explained_variance": mean_ev,
+        "accuracy": float(accuracy_score(y_true, y_pred_arr)),
+        "precision": float(precision_score(y_true, y_pred_arr, zero_division=0)),
+        "recall": float(recall_score(y_true, y_pred_arr, zero_division=0)),
+        "f1": float(f1_score(y_true, y_pred_arr, zero_division=0)),
+        "auc_roc": float(roc_auc_score(y_true, y_prob_arr)),
+        "n_post": int(y_true.sum()),
+        "n_pre": int((1 - y_true).sum()),
+        "folds": fold_metrics,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Plot
 # ---------------------------------------------------------------------------
 
@@ -599,7 +784,7 @@ def plot_summary(all_results: list[dict], output_dir: Path, subject: str) -> Non
 
 def run_pipeline(subject: str, features: list[str] | None = None) -> None:
     if features is None:
-        features = ["bandpower_welch", "tde_cov", "tde_cov_diag", "tde_cov_offdiag", "raw_pca"]
+        features = ["bandpower_welch", "tde_cov", "tde_cov_diag", "tde_cov_offdiag", "raw_pca", "autocorr"]
 
     print("=" * 60)
     print(f"27b -- Pre vs Post decoding -- sub-{subject}")
@@ -630,6 +815,9 @@ def run_pipeline(subject: str, features: list[str] | None = None) -> None:
         if feat.startswith("tde_cov"):
             cov_mode = feat[len("tde_cov_"):] if "_" in feat[7:] else "full"
             res = run_loro_tde_cov(runs_data, cov_mode=cov_mode)
+        elif feat.startswith("autocorr_pca"):
+            n_comp = int(feat[len("autocorr_pca"):])
+            res = run_loro_autocorr_pca(runs_data, n_comp)
         else:
             res = run_loro_standard(runs_data, feat)
         if res:
@@ -658,9 +846,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--subject", type=str, required=True)
     parser.add_argument(
         "--features", nargs="+",
-        choices=["bandpower_welch", "tde_cov", "tde_cov_diag", "tde_cov_offdiag", "raw_pca"],
-        default=["bandpower_welch", "tde_cov", "tde_cov_diag", "tde_cov_offdiag", "raw_pca"],
-        help="Feature sets to run (default: all five)",
+        default=["bandpower_welch", "tde_cov", "tde_cov_diag", "tde_cov_offdiag", "raw_pca", "autocorr"],
+        help=(
+            "Feature sets to run. Options: bandpower_welch, tde_cov, tde_cov_diag, "
+            "tde_cov_offdiag, raw_pca, autocorr, autocorr_pcaN (e.g. autocorr_pca20). "
+            "Default: all standard sets."
+        ),
     )
     return parser.parse_args()
 

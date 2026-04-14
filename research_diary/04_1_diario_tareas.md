@@ -257,7 +257,7 @@ La respuesta que di: la tarea de 4 clases agrega resolución temporal dentro del
 
 ## Resumen de que hicimos hasta ahora
 
-Desde el último reporte a Diego se completaron dos  bloques de trabajo:
+Desde el último reporte a Diego se completaron dos bloques de trabajo:
 
 1. **Decoding 4 clases temporales + test de permutación**
 2. **Decoding 3 clases de luminancia continua (60s)** — nueva tarea sobre los segmentos de luminancia, con test de permutación
@@ -391,6 +391,32 @@ Los resultados de esta versión corregida completaron (2026-04-01).
 | tde_cov | 31.8% | 0.319 | 0.472 | 33.7% ± 2.2% | 0.805 | −0.86 |
 | raw_pca | 29.3% | 0.285 | 0.455 | 33.7% ± 1.3% | 1.000 | **−3.34** |
 
+#### Matriz de Confusión por Feature Set
+
+**bandpower_welch:**
+
+| Verdadero\Predicho | NoChange | ChangeUp | ChangeDown |
+|---|---|---|---|
+| NoChange | 119 | 156 | 133 |
+| ChangeUp | 116 | 188 | 158 |
+| ChangeDown | 114 | 146 | 130 |
+
+**tde_cov:**
+
+| Verdadero\Predicho | NoChange | ChangeUp | ChangeDown |
+|---|---|---|---|
+| NoChange | 133 | 163 | 112 |
+| ChangeUp | 118 | 149 | 195 |
+| ChangeDown | 114 | 157 | 119 |
+
+**raw_pca:**
+
+| Verdadero\Predicho | NoChange | ChangeUp | ChangeDown |
+|---|---|---|---|
+| NoChange | 125 | 171 | 112 |
+| ChangeUp | 173 | 171 | 118 |
+| ChangeDown | 133 | 184 | 73 |
+
 **Chance level: 33.3% — Null empírico: ~33.7% ✓ (ahora converge correctamente)**
 
 **Ningún feature set es significativo. tde_cov y raw_pca están por debajo del chance (z negativo).**
@@ -424,3 +450,69 @@ El resultado actual indica que **la Tarea 3-clases en su forma actual no extrae 
 | `scripts/validation/34_decoding_4class.py` | 4 clases temporales en foto-eventos + permutaciones | ✅ |
 | `scripts/validation/36_decoding_luminance_3class.py` | 3 clases (Up/Down/NoChange) en segmentos 60s | ✅ activo |
 | `scripts/validation/37_visualize_luminance_epochs.py` | Visualización timeline épocas luminancia | ✅ |
+
+
+---
+
+## Próximos pasos y tareas acordadas con Diego
+
+**Contexto:** Análisis post-reunión para formalizar cada punto que Diego planteó y trazar implementación práctica.
+
+### 1. Interpretabilidad del modelo ganador (Band Power Welch)
+1.1 Cargar el modelo ganador (el modelo con feature de Welch era?) en los modelos que aun performaban bien (prediccion de 2 clases con cambios fuertes de luminancia) y extraer los coeficientes (betas) de la regresión logística usada en el análisis binario/4-clases.
+1.2 Mapear cada coeficiente al feature original (canal × banda) y crear un ranking de features con mayor contribución positiva/negativa.
+1.3 Graficar al menos 2 top-10 features (e.g. potencia alfa occipital, beta frontal) para confirmar qué bandas dominan.
+1.4 Guardar resultado y plot comparativo (barplot, heatmap).
+1.5 Documentar brevemente en el diario: qué banda(s) y canal(es) justifican la ventaja de Welch.
+
+### 1bis. Interpretabilidad del modelo ganador (Band Power Welch)
+
+1.6 Extender esta tarea a la prediccion de 4 clases con cambios fuertes de luminancia.
+
+### 2. Variante Time-Delay Embedding (TDE) con autocorrelación por canal
+**Racional (Diego):** La autocorrelación por canal captura esencialmente la misma información que Welch, pero en dominio temporal en lugar de frecuencial. La covarianza TDE completa (`tde_cov_full`) agrega encima la coherencia entre canales, que puede no ser predictiva y además infla el número de features.
+- **Por qué NO usar solo la diagonal de TDE:** la diagonal es la varianza de cada canal, que equivale a la suma de potencia en todas las bandas, no a su *distribución*. Es lo menos informativo del espectro.
+- **Por qué NO usar solo el off-diagonal:** captura coherencia entre canales, que probablemente no aporta suficiente señal predictiva como para compensar el coste de features extra.
+
+2.1 Con la misma tarea predictiva (de 2 clases? o de 4 clases era la que habia funcionado bien?), implementar función que calcule autocorrelación temporal de lags 1..N para cada canal de la época (N pequeño, e.g. 5–10 lags).
+2.2 Para cada ventana de 250 ms generar vector canal-by-lag (32 canales × N lags).
+2.3 Concatenar vectores de los 32 canales en un feature vector (evita combinaciones canal-canal).
+2.4 Comparar con el pipeline actual de `tde_cov_full`: misma normalización, PCA (si aplica), clasificación `LogisticRegression(C=1.0)` y permutación n=1000.
+2.5 Registrar resultados y comparar con: `tde_cov_full`, `bandpower_welch` y `raw_PCA`.
+2.6 Conclusión prevista: si la performance es similar a Welch → confirma que la representación temporal sin coherencia inter-canal es suficiente. Si mejora sobre `tde_cov_full` → confirma que la conectividad espacial no es predictiva y solo añade ruido de features.
+
+### 3. Sanity checks de señal y plausibilidad fisiológica
+**Criterio diagnóstico clave (Diego):** La tarea de flash (cambios de luminancia fuertes) tiene señal tan evidente que cerrando los ojos se ve en el raw EEG. Si visualmente se distingue → el clasificador DEBE dar 80–90% o más. Si no llega a eso → hay un **bug en el pipeline de CV**. Este es el punto de entrada al debugging (tarea 4).
+
+3.1 Foco principal en la tarea de **flash** (scripts 27/34, cambios fuertes): plotear EEG raw del canal occipital para 2–3 épocas representativas de `ChangeUp` y `NoChange`. Confirmar si el cambio de luminancia es visible “a ojo”.
+3.2 Hacer **histogramas de potencia alfa** separados para las dos clases (`ChangeUp` vs `NoChange`). Si las distribuciones se solapan totalmente → hay problema en la señal o en las etiquetas.
+3.3 Plot de ERP y/o TFR promedio para `ChangeUp` vs `NoChange`, con estadísticos simples (t-test por timepoint o cluster permutacional).
+3.4 Si es posible, añadir scatter de potencia alfa vs beta para ver separabilidad visual.
+3.5 Registrar el resultado del sanity check explícitamente: ¿se ve señal? ¿cuánto da el clasificador? → Si señal visible + classifier < 70% → escalar a tarea 4 (debugging). Si señal no visible → problema en preprocesamiento o etiquetas.
+3.6 Nota sobre la **tarea subtle** (pantalla verde continua): ya sabemos que da muy mal. No es el foco del sanity check; solo volver a ella una vez que el flash esté validado y el pipeline sea confiable.
+
+### 4. Debugging de pipeline (condicional a resultado de tarea 3)
+**Activar solo si:** tarea 3 muestra señal claramente visible en raw/histograma alfa pero el clasificador da < 70% en el flash task. En ese caso hay un error de código.
+
+4.1 Revisar paso a paso pipeline de CV: splits, shuffle, stratify, normalización por fold, permutaciones dentro de run.
+4.2 Añadir asserts y “debug mode” para verificar que no hay fuga de información (leakage) desde test hacia train.
+4.3 Verificar que las etiquetas están correctamente alineadas con las épocas (el bug más probable según Diego).
+4.4 Comparar análisis binario flash (debería dar 80–90%) con tarea subtle (sabemos que da mal) para calibrar si el problema es el pipeline o la señal.
+4.5 Documentar discrepancia y causa encontrada en este diario.
+
+### 5. Contacto con Yongjie (estudiante del lab de Pablo/Diego, Slack)
+**Contexto:** Yongjie reportó 90% de accuracy en clasificación binaria (brightest vs darkest videos), evaluado **por video** (no timepoint a timepoint). Puede haber varias explicaciones: metodología diferente, tarea más fácil por más trials, o error en su pipeline. Diego quiere comparar.
+
+5.1 Buscar a Yongjie en Slack y escribirle mensaje corto con preguntas claras:
+- ¿Clasificación por video o por timepoint/época?
+- Definición exacta de clases (brighter vs darkest: ¿umbral? ¿percentil?)
+- Train/test split: ¿hay run dependency? ¿stratify?
+- Features usados (raw, espectral, TDE, otro)
+5.2 Pedir que comparta pipeline de testeo y/o snippet de código de preprocesamiento/normalización.
+5.3 Anotar comparativa entre su metodología y la nuestra (ventajas/diferencias clave).
+5.4 Incluir bloque en este diario: “Feedback externo — Yongjie [fecha] — hallazgos y acciones derivadas.”
+
+### 6. Criterio de cierre de tarea
+- Resultados reproducibles: al menos 2 plots (histograma alfa y raw occipital) y una tabla de métricas para cada feature set.
+- Chequeo de comportamiento: si visualmente hay señal pero classifier falla, se documenta error y se corrige en código.
+- Contacto hecho y respuesta referenciada (con fecha y hallazgo).
