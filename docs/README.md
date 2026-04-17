@@ -96,7 +96,7 @@ micromamba run -n campeones python scripts/preprocessing/03_detect_markers.py --
 micromamba run -n campeones python scripts/preprocessing/03_detect_markers.py --subject XX --task YY --acq a
 
 # PASO 4: Preprocesamiento EEG (run se detecta automáticamente)
-micromamba run -n campeones python scripts/preprocessing/04_preprocessing_eeg.py --subject XX --session vr --task YY --acq a
+micromamba run -n campeones python scripts/preprocessing/x` --subject XX --session vr --task YY --run ZZZ --acquisition a
 
 # PASO 5: Extracción de features
 micromamba run -n campeones python scripts/preprocessing/05_physiology_features.py --subject XX

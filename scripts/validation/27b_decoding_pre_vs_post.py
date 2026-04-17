@@ -75,6 +75,36 @@ RUNS_CONFIG: dict[str, list[dict]] = {
         {"run": "009", "acq": "b", "task": "03"},
         {"run": "010", "acq": "b", "task": "04"},
     ],
+    "23": [
+        {"run": "002", "acq": "a", "task": "01"},
+        {"run": "003", "acq": "a", "task": "02"},
+        {"run": "004", "acq": "a", "task": "03"},
+        {"run": "005", "acq": "a", "task": "04"},
+        {"run": "006", "acq": "b", "task": "01"},
+        {"run": "007", "acq": "b", "task": "02"},
+        {"run": "008", "acq": "b", "task": "03"},
+        {"run": "009", "acq": "b", "task": "04"},
+    ],
+    "24": [
+        {"run": "002", "acq": "a", "task": "01"},
+        {"run": "003", "acq": "a", "task": "02"},
+        {"run": "004", "acq": "a", "task": "03"},
+        {"run": "005", "acq": "a", "task": "04"},
+        {"run": "006", "acq": "b", "task": "01"},
+        {"run": "007", "acq": "b", "task": "02"},
+        {"run": "008", "acq": "b", "task": "03"},
+        {"run": "009", "acq": "b", "task": "04"},
+    ],
+    "33": [
+        {"run": "002", "acq": "a", "task": "01"},
+        {"run": "003", "acq": "a", "task": "02"},
+        {"run": "004", "acq": "a", "task": "03"},
+        {"run": "005", "acq": "a", "task": "04"},
+        {"run": "006", "acq": "b", "task": "01"},
+        {"run": "007", "acq": "b", "task": "02"},
+        {"run": "008", "acq": "b", "task": "03"},
+        {"run": "009", "acq": "b", "task": "04"},
+    ],
 }
 
 EEG_CHANNELS = [

@@ -32,6 +32,7 @@ venv/
 *.json
 *.zip
 *.npy
+*.html
 
 # External data storage - ignore most things in data/
 data/*

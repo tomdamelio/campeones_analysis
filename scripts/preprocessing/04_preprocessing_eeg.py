@@ -313,25 +313,43 @@ print("=== NOTCH FILTERING COMPLETED ===\n")
 print("=== STEP 3B: BAND-PASS FILTERING ===")
 
 # Define band-pass filter parameters
-hpass = 1.0   # High-pass: 1.0 Hz (removes DC offset and slow drifts)
-lpass = 48.0  # Low-pass: 48 Hz (preserves EEG frequencies, removes high-freq artifacts)
+#
+# R-4 (two-copy pattern): the HPF used here defines the ANALYSIS copy — the data that
+# gets saved to disk as the final preprocessed file and that ICA weights are applied to.
+# We use HP 0.1 Hz to preserve slow ERP components (LPP, late positivity on affective
+# videos, sustained responses). A second copy with HPF 1 Hz is created just before the
+# ICA fit (see section 8) because ICA needs an aggressive HPF for a good decomposition
+# (Winkler et al. 2015, EMBC; MNE ICA tutorial). Filtering is linear, so the ICA solution
+# fitted on the 1 Hz copy is mathematically valid to apply to the 0.1 Hz copy
+# (Luck, Appendix 3: "It's OK that we've double-filtered the data. The original filtering
+# is so much milder that it will be dwarfed by the new filter").
+hpass = 0.1   # High-pass: 0.1 Hz — preserves slow ERP components for the analysis copy
+lpass = 48.0  # Low-pass: 48 Hz. Kept over the 40 Hz default because (a) 8 Hz extra
+              # high-beta bandwidth may carry decoding info, (b) the notch at 50 Hz
+              # still covers line noise inside the LP transition band, (c) marginal
+              # benefit for find_bads_muscle detection range. See R-5 in review doc.
 filter_method = 'fir'     # FIR filter for better characteristics
 filter_phase = 'zero'     # Zero-phase filtering
 filter_length = 'auto'    # Automatic filter length selection
 
-print(f"Band-pass filter configuration:")
-print(f"  - High-pass cutoff: {hpass} Hz (removes DC offset and slow drifts)")
+print(f"Band-pass filter configuration (ANALYSIS copy):")
+print(f"  - High-pass cutoff: {hpass} Hz (preserves slow ERP components, R-4 two-copy pattern)")
 print(f"  - Low-pass cutoff: {lpass} Hz (removes high-frequency artifacts)")
 print(f"  - Method: {filter_method}")
 print(f"  - Phase: {filter_phase}")
 print(f"  - Filter length: {filter_length}")
-print(f"  - DC offset removal: Enhanced with 1.0 Hz HP filter")
+print(f"  - A second copy with HPF 1 Hz will be created later for ICA fit")
 
-# Apply band-pass filter independently
+# Apply band-pass filter independently.
+# NOTE: .copy() is important here (R-12). Without it, raw_notched.filter() would
+# operate in-place and raw_notched would end up in the bandpassed state too,
+# destroying the notched-only signal we need later to create the wide-band ICA
+# copy. As a side benefit, the PSD plot labeled "After Notch Filter" below now
+# actually shows the notched-only state (previously mislabeled).
 print("Applying band-pass filter...")
-raw_filtered = raw_notched.filter(
-    l_freq=hpass, 
-    h_freq=lpass, 
+raw_filtered = raw_notched.copy().filter(
+    l_freq=hpass,
+    h_freq=lpass,
     picks='eeg',
     method=filter_method,
     phase=filter_phase,
@@ -348,7 +366,7 @@ log_preprocessing.log_detail("bandpass_method", filter_method)
 log_preprocessing.log_detail("bandpass_phase", filter_phase)
 log_preprocessing.log_detail("bandpass_filter_independent", True)
 log_preprocessing.log_detail("eeg_optimized_filtering", True)
-log_preprocessing.log_detail("dc_offset_removal_enhanced", True)
+log_preprocessing.log_detail("two_copy_pattern", "analysis_0.1-48Hz_ica_1-100Hz")
 
 print("=== BAND-PASS FILTERING COMPLETED ===\n")
 
@@ -446,12 +464,83 @@ print("✓ Real events will be loaded from merged_events derivatives later")
 print("=== VISUAL INSPECTION AND BAD CHANNEL DETECTION ===")
 print("(PSD comparison plots already shown in section 3C)")
 
+# R-11: Ensure EEG channel positions are available BEFORE PyPREP runs.
+# PyPREP's RANSAC criterion uses spherical spline interpolation over 3D electrode
+# positions (see find_bad_by_ransac in pyprep/find_noisy_channels.py). Without a
+# montage PyPREP would either crash or silently skip RANSAC, losing one of the
+# six bad-channel criteria — specifically the one that catches floating/high-
+# impedance electrodes with consistent EM pickup that the other five criteria
+# tend to miss. We set the canonical BC-32 montage here with on_missing='ignore'
+# because FCz is not yet present (it is added in section 7 per R-1), and we
+# don't need FCz in the montage for PyPREP since FCz is the reference and thus
+# not a channel in the data at this point. Section 7 will re-apply the full
+# montage (including FCz) after add_reference_channels.
+print("Loading canonical BC-32 montage for PyPREP (R-11)...")
+script_dir = os.path.dirname(os.path.abspath(__file__))
+bvef_file_path_for_prep = os.path.join(script_dir, 'BC-32_FCz_modified.bvef')
+if not os.path.exists(bvef_file_path_for_prep):
+    raise FileNotFoundError(f"Montage file not found at: {bvef_file_path_for_prep}")
+montage_for_prep = mne.channels.read_custom_montage(bvef_file_path_for_prep)
+raw_filtered.set_montage(montage_for_prep, on_missing='ignore')
+
+# Sanity check: count EEG channels with valid 3D positions. Channels without
+# positions have loc[:3] all zeros (MNE default) or NaN.
+eeg_picks = mne.pick_types(raw_filtered.info, eeg=True)
+positions = np.array([raw_filtered.info["chs"][i]["loc"][:3] for i in eeg_picks])
+n_with_pos = int(np.sum(
+    ~(np.all(positions == 0, axis=1) | np.any(np.isnan(positions), axis=1))
+))
+print(f"✓ Montage applied: {n_with_pos}/{len(eeg_picks)} EEG channels have valid positions")
+if n_with_pos < len(eeg_picks):
+    missing = [raw_filtered.ch_names[i] for i, p in zip(eeg_picks, positions)
+               if np.all(p == 0) or np.any(np.isnan(p))]
+    print(f"  ⚠ Channels WITHOUT positions (RANSAC won't use them): {missing}")
+log_preprocessing.log_detail("pyprep_montage_applied_before_prep", True)
+log_preprocessing.log_detail("pyprep_channels_with_positions", n_with_pos)
+
 # Automatically mark bad channels using PyPREP
-nd = NoisyChannels(raw_filtered,do_detrend = False, random_state=42)
-nd.find_all_bads(ransac=True, channel_wise=True) #if it slows down, set channel_wise to False
+nd = NoisyChannels(raw_filtered, do_detrend=False, random_state=42)
+nd.find_all_bads(ransac=True, channel_wise=True)  # if it slows down, set channel_wise to False
 bads = nd.get_bads()
-print(f"Bad channels detected: {bads}")
-if bads != None:
+print(f"Bad channels detected (union of all criteria): {bads}")
+
+# R-17: introspect all bad_by_* attributes populated by find_all_bads
+# to log WHICH criteria triggered for each bad channel. This gives per-channel
+# traceability ("ch X was flagged by RANSAC and correlation") and per-criterion
+# totals that surface which artifact type is dominating a given run. Using
+# introspection (rather than hard-coded attribute names) makes this robust to
+# future PyPREP versions that may add new criteria. Sibling to R-10 (ICA
+# component logging), applied here to the PyPREP bad-channel detection stage.
+bads_by_criterion = {}
+for attr in dir(nd):
+    if not attr.startswith("bad_by_") or attr.startswith("_"):
+        continue
+    val = getattr(nd, attr)
+    if isinstance(val, (list, tuple, set)):
+        bads_by_criterion[attr.replace("bad_by_", "")] = list(val)
+
+# Reverse mapping: for each flagged channel, which criteria triggered?
+criteria_per_channel = {}
+for ch in bads:
+    criteria_per_channel[ch] = sorted([
+        crit for crit, chs in bads_by_criterion.items() if ch in chs
+    ])
+
+# Human-readable summary
+print("\n--- Bad channel criteria breakdown ---")
+if bads:
+    for ch in bads:
+        crits = ", ".join(criteria_per_channel[ch]) or "(none — unexpected)"
+        print(f"  {ch:<8} → {crits}")
+else:
+    print("  (no bad channels detected)")
+
+print("--- Criterion totals ---")
+for crit in sorted(bads_by_criterion.keys()):
+    chs = bads_by_criterion[crit]
+    print(f"  bad_by_{crit:<14} n={len(chs):2d}  {chs if chs else ''}")
+
+if bads:
     raw_filtered.info["bads"] = bads
 
 # Plot the filtered data for visual inspection to identify bad channels
@@ -461,8 +550,13 @@ print("Navegador de datos filtrados creado. Úsalo para identificar visualmente 
 # Add the filtered data to the report
 report.add_raw(raw=raw_filtered, title="Filtered Raw", psd=True)
 
-# Log the identified bad channels
+# Log the identified bad channels + the per-criterion and per-channel breakdowns.
+# This gives post-hoc QC the ability to answer: "which PyPREP criterion is
+# flagging most channels across subjects?" and "was channel X flagged by one
+# weak criterion or by several strong ones?".
 log_preprocessing.log_detail("bad_channels", raw_filtered.info["bads"])
+log_preprocessing.log_detail("bad_channels_by_criterion", bads_by_criterion)
+log_preprocessing.log_detail("bad_channels_criteria_per_channel", criteria_per_channel)
 
 
 
@@ -484,6 +578,24 @@ print(f"Conditions found: {events_df['condition'].unique()}")
 # Verify that the onset times are reasonable
 print(f"Onset times: min={events_df['onset'].min():.1f}s, max={events_df['onset'].max():.1f}s")
 print(f"Durations: min={events_df['duration'].min():.1f}s, max={events_df['duration'].max():.1f}s")
+
+# R-13: measure snap-to-sample jitter for merged_events onsets before converting to
+# MNE annotations. When onsets in the TSV are stored with sub-sample precision, setting
+# them on a raw sampled at sfreq Hz rounds to the nearest sample — the residual is the
+# jitter between the "true" event time and the MNE-stored event time. At 500 Hz the
+# max possible jitter is 1 ms (half a sample). For decoding with time-windowed SVC
+# this is negligible, but it's worth logging once per run so that future cross-subject
+# comparisons can verify jitter stayed bounded.
+sfreq = raw_filtered.info['sfreq']
+onsets_samples_float = events_df['onset'].values * sfreq
+onsets_samples_int = np.round(onsets_samples_float).astype(int)
+jitter_samples = np.abs(onsets_samples_float - onsets_samples_int)
+jitter_ms = jitter_samples * 1000.0 / sfreq
+print(f"Snap-to-sample jitter (events → {sfreq:.0f} Hz grid): "
+      f"max={jitter_ms.max():.4f} ms, mean={jitter_ms.mean():.4f} ms")
+log_preprocessing.log_detail("event_onset_sfreq", float(sfreq))
+log_preprocessing.log_detail("event_onset_jitter_max_ms", float(jitter_ms.max()))
+log_preprocessing.log_detail("event_onset_jitter_mean_ms", float(jitter_ms.mean()))
 
 # Convert events to MNE annotations
 event_annotations = mne.Annotations(
@@ -595,6 +707,52 @@ print("="*50)
 
 
 # %%
+## 7. Reference, montage, and interpolation (run BEFORE ICA to satisfy ICLabel's CAR requirement)
+#
+# RATIONALE (R-1 + R-3 Ruta A, review v3):
+# - ICLabel is designed to classify ICs from data referenced to a common average and filtered
+#   between 1-100 Hz (see mne_icalabel/iclabel/label_components.py docstring; Pion-Tonachini
+#   et al. 2019, NeuroImage — training set was built entirely with common average reference).
+#   Running ICLabel on data with a different reference is out-of-distribution for the model.
+# - Average-referencing must happen AFTER interpolating bad channels, otherwise the bad
+#   channel's contamination gets spread to all other channels through the mean subtraction
+#   (Cohen, 2014, Analyzing Neural Time Series Data, §7.9).
+# Therefore the canonical order is: add FCz -> set montage -> interpolate bads -> set
+# average reference -> ICA fit -> ICLabel.
+
+print("\n=== REFERENCE BLOCK: add FCz + montage + interpolate + average reference ===")
+
+# Add back the original reference channel (FCz) as an all-zero channel so it can enter the
+# average reference. It gets real values once set_eeg_reference subtracts the mean.
+raw_filtered = mne.add_reference_channels(raw_filtered.load_data(), ref_channels=["FCz"])
+
+# Load the extended montage (BC-32 with FCz position) and apply it.
+script_dir = os.path.dirname(os.path.abspath(__file__))
+bvef_file_path = os.path.join(script_dir, 'BC-32_FCz_modified.bvef')
+if not os.path.exists(bvef_file_path):
+    raise FileNotFoundError(f"Montage file not found at: {bvef_file_path}")
+montage = mne.channels.read_custom_montage(bvef_file_path)
+raw_filtered.set_montage(montage)
+
+# Interpolate the bad channels detected by PyPREP. reset_bads=False keeps their names in
+# info["bads"] for trazabilidad (downstream code and the JSON log still see which channels
+# were interpolated), while the underlying data is already clean.
+print(f"Interpolating bad channels: {raw_filtered.info['bads']}")
+raw_filtered.interpolate_bads(reset_bads=False)
+log_preprocessing.log_detail("interpolated_channels", raw_filtered.info["bads"])
+
+# Re-reference to common average. set_eeg_reference with projection=False applies the
+# reference directly to the data (not as a projector).
+raw_filtered, _ = mne.set_eeg_reference(
+    raw_filtered, ref_channels="average", copy=False
+)
+log_preprocessing.log_detail("rereferenced_channels", "grand_average")
+log_preprocessing.log_detail("reference_applied_before_ica", True)
+print("✓ Data is now in common average reference + bad channels interpolated")
+print("✓ Ready for ICA fit and ICLabel classification (CAR requirement satisfied)")
+
+
+# %%
 ## 8. Independent Component Analysis (ICA)
 
 print("=== ICA WITH COMPLETE ANNOTATION COVERAGE ===")
@@ -607,10 +765,20 @@ max_iter = (
 )
 random_state = 42  # Seed for random number generator for reproducibility
 
-# Initialize the ICA object with the specified parameters
+# Initialize the ICA object with the specified parameters.
+# R-18: fit_params=dict(ortho=False, extended=True) configures Picard as "picard-o"
+# (Ablin et al. 2018, IEEE TSP), which is mathematically equivalent to extended infomax
+# but ~10x faster. This matches the decomposition ICLabel was trained on (Pion-Tonachini
+# et al. 2019, NeuroImage — trained on ~6000 recordings decomposed with extended infomax)
+# and eliminates the runtime warning "The provided ICA instance was fitted with a 'picard'
+# algorithm. ICLabel was designed with extended infomax ICA decompositions." Without these
+# flags, Picard defaults to ortho=True, extended=False (FastICA-like), which gives a
+# slightly out-of-distribution decomposition for ICLabel and mis-calibrates the
+# probabilities that R-7 Variant A relies on (ICLABEL_THRESHOLD=0.85, BRAIN_FLOOR=0.30).
 ica = mne.preprocessing.ICA(
     n_components=n_components,
     method=method,
+    fit_params=dict(ortho=False, extended=True),
     max_iter=max_iter,
     random_state=random_state,
 )
@@ -631,9 +799,67 @@ if raw_filtered.annotations is not None:
 else:
     print("  - WARNING: No annotations found!")
 
-# Fit the ICA model ONLY on non-bad segments (automatic with reject_by_annotation=True)
+# R-4 + R-12: wide-band two-copy pattern for ICA.
+#
+# The analysis copy (raw_filtered) stays at 0.1-48 Hz for downstream decoding. For the
+# ICA decomposition we want a SECOND copy with a wider passband (1-100 Hz), because:
+#   - find_bads_muscle works on the 20-100 Hz range (muscle peaks above our 48 Hz LP).
+#   - ICLabel was trained on data filtered between 1 and 100 Hz (Pion-Tonachini 2019).
+#     Giving it 1-48 Hz is out-of-distribution.
+#   - ICA separates muscle components better when the 48-100 Hz range is preserved.
+#
+# We start from raw_notched (not raw_filtered) because filtering is destructive: the
+# 48-100 Hz content was removed in section 3B and cannot be recovered. raw_notched
+# still has the full spectrum minus the 50/100 Hz line noise.
+#
+# All the spatial preprocessing applied to raw_filtered in sections 5 (bad-channel
+# detection) and 7 (FCz + montage + interpolation + CAR) must be replicated on
+# raw_for_ica so the two copies differ ONLY in filter band. Otherwise ICLabel, which
+# assumes common average reference, would receive the wrong spatial state.
+#
+# See Winkler et al. 2015 (EMBC, PMID 26737196) on HPF 1-2 Hz for ICA, and the MNE
+# ICA tutorial on linearity of the unmixing matrix across filter choices.
+
+hpass_for_ica = 1.0
+lpass_for_ica = 100.0
+print(f"Creating wide-band ICA copy ({hpass_for_ica}-{lpass_for_ica} Hz from raw_notched)...")
+
+# 1. Bandpass the notched-only data to 1-100 Hz.
+raw_for_ica = raw_notched.copy().filter(
+    l_freq=hpass_for_ica,
+    h_freq=lpass_for_ica,
+    picks='eeg',
+    method='fir',
+    phase='zero',
+    verbose=False,
+)
+
+# 2. Replicate the spatial preprocessing of raw_filtered.
+#    (a) Add FCz back as an all-zero channel so it can enter the average reference.
+raw_for_ica = mne.add_reference_channels(raw_for_ica.load_data(), ref_channels=["FCz"])
+#    (b) Apply the same montage used in section 7.
+raw_for_ica.set_montage(montage)
+#    (c) Carry the same bad channels detected by PyPREP on raw_filtered.
+raw_for_ica.info["bads"] = list(raw_filtered.info["bads"])
+#    (d) Interpolate the bads (reset_bads=False to keep trazabilidad, matching section 7).
+raw_for_ica.interpolate_bads(reset_bads=False)
+#    (e) Set common average reference to match raw_filtered.
+raw_for_ica, _ = mne.set_eeg_reference(raw_for_ica, ref_channels="average", copy=False)
+#    (f) Copy annotations so ica.fit(..., reject_by_annotation=True) excludes the same
+#        bad segments that the analysis pipeline excludes.
+raw_for_ica.set_annotations(raw_filtered.annotations)
+
+print(f"✓ raw_for_ica ready: CAR + interpolated + 1-100 Hz (same spatial state as raw_filtered)")
+log_preprocessing.log_detail("ica_fit_hpass", hpass_for_ica)
+log_preprocessing.log_detail("ica_fit_lpass", lpass_for_ica)
+log_preprocessing.log_detail("analysis_hpass", hpass)
+log_preprocessing.log_detail("analysis_lpass", lpass)
+log_preprocessing.log_detail("ica_wide_band_from_raw_notched", True)
+
+# Fit the ICA model ONLY on non-bad segments (automatic with reject_by_annotation=True).
+# Note: we fit on raw_for_ica (HPF 1 Hz), but ica.apply later runs on raw_filtered (HPF 0.1 Hz).
 print("Fitting ICA on good segments only (excluding 'bad' annotations)...")
-ica.fit(raw_filtered, picks='eeg', reject_by_annotation=True)
+ica.fit(raw_for_ica, picks='eeg', reject_by_annotation=True)
 print("✓ ICA fitted successfully using only merged_events segments")
 
 # Log ICA annotation usage
@@ -643,7 +869,7 @@ log_preprocessing.log_detail("ica_excluded_bad_segments", True)
 
 # find EOG artifacts in the data via pattern matching, and exclude the EOG-related ICA components
 eog_components, eog_scores = ica.find_bads_eog(
-    inst=raw_filtered,
+    inst=raw_for_ica,
     ch_name="R_EYE",  # a channel close to the eye
     # threshold=1  # lower than the default threshold
 )
@@ -651,44 +877,74 @@ print(f"EOG components detected: {eog_components}")
 
 # find ECG artifacts in the data via pattern matching, and exclude the ECG-related ICA components
 ecg_components, ecg_scores = ica.find_bads_ecg(
-    inst=raw_filtered,
+    inst=raw_for_ica,
     ch_name="ECG",  # a channel close to the eye
     # threshold=1  # lower than the default threshold
 )
 print(f"ECG components detected: {ecg_components}")
 
-# find muscle artifacts in the data via pattern matching, and exclude the muscle-related ICA components
-muscle_components, muscle_scores = ica.find_bads_muscle(raw_filtered, threshold=0.7)
+# R-8: find muscle artifacts via ICA pattern matching. threshold=0.7 is more conservative
+# than MNE's default of 0.5 — higher threshold means fewer components are flagged as
+# muscle. Chosen because (a) CAMPEONES is a VR paradigm with expected head/neck movement,
+# so a looser default risks flagging legitimate posterior/frontal brain components that
+# have some high-frequency content from residual micro-movements, and (b) the final
+# artifact decision is re-filtered through ICLabel + brain-floor logic below (R-7),
+# so find_bads_muscle acts as a candidate generator, not a final gate. If visual
+# inspection of the HTML report shows clearly-muscle components being missed, lower
+# to 0.5; if brain components are being flagged, raise to 0.8.
+muscle_components, muscle_scores = ica.find_bads_muscle(raw_for_ica, threshold=0.7)
 print(f"Muscle components detected: {muscle_components}")
+log_preprocessing.log_detail("find_bads_muscle_threshold", 0.7)
+log_preprocessing.log_detail("find_bads_muscle_components", muscle_components)
 # ica.plot_scores(muscle_scores, exclude=muscle_components)
 
 # Combine all artifact components from the pattern matching methods
 pattern_matching_artifacts = np.unique(ecg_components + eog_components + muscle_components)
 
 ##### Classify the components using ICLabel model #######
-# run the model on the ICA components
-ic_labels = label_components(raw_filtered, ica, method="iclabel")
+# run the model on the ICA components. ICLabel receives raw_for_ica (CAR + HPF 1 Hz),
+# which matches its training data specification (see mne_icalabel docstring).
+# We call iclabel_label_components directly to obtain the full (n_components, 7)
+# probability matrix — the high-level label_components() only returns the top-class
+# probability, which isn't enough for the brain-floor logic below (R-7).
+from mne_icalabel.iclabel import iclabel_label_components
+iclabel_proba = iclabel_label_components(raw_for_ica, ica)  # shape (n_components, 7)
 
-# Create readable table of ICA component classifications
+# ICLabel class order (see iclabel_label_components docstring):
+#   0: brain, 1: muscle artifact, 2: eye blink, 3: heart beat,
+#   4: line noise, 5: channel noise, 6: other
+ICLABEL_CLASSES = [
+    "brain", "muscle artifact", "eye blink", "heart beat",
+    "line noise", "channel noise", "other",
+]
+ARTIFACT_CLASSES = ["muscle artifact", "eye blink", "heart beat", "channel noise"]
+BRAIN_IDX = ICLABEL_CLASSES.index("brain")
+
+label_names = [ICLABEL_CLASSES[i] for i in iclabel_proba.argmax(axis=1)]
+top_probabilities = iclabel_proba.max(axis=1)
+brain_probabilities = iclabel_proba[:, BRAIN_IDX]
+
+# ---- R-7 exclusion thresholds ----
+ICLABEL_THRESHOLD = 0.85   # min top-class prob to trust an ICLabel artifact call
+BRAIN_FLOOR = 0.30         # never exclude if brain prob >= this (Variante A)
+
+# ---- Readable classification table ----
 print("=== ICLabel CLASSIFICATION RESULTS ===")
-print(f"{'Component':<12} {'Classification':<18} {'Action'}")
-print("-" * 55)
-
-label_names = ic_labels['labels']
-label_probabilities = ic_labels['y_pred_proba']
-
-for i, (label, probs) in enumerate(zip(label_names, label_probabilities)):
+print(f"{'Component':<12} {'Classification':<18} {'Top prob':<10} {'Brain prob':<11} {'Action'}")
+print("-" * 75)
+for i in range(len(label_names)):
     component_name = f"ICA{i:03d}"
-    
-    # Determine recommended action
-    if label in ['muscle artifact', 'eye blink', 'heart beat', 'channel noise']:
+    label = label_names[i]
+    top_prob = top_probabilities[i]
+    brain_prob = brain_probabilities[i]
+    is_artifact_call = label in ARTIFACT_CLASSES and top_prob >= ICLABEL_THRESHOLD
+    if is_artifact_call and brain_prob < BRAIN_FLOOR:
         action = "→ EXCLUDE"
-    elif label == 'brain':
+    elif label == "brain":
         action = "→ KEEP"
     else:
         action = "→ REVIEW"
-    
-    print(f"{component_name:<12} {label:<18} {action}")
+    print(f"{component_name:<12} {label:<18} {top_prob:<10.3f} {brain_prob:<11.3f} {action}")
 
 # Summary statistics
 label_counts = {}
@@ -701,69 +957,125 @@ for label, count in sorted(label_counts.items()):
     percentage = (count / len(label_names)) * 100
     print(f"{label:<18}: {count:2d} ({percentage:4.1f}%)")
 
-# Automatic exclusion recommendations
-auto_exclude_types = ['muscle artifact', 'eye blink', 'heart beat', 'channel noise']
+auto_exclude_types = ARTIFACT_CLASSES  # alias kept for downstream logging
 auto_exclude_count = sum(1 for label in label_names if label in auto_exclude_types)
-brain_count = sum(1 for label in label_names if label == 'brain')
+brain_count = sum(1 for label in label_names if label == "brain")
 
 print(f"\n=== RECOMMENDATIONS ===")
 print(f"Auto-exclude candidates: {auto_exclude_count}/{len(label_names)} ({(auto_exclude_count/len(label_names)*100):.1f}%)")
 print(f"Brain components: {brain_count}/{len(label_names)} ({(brain_count/len(label_names)*100):.1f}%)")
 print(f"Components to review: {len(label_names) - auto_exclude_count - brain_count}")
-print("=" * 55)
+print("=" * 75)
 
-# Extract ICA component labels
-label_names = ic_labels['labels']
+# ---- R-7 Variante A: exclusion logic ----
+# A component is a candidate for exclusion if EITHER:
+#   (a) pattern matching flagged it (find_bads_eog/ecg/muscle), OR
+#   (b) ICLabel classified it as artifact with top prob >= ICLABEL_THRESHOLD.
+# A candidate is ACTUALLY excluded only if its brain probability is < BRAIN_FLOOR
+# (the floor applies to BOTH pattern matching and ICLabel — Variante A).
+# This replaces the previous AND-intersection logic and the arbitrary
+# `eog_components[0] < 3` heuristic.
+pattern_set = set(int(i) for i in pattern_matching_artifacts.tolist())
+iclabel_set = set(
+    int(i) for i in range(len(label_names))
+    if label_names[i] in ARTIFACT_CLASSES and top_probabilities[i] >= ICLABEL_THRESHOLD
+)
+candidate_exclusions = pattern_set | iclabel_set
 
-# Identify the ICA components that correspond to a 'channel noise' in ICLabel
-channel_artifact_indices = [i for i, label in enumerate(label_names) if label == 'channel noise']
+to_exclude = sorted([
+    idx for idx in candidate_exclusions
+    if brain_probabilities[idx] < BRAIN_FLOOR
+])
+vetoed_by_brain_floor = sorted(candidate_exclusions - set(to_exclude))
 
-# Find components that coincide between pattern matching and ICLabel output for exclusion
-# We'll only exclude components that match the artifacts found via pattern matching 
-# and are classified as 'muscle artifact', 'eye blink', 'heart beat', or 'channel noise'
-to_exclude = []
-for idx in pattern_matching_artifacts:
-    if label_names[idx] in ['muscle artifact', 'eye blink', 'heart beat', 'channel noise']:
-        to_exclude.append(idx)
+ica.exclude = to_exclude
 
-if len(eog_components) > 0 and eog_components[0] < 3:
-    to_exclude.append(eog_components[0])
-
-# Also ensure to include 'channel noise' components that were found only by ICLabel
-to_exclude = np.unique(to_exclude + channel_artifact_indices)
-
-# Exclude the selected components
-ica.exclude = to_exclude.tolist()
+print(f"\n=== R-7 EXCLUSION DECISION (threshold={ICLABEL_THRESHOLD}, brain floor={BRAIN_FLOOR}) ===")
+print(f"Pattern-matching candidates:   {sorted(pattern_set)}")
+print(f"ICLabel candidates (>={ICLABEL_THRESHOLD}): {sorted(iclabel_set)}")
+print(f"Vetoed by brain floor (<{BRAIN_FLOOR}): {vetoed_by_brain_floor}")
+print(f"Final ica.exclude:             {to_exclude}")
+print("=" * 75)
 
 # (Optional) Plot the ICA components for visual inspection
 # ica.plot_components(inst=epochs_clean, picks=range(15))
 
-# Plot the sources identified by ICA
-# Plot the sources identified by ICA
+# Plot the sources identified by ICA. We pass raw_for_ica (the copy on which ICA was
+# fitted) so the source time courses shown match the actual decomposition.
 if interactive:
     print("Opening interactive ICA sources plot...")
-    ica.plot_sources(raw_filtered, block=True, show=True)
-    
+    ica.plot_sources(raw_for_ica, block=True, show=True)
+
     print("Opening interactive ICA components plot (topomaps)...")
-    ica.plot_components(inst=raw_filtered, show=True)
-    
+    ica.plot_components(inst=raw_for_ica, show=True)
+
     plt.show(block=True)
 
-# Add the ICA results to the report
-report.add_ica(ica, title="ICA", inst=raw_filtered)
+# R-14: Add the ICA results to the report with before/after overlay plots enabled.
+# Passing inst=raw_for_ica (the fit copy, 1–100 Hz CAR) triggers MNE to generate:
+#   (a) topographies for all components,
+#   (b) source time courses for the excluded components,
+#   (c) plot_overlay(): the signal with and without ica.exclude applied — this is
+#       the critical sanity check to detect ICA over-correction (neural signal being
+#       removed alongside artifact). Because ica.exclude was set above (line ~953),
+#       the overlay shows the actual exclusion decision, not a placeholder.
+# n_jobs=1 keeps the report deterministic; if reports become slow on long runs,
+# raise to 2 or 4.
+report.add_ica(
+    ica,
+    title="ICA",
+    inst=raw_for_ica,
+    n_jobs=1,
+)
 
-# Apply the ICA solution to the re-referenced data
+# Apply the ICA solution to the ANALYSIS copy (HPF 0.1 Hz). This is the key step of the
+# two-copy pattern: the unmixing matrix learned from raw_for_ica is transferred here to
+# remove artifact components from raw_filtered while preserving its slow ERP content.
 raw_ica = ica.apply(inst=raw_filtered)
 
 print("✓ ICA applied to preprocessed data")
 print(f"✓ ICA excluded {len(ica.exclude)} components")
 print(f"✓ Final preprocessed data ready for epoching and analysis")
 
+# Save the full ICA object (unmixing matrix + ica.exclude) for post-hoc traceability.
+# BIDS-derivatives naming convention: *_desc-ica_ica.fif
+# Loading it back with mne.preprocessing.read_ica() recovers the exact decomposition
+# and exclusion list — enables sensitivity analyses without re-fitting ICA.
+ica_fname = os.path.join(
+    derivatives_folder,
+    f"sub-{subject}", f"ses-{session}", "eeg",
+    f"sub-{subject}_ses-{session}_task-{task}_acq-{acquisition}_run-{run}_desc-ica_ica.fif",
+)
+os.makedirs(os.path.dirname(ica_fname), exist_ok=True)
+ica.save(ica_fname, overwrite=True)
+print(f"✓ ICA object saved: {ica_fname}")
+
 # Log the ICA parameters and excluded components
 log_preprocessing.log_detail("ica_components_excluded", ica.exclude)
 log_preprocessing.log_detail("ica_method", method)
 log_preprocessing.log_detail("ica_max_iter", max_iter)
 log_preprocessing.log_detail("ica_random_state", random_state)
+log_preprocessing.log_detail("ica_object_saved", ica_fname)
+
+# R-7 exclusion decision parameters
+log_preprocessing.log_detail("ica_exclusion_iclabel_threshold", ICLABEL_THRESHOLD)
+log_preprocessing.log_detail("ica_exclusion_brain_floor", BRAIN_FLOOR)
+log_preprocessing.log_detail("ica_exclusion_pattern_candidates", sorted(pattern_set))
+log_preprocessing.log_detail("ica_exclusion_iclabel_candidates", sorted(iclabel_set))
+log_preprocessing.log_detail("ica_exclusion_vetoed_by_brain_floor", vetoed_by_brain_floor)
+
+# Mini-R-10: per-component detail for every excluded component
+log_preprocessing.log_detail("ica_exclusions_detail", [
+    {
+        "component": f"ICA{idx:03d}",
+        "iclabel_class": label_names[idx],
+        "iclabel_top_prob": float(top_probabilities[idx]),
+        "iclabel_brain_prob": float(brain_probabilities[idx]),
+        "by_pattern_matching": idx in pattern_set,
+        "by_iclabel": idx in iclabel_set,
+    }
+    for idx in ica.exclude
+])
 
 # Log detailed ICLabel results
 log_preprocessing.log_detail("iclabel_total_components", len(label_names))
@@ -781,64 +1093,20 @@ log_preprocessing.log_detail("iclabel_review_components", [f"ICA{i:03d}" for i, 
 
 
 #%%
-## 9. Interpolate Chs and Rereference
-
-##################################
-#######    Rereference   #########
-##################################
-raw_ica = mne.add_reference_channels(raw_ica.load_data(), ref_channels=["FCz"])
-
-# Path to your .bvef file (relative to this script)
-script_dir = os.path.dirname(os.path.abspath(__file__))
-bvef_file_path = os.path.join(script_dir, 'BC-32_FCz_modified.bvef')
-
-if not os.path.exists(bvef_file_path):
-    raise FileNotFoundError(f"Montage file not found at: {bvef_file_path}")
-
-## Load the extended montage
-montage = mne.channels.read_custom_montage(bvef_file_path)
+## 9. Final preprocessed data
 #
-## Apply the montage to your raw data
-raw_ica.set_montage(montage)
+# Reference, montage and interpolation were already applied in section 7 (before ICA fit),
+# per R-1 + R-3 Ruta A of the review. At this point raw_ica is already in common average
+# reference with bad channels interpolated and ICA artifacts removed — it is the final
+# preprocessed raw.
+# We keep the name `raw_interpolate` as an alias to avoid churn in the downstream plotting,
+# reporting and saving code.
+raw_interpolate = raw_ica
 
-# %%
-# Interpolate Chs 
-
-# Interpolate bad channels in the raw data after ICA application and Montage
-# It is best practice to interpolate, then re-reference
-print("Interpolating bad channels...")
-raw_interpolate = raw_ica.copy().interpolate_bads()
-
-# Log the interpolated channels
-log_preprocessing.log_detail("interpolated_channels", raw_ica.info["bads"])
-
-
-# Rereference the data to the grand average reference
-# Now using the interpolated data for a cleaner average reference
-raw_rereferenced, ref_data = mne.set_eeg_reference(
-    inst=raw_interpolate, ref_channels="average", copy=True
-)
-
-# Add the final preprocessed raw data to the report
+# Add the final preprocessed raw data to the report.
 report.add_raw(
-    raw=raw_rereferenced, title="Interp + Reref", psd=True
+    raw=raw_interpolate, title="Final (CAR + interp + ICA)", psd=True
 )
-
-# Log the rereferencing details
-log_preprocessing.log_detail("rereferenced_channels", "grand_average")
-
-# For compatibility with downstream code, we'll call the final object raw_final
-# Note: The original code used raw_interpolate later, but we want the REREFERENCED data to be the final one.
-# So we must ensure downstream code uses raw_rereferenced (or we alias it).
-# Looking at downstream (line 824 in original was defining raw_interpolate from raw_rereferenced... wait)
-# Original: raw_rereferences (from raw_ica) -> raw_interpolate (from raw_rereferenced)
-# New: raw_interpolate (from raw_ica) -> raw_rereferenced (from raw_interpolate)
-# So 'raw_rereferenced' is now the final stage. 
-# We should check what the rest of the script uses.
-# The script uses 'raw_interpolate' for plotting (line 834) and saving (line 1147).
-# So we should assign raw_interpolate = raw_rereferenced at the end to maintain variable name compatibility,
-# OR update downstream. Use alias for safety.
-raw_interpolate = raw_rereferenced
 
 # Plot the final preprocessed data for visual inspection
 print("=== FINAL PREPROCESSED DATA VISUALIZATION ===")

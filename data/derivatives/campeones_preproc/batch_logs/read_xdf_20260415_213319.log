@@ -1,0 +1,2685 @@
+PHASE1_START 2026-04-15T21:33:19.896368
+=== sub-19 START ===
+INFO - Found 1 subjects: 19
+INFO - 
+================================================================================
+INFO - Processing subject: 19
+INFO - ================================================================================
+INFO - Found 1 sessions: VR
+INFO - 
+------------------------------------------------------------
+INFO - Processing session: VR
+INFO - ------------------------------------------------------------
+INFO - Found 9 XDF files.
+INFO - 
+Evaluating file: sub-19_ses-vr_day-a_task-01_run-002_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-19_ses-vr_day-a_task-01_run-002_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-19_ses-vr_day-a_task-02_run-003_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-19_ses-vr_day-a_task-02_run-003_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-19_ses-vr_day-a_task-03_run-004_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-19_ses-vr_day-a_task-03_run-004_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-19_ses-vr_day-a_task-04_run-005_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-19_ses-vr_day-a_task-04_run-005_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-19_ses-vr_day-a_task-practice_run-001_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-19_ses-vr_day-a_task-practice_run-001_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-19_ses-vr_day-b_task-01_run-006_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-19_ses-vr_day-b_task-01_run-006_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-19_ses-vr_day-b_task-02_run-007_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-19_ses-vr_day-b_task-02_run-007_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-19_ses-vr_day-b_task-03_run-008_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-19_ses-vr_day-b_task-03_run-008_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-19_ses-vr_day-b_task-04_run-009_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-19_ses-vr_day-b_task-04_run-009_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+📊 RESUMEN SESIÓN VR:
+INFO -    Archivos procesados: 0
+INFO -    Archivos omitidos: 9
+INFO -    Total archivos encontrados: 9
+=== sub-19 END exit=0 ===
+=== sub-24 START ===
+INFO - Found 1 subjects: 24
+INFO - 
+================================================================================
+INFO - Processing subject: 24
+INFO - ================================================================================
+INFO - Found 1 sessions: VR
+INFO - 
+------------------------------------------------------------
+INFO - Processing session: VR
+INFO - ------------------------------------------------------------
+INFO - Found 9 XDF files.
+INFO - 
+Evaluating file: sub-24_ses-vr_day-a_task-01_run-002_eeg.xdf
+INFO - 🔄 PROCESANDO: sub-24_ses-vr_day-a_task-01_run-002_eeg.xdf
+INFO - Directorio raíz del proyecto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis
+INFO - 
+Buscando archivo en:
+INFO - Path relativo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-01_run-002_eeg.xdf
+INFO - Path absoluto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-01_run-002_eeg.xdf
+INFO - 
+Procesando archivo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-01_run-002_eeg.xdf
+INFO - 
+=============================================
+INFO - IMPORTANTE: Filtrando marcas con problemas de sincronización
+INFO - Se preservarán solo las marcas dentro del rango válido del EEG
+INFO - =============================================
+
+INFO - 
+Streams encontrados:
+INFO - 
+Stream 1:
+INFO - Tipo: Markers
+INFO - Nombre: T.16000MButtons
+INFO - Stream ID: 3
+INFO - 
+Stream 2:
+INFO - Tipo: Position
+INFO - Nombre: T.16000MAxes
+INFO - Stream ID: 1
+INFO - 
+Información de los ejes del joystick (X e Y):
+INFO - Número total de muestras: 85720
+INFO - Frecuencia de muestreo: 60.0 Hz
+INFO - 
+Análisis detallado de timing del joystick:
+INFO - Tiempo de inicio: 243085.25 segundos
+INFO - Tiempo final: 244456.76 segundos
+INFO - Duración total: 1371.50 segundos
+INFO - Intervalo entre muestras promedio: 0.016000 segundos
+INFO - Duración total: 00:22:51.50 (HH:MM:SS)
+INFO - 
+Stream 3:
+INFO - Tipo: Markers
+INFO - Nombre: markers
+INFO - Stream ID: 4
+INFO - 
+Stream 4:
+INFO - Tipo: Markers
+INFO - Nombre: BrainAmpSeries-Markers
+INFO - Stream ID: 2
+INFO - 
+Stream 5:
+INFO - Tipo: EEG
+INFO - Nombre: BrainAmpSeries
+INFO - Stream ID: 5
+INFO - ¡Este es el stream de EEG!
+INFO - 
+Información del stream de EEG:
+INFO - Número total de muestras: 685800
+INFO - Frecuencia de muestreo: 500.0 Hz
+INFO - Número de canales: 49
+INFO - 
+Análisis detallado de timing del EEG:
+INFO - Tiempo de inicio: 243085.19 segundos
+INFO - Tiempo final: 244456.79 segundos
+INFO - Duración total: 1371.60 segundos
+INFO - Intervalo entre muestras promedio: 0.002000 segundos
+INFO - Duración total: 00:22:51.60 (HH:MM:SS)
+INFO - 
+Procesando stream EEG...
+INFO - Info del raw EEG:
+INFO - <Info | 7 non-empty values
+ bads: []
+ ch_names: FP1, FP2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T7, T8, P7, ...
+ chs: 32 EEG, 17 misc
+ custom_ref_applied: False
+ highpass: 0.0 Hz
+ lowpass: 250.0 Hz
+ meas_date: 2025-11-15 16:11:26 UTC
+ nchan: 49
+ projs: []
+ sfreq: 500.0 Hz
+>
+INFO - 
+Se utilizarán solo las anotaciones dentro del rango válido del EEG
+INFO - 
+Manteniendo sampling rate nativo del EEG: 499.99765048119525 Hz (sin resamplear)
+INFO - 
+Procesando joystick...
+INFO - Duración EEG: 1371.60s, Duración Joystick: 1371.50s
+Creating RawArray with float64 data, n_channels=2, n_times=685749
+    Range : 0 ... 685748 =      0.000 ...  1371.502 secs
+Ready.
+INFO - Muestras EEG: 685800, Muestras Joystick: 685749
+INFO - Ajustando longitud de datos: diferencia de 51 muestras
+Joystick data resampled from 85720 points to 685749 points
+Original duration: 1371.50s, Resampled duration: 1371.50s
+Creating RawArray with float64 data, n_channels=2, n_times=685800
+    Range : 0 ... 685799 =      0.000 ...  1371.604 secs
+Ready.
+INFO - Joystick rellenado con 51 muestras adicionales
+INFO - Dimensiones finales - EEG: 685800, Joystick: 685800
+INFO - 
+Agregando canales de joystick al objeto Raw...
+INFO - Canales de joystick agregados correctamente
+INFO - 
+Aplicando montaje de canales EEG...
+INFO - 
+Documentando información de canales...
+INFO - 
+=== UNIDADES DE CANALES ANTES DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - PHOTO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - GSR (OTHER): unidad=110 (FIFF_UNIT_S), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - X (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Z (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - 
+=== APLICANDO CAMBIOS A UNIDADES ===
+INFO - Cambiando unidad de AUDIO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de PHOTO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de GSR de 110 (FIFF_UNIT_S) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de RESP de 107 (FIFF_UNIT_V) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de X de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Z de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_x de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - 
+=== UNIDADES DE CANALES DESPUÉS DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - PHOTO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - GSR (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - X (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Z (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - joystick_y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Información de canales guardada en: C:/Users/au805392/OneDrive - Aarhus universitet/Escritorio/Investigacion/campeones_analysis/data/raw/sub-24/ses-vr/eeg/sub-24_ses-vr_task-01_acq-a_run-002_channels.tsv
+INFO - Metadata de canales guardada en: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-01_acq-a_run-002_channels.json
+INFO - 
+Guardando datos EEG en formato BIDS...
+INFO - El objeto raw contiene 1 anotaciones
+INFO - 
+=== DETALLE DE ANOTACIONES ORIGINALES ===
+INFO - Índice  | Tiempo (s) | Descripción                                        | Estado    
+INFO - ------- | ---------- | -------------------------------------------------- | ----------
+INFO - 0       | 1371.67    | SUPRABLOCK_VR_END                                  | FUERA RANGO
+INFO - 
+Filtrando 1 anotaciones fuera del rango válido (0-1371.60s)
+INFO - Se conservaron 0 anotaciones dentro del rango válido
+INFO - 
+=== ANOTACIONES CONSERVADAS PARA EL ARCHIVO BIDS ===
+INFO - Índice  | Tiempo (s) | Descripción                                       
+INFO - ------- | ---------- | --------------------------------------------------
+INFO - 
+=== RESUMEN POR TIPO DE ANOTACIÓN ===
+INFO - Tipo de anotación                                  | Cantidad  
+INFO - -------------------------------------------------- | ----------
+Cargando montaje desde: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\BC-32.bvef
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-a_space-CapTrak_electrodes.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-a_space-CapTrak_coordsystem.json'...
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: No events found or provided. Please add annotations to the raw data, or provide the events and event_id parameters. For resting state data, BIDS recommends naming the task using labels beginning with "rest".
+  write_raw_bids(
+C:\Users\au805392\micromamba\envs\campeones\Lib\site-packages\mne_bids\write.py:1589: UserWarning: Conflicting BIDSVersion found in dataset_description.json! Consider setting BIDS root to a new directory and redo conversion after ensuring all software has been updated. Original dataset description will not be overwritten.
+  warnings.warn(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\dataset_description.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-01_acq-a_run-002_eeg.json'...
+Copying data files to sub-24_ses-vr_task-01_acq-a_run-002_eeg.vhdr
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-01_acq-a_run-002_channels.tsv'...
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Converting data files to BrainVision format
+  write_raw_bids(
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Encountered data in "double" format. Converting to float32.
+  write_raw_bids(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv'...
+Wrote C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv entry with eeg\sub-24_ses-vr_task-01_acq-a_run-002_eeg.vhdr.
+INFO - 
+Procesamiento BIDS completado exitosamente.
+INFO - ✅ Successfully processed sub-24_ses-vr_day-a_task-01_run-002_eeg.xdf
+INFO - 
+Evaluating file: sub-24_ses-vr_day-a_task-02_run-003_eeg.xdf
+INFO - 🔄 PROCESANDO: sub-24_ses-vr_day-a_task-02_run-003_eeg.xdf
+INFO - Directorio raíz del proyecto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis
+INFO - 
+Buscando archivo en:
+INFO - Path relativo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-02_run-003_eeg.xdf
+INFO - Path absoluto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-02_run-003_eeg.xdf
+INFO - 
+Procesando archivo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-02_run-003_eeg.xdf
+INFO - 
+=============================================
+INFO - IMPORTANTE: Filtrando marcas con problemas de sincronización
+INFO - Se preservarán solo las marcas dentro del rango válido del EEG
+INFO - =============================================
+
+INFO - 
+Streams encontrados:
+INFO - 
+Stream 1:
+INFO - Tipo: Markers
+INFO - Nombre: T.16000MButtons
+INFO - Stream ID: 3
+INFO - 
+Stream 2:
+INFO - Tipo: Position
+INFO - Nombre: T.16000MAxes
+INFO - Stream ID: 1
+INFO - 
+Información de los ejes del joystick (X e Y):
+INFO - Número total de muestras: 79278
+INFO - Frecuencia de muestreo: 60.0 Hz
+INFO - 
+Análisis detallado de timing del joystick:
+INFO - Tiempo de inicio: 48100.21 segundos
+INFO - Tiempo final: 49368.64 segundos
+INFO - Duración total: 1268.43 segundos
+INFO - Intervalo entre muestras promedio: 0.016000 segundos
+INFO - Duración total: 00:21:08.43 (HH:MM:SS)
+INFO - 
+Stream 3:
+INFO - Tipo: Markers
+INFO - Nombre: markers
+INFO - Stream ID: 2
+INFO - 
+Stream 4:
+INFO - Tipo: Markers
+INFO - Nombre: BrainAmpSeries-Markers
+INFO - Stream ID: 5
+INFO - 
+Stream 5:
+INFO - Tipo: EEG
+INFO - Nombre: BrainAmpSeries
+INFO - Stream ID: 4
+INFO - ¡Este es el stream de EEG!
+INFO - 
+Información del stream de EEG:
+INFO - Número total de muestras: 634250
+INFO - Frecuencia de muestreo: 500.0 Hz
+INFO - Número de canales: 49
+INFO - 
+Análisis detallado de timing del EEG:
+INFO - Tiempo de inicio: 48100.16 segundos
+INFO - Tiempo final: 49368.67 segundos
+INFO - Duración total: 1268.50 segundos
+INFO - Intervalo entre muestras promedio: 0.002000 segundos
+INFO - Duración total: 00:21:08.50 (HH:MM:SS)
+INFO - 
+Procesando stream EEG...
+INFO - Info del raw EEG:
+INFO - <Info | 7 non-empty values
+ bads: []
+ ch_names: FP1, FP2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T7, T8, P7, ...
+ chs: 32 EEG, 17 misc
+ custom_ref_applied: False
+ highpass: 0.0 Hz
+ lowpass: 250.0 Hz
+ meas_date: 2025-11-18 20:13:35 UTC
+ nchan: 49
+ projs: []
+ sfreq: 500.0 Hz
+>
+INFO - 
+Se utilizarán solo las anotaciones dentro del rango válido del EEG
+INFO - 
+Manteniendo sampling rate nativo del EEG: 499.99830608965885 Hz (sin resamplear)
+INFO - 
+Procesando joystick...
+INFO - Duración EEG: 1268.50s, Duración Joystick: 1268.43s
+Creating RawArray with float64 data, n_channels=2, n_times=634214
+    Range : 0 ... 634213 =      0.000 ...  1268.430 secs
+Ready.
+INFO - Muestras EEG: 634250, Muestras Joystick: 634214
+INFO - Ajustando longitud de datos: diferencia de 36 muestras
+Joystick data resampled from 79278 points to 634214 points
+Original duration: 1268.43s, Resampled duration: 1268.43s
+Creating RawArray with float64 data, n_channels=2, n_times=634250
+    Range : 0 ... 634249 =      0.000 ...  1268.502 secs
+Ready.
+INFO - Joystick rellenado con 36 muestras adicionales
+INFO - Dimensiones finales - EEG: 634250, Joystick: 634250
+INFO - 
+Agregando canales de joystick al objeto Raw...
+INFO - Canales de joystick agregados correctamente
+INFO - 
+Aplicando montaje de canales EEG...
+INFO - 
+Documentando información de canales...
+INFO - 
+=== UNIDADES DE CANALES ANTES DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - PHOTO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - GSR (OTHER): unidad=110 (FIFF_UNIT_S), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - X (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Z (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - 
+=== APLICANDO CAMBIOS A UNIDADES ===
+INFO - Cambiando unidad de AUDIO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de PHOTO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de GSR de 110 (FIFF_UNIT_S) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de RESP de 107 (FIFF_UNIT_V) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de X de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Z de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_x de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - 
+=== UNIDADES DE CANALES DESPUÉS DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - PHOTO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - GSR (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - X (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Z (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - joystick_y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Información de canales guardada en: C:/Users/au805392/OneDrive - Aarhus universitet/Escritorio/Investigacion/campeones_analysis/data/raw/sub-24/ses-vr/eeg/sub-24_ses-vr_task-02_acq-a_run-003_channels.tsv
+INFO - Metadata de canales guardada en: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-02_acq-a_run-003_channels.json
+INFO - 
+Guardando datos EEG en formato BIDS...
+INFO - El objeto raw contiene 9 anotaciones
+INFO - 
+=== DETALLE DE ANOTACIONES ORIGINALES ===
+INFO - Índice  | Tiempo (s) | Descripción                                        | Estado    
+INFO - ------- | ---------- | -------------------------------------------------- | ----------
+INFO - 0       | 132.34     | Button0 pressed                                    | VÁLIDA    
+INFO - 1       | 133.23     | Button0 released                                   | VÁLIDA    
+INFO - 2       | 716.13     | Button1 pressed                                    | VÁLIDA    
+INFO - 3       | 774.56     | Button1 released                                   | VÁLIDA    
+INFO - 4       | 1029.15    | Button0 pressed                                    | VÁLIDA    
+INFO - 5       | 1029.34    | Button0 released                                   | VÁLIDA    
+INFO - 6       | 1223.26    | Button0 pressed                                    | VÁLIDA    
+INFO - 7       | 1223.61    | Button0 released                                   | VÁLIDA    
+INFO - 8       | 1269.02    | SUPRABLOCK_VR_END                                  | FUERA RANGO
+INFO - 
+Filtrando 1 anotaciones fuera del rango válido (0-1268.50s)
+INFO - Se conservaron 8 anotaciones dentro del rango válido
+INFO - 
+=== ANOTACIONES CONSERVADAS PARA EL ARCHIVO BIDS ===
+INFO - Índice  | Tiempo (s) | Descripción                                       
+INFO - ------- | ---------- | --------------------------------------------------
+INFO - 0       | 132.34     | Button0 pressed                                   
+INFO - 1       | 133.23     | Button0 released                                  
+INFO - 2       | 716.13     | Button1 pressed                                   
+INFO - 3       | 774.56     | Button1 released                                  
+INFO - 4       | 1029.15    | Button0 pressed                                   
+INFO - 5       | 1029.34    | Button0 released                                  
+INFO - 6       | 1223.26    | Button0 pressed                                   
+INFO - 7       | 1223.61    | Button0 released                                  
+INFO - 
+=== RESUMEN POR TIPO DE ANOTACIÓN ===
+INFO - Tipo de anotación                                  | Cantidad  
+INFO - -------------------------------------------------- | ----------
+INFO - Button0 pressed                                    | 3         
+INFO - Button0 released                                   | 3         
+INFO - Button1 pressed                                    | 1         
+INFO - Button1 released                                   | 1         
+Cargando montaje desde: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\BC-32.bvef
+Used Annotations descriptions: [np.str_('Button0 pressed'), np.str_('Button0 released'), np.str_('Button1 pressed'), np.str_('Button1 released')]
+INFO - 
+Se usarán 8 eventos extraídos de las anotaciones
+INFO - 
+=== MAPEO DE EVENTOS ===
+INFO - Descripción                                        | Código de evento
+INFO - -------------------------------------------------- | ---------------
+INFO - Button0 pressed                                    | 1              
+INFO - Button0 released                                   | 2              
+INFO - Button1 pressed                                    | 3              
+INFO - Button1 released                                   | 4              
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-a_space-CapTrak_electrodes.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-a_space-CapTrak_coordsystem.json'...
+Used Annotations descriptions: [np.str_('Button0 pressed'), np.str_('Button0 released'), np.str_('Button1 pressed'), np.str_('Button1 released')]
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-02_acq-a_run-003_events.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-02_acq-a_run-003_events.json'...
+C:\Users\au805392\micromamba\envs\campeones\Lib\site-packages\mne_bids\write.py:1589: UserWarning: Conflicting BIDSVersion found in dataset_description.json! Consider setting BIDS root to a new directory and redo conversion after ensuring all software has been updated. Original dataset description will not be overwritten.
+  warnings.warn(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\dataset_description.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-02_acq-a_run-003_eeg.json'...
+Copying data files to sub-24_ses-vr_task-02_acq-a_run-003_eeg.vhdr
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-02_acq-a_run-003_channels.tsv'...
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Converting data files to BrainVision format
+  write_raw_bids(
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Encountered data in "double" format. Converting to float32.
+  write_raw_bids(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv'...
+Wrote C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv entry with eeg\sub-24_ses-vr_task-02_acq-a_run-003_eeg.vhdr.
+INFO - 
+Procesamiento BIDS completado exitosamente.
+INFO - ✅ Successfully processed sub-24_ses-vr_day-a_task-02_run-003_eeg.xdf
+INFO - 
+Evaluating file: sub-24_ses-vr_day-a_task-03_run-004_eeg.xdf
+INFO - 🔄 PROCESANDO: sub-24_ses-vr_day-a_task-03_run-004_eeg.xdf
+INFO - Directorio raíz del proyecto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis
+INFO - 
+Buscando archivo en:
+INFO - Path relativo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-03_run-004_eeg.xdf
+INFO - Path absoluto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-03_run-004_eeg.xdf
+INFO - 
+Procesando archivo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-03_run-004_eeg.xdf
+INFO - 
+=============================================
+INFO - IMPORTANTE: Filtrando marcas con problemas de sincronización
+INFO - Se preservarán solo las marcas dentro del rango válido del EEG
+INFO - =============================================
+
+INFO - 
+Streams encontrados:
+INFO - 
+Stream 1:
+INFO - Tipo: Markers
+INFO - Nombre: markers
+INFO - Stream ID: 4
+INFO - 
+Stream 2:
+INFO - Tipo: Markers
+INFO - Nombre: BrainAmpSeries-Markers
+INFO - Stream ID: 2
+INFO - 
+Stream 3:
+INFO - Tipo: Markers
+INFO - Nombre: T.16000MButtons
+INFO - Stream ID: 1
+INFO - 
+Stream 4:
+INFO - Tipo: Position
+INFO - Nombre: T.16000MAxes
+INFO - Stream ID: 5
+INFO - 
+Información de los ejes del joystick (X e Y):
+INFO - Número total de muestras: 90000
+INFO - Frecuencia de muestreo: 60.0 Hz
+INFO - 
+Análisis detallado de timing del joystick:
+INFO - Tiempo de inicio: 51219.81 segundos
+INFO - Tiempo final: 52659.80 segundos
+INFO - Duración total: 1439.98 segundos
+INFO - Intervalo entre muestras promedio: 0.016000 segundos
+INFO - Duración total: 00:23:59.98 (HH:MM:SS)
+INFO - 
+Stream 5:
+INFO - Tipo: EEG
+INFO - Nombre: BrainAmpSeries
+INFO - Stream ID: 3
+INFO - ¡Este es el stream de EEG!
+INFO - 
+Información del stream de EEG:
+INFO - Número total de muestras: 720000
+INFO - Frecuencia de muestreo: 500.0 Hz
+INFO - Número de canales: 49
+INFO - 
+Análisis detallado de timing del EEG:
+INFO - Tiempo de inicio: 51219.78 segundos
+INFO - Tiempo final: 52659.78 segundos
+INFO - Duración total: 1440.00 segundos
+INFO - Intervalo entre muestras promedio: 0.002000 segundos
+INFO - Duración total: 00:24:00.00 (HH:MM:SS)
+INFO - 
+Procesando stream EEG...
+INFO - Info del raw EEG:
+INFO - <Info | 7 non-empty values
+ bads: []
+ ch_names: FP1, FP2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T7, T8, P7, ...
+ chs: 32 EEG, 17 misc
+ custom_ref_applied: False
+ highpass: 0.0 Hz
+ lowpass: 250.0 Hz
+ meas_date: 2025-11-18 21:05:35 UTC
+ nchan: 49
+ projs: []
+ sfreq: 500.0 Hz
+>
+INFO - 
+Se utilizarán solo las anotaciones dentro del rango válido del EEG
+INFO - 
+Manteniendo sampling rate nativo del EEG: 499.99830576702306 Hz (sin resamplear)
+INFO - 
+Procesando joystick...
+INFO - Duración EEG: 1440.00s, Duración Joystick: 1439.98s
+Creating RawArray with float64 data, n_channels=2, n_times=719990
+    Range : 0 ... 719989 =      0.000 ...  1439.983 secs
+Ready.
+INFO - Muestras EEG: 720000, Muestras Joystick: 719990
+INFO - Ajustando longitud de datos: diferencia de 10 muestras
+Joystick data resampled from 90000 points to 719990 points
+Original duration: 1439.98s, Resampled duration: 1439.98s
+Creating RawArray with float64 data, n_channels=2, n_times=720000
+    Range : 0 ... 719999 =      0.000 ...  1440.003 secs
+Ready.
+INFO - Joystick rellenado con 10 muestras adicionales
+INFO - Dimensiones finales - EEG: 720000, Joystick: 720000
+INFO - 
+Agregando canales de joystick al objeto Raw...
+INFO - Canales de joystick agregados correctamente
+INFO - 
+Aplicando montaje de canales EEG...
+INFO - 
+Documentando información de canales...
+INFO - 
+=== UNIDADES DE CANALES ANTES DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - PHOTO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - GSR (OTHER): unidad=110 (FIFF_UNIT_S), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - X (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Z (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - 
+=== APLICANDO CAMBIOS A UNIDADES ===
+INFO - Cambiando unidad de AUDIO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de PHOTO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de GSR de 110 (FIFF_UNIT_S) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de RESP de 107 (FIFF_UNIT_V) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de X de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Z de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_x de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - 
+=== UNIDADES DE CANALES DESPUÉS DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - PHOTO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - GSR (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - X (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Z (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - joystick_y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Información de canales guardada en: C:/Users/au805392/OneDrive - Aarhus universitet/Escritorio/Investigacion/campeones_analysis/data/raw/sub-24/ses-vr/eeg/sub-24_ses-vr_task-03_acq-a_run-004_channels.tsv
+INFO - Metadata de canales guardada en: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-03_acq-a_run-004_channels.json
+INFO - 
+Guardando datos EEG en formato BIDS...
+INFO - El objeto raw contiene 13 anotaciones
+INFO - 
+=== DETALLE DE ANOTACIONES ORIGINALES ===
+INFO - Índice  | Tiempo (s) | Descripción                                        | Estado    
+INFO - ------- | ---------- | -------------------------------------------------- | ----------
+INFO - 0       | 843.96     | Button0 pressed                                    | VÁLIDA    
+INFO - 1       | 844.46     | Button0 released                                   | VÁLIDA    
+INFO - 2       | 925.59     | Button1 pressed                                    | VÁLIDA    
+INFO - 3       | 926.34     | Button3 pressed                                    | VÁLIDA    
+INFO - 4       | 926.37     | Button3 released                                   | VÁLIDA    
+INFO - 5       | 926.60     | Button1 released                                   | VÁLIDA    
+INFO - 6       | 948.52     | Button3 pressed                                    | VÁLIDA    
+INFO - 7       | 987.74     | Button3 released                                   | VÁLIDA    
+INFO - 8       | 989.80     | Button3 pressed                                    | VÁLIDA    
+INFO - 9       | 1006.83    | Button3 released                                   | VÁLIDA    
+INFO - 10      | 1014.18    | Button3 pressed                                    | VÁLIDA    
+INFO - 11      | 1046.04    | Button3 released                                   | VÁLIDA    
+INFO - 12      | 1440.52    | SUPRABLOCK_VR_END                                  | FUERA RANGO
+INFO - 
+Filtrando 1 anotaciones fuera del rango válido (0-1440.00s)
+INFO - Se conservaron 12 anotaciones dentro del rango válido
+INFO - 
+=== ANOTACIONES CONSERVADAS PARA EL ARCHIVO BIDS ===
+INFO - Índice  | Tiempo (s) | Descripción                                       
+INFO - ------- | ---------- | --------------------------------------------------
+INFO - 0       | 843.96     | Button0 pressed                                   
+INFO - 1       | 844.46     | Button0 released                                  
+INFO - 2       | 925.59     | Button1 pressed                                   
+INFO - 3       | 926.34     | Button3 pressed                                   
+INFO - 4       | 926.37     | Button3 released                                  
+INFO - 5       | 926.60     | Button1 released                                  
+INFO - 6       | 948.52     | Button3 pressed                                   
+INFO - 7       | 987.74     | Button3 released                                  
+INFO - 8       | 989.80     | Button3 pressed                                   
+INFO - 9       | 1006.83    | Button3 released                                  
+INFO - 10      | 1014.18    | Button3 pressed                                   
+INFO - 11      | 1046.04    | Button3 released                                  
+INFO - 
+=== RESUMEN POR TIPO DE ANOTACIÓN ===
+INFO - Tipo de anotación                                  | Cantidad  
+INFO - -------------------------------------------------- | ----------
+INFO - Button0 pressed                                    | 1         
+INFO - Button0 released                                   | 1         
+INFO - Button1 pressed                                    | 1         
+INFO - Button3 pressed                                    | 4         
+INFO - Button3 released                                   | 4         
+INFO - Button1 released                                   | 1         
+Cargando montaje desde: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\BC-32.bvef
+Used Annotations descriptions: [np.str_('Button0 pressed'), np.str_('Button0 released'), np.str_('Button1 pressed'), np.str_('Button1 released'), np.str_('Button3 pressed'), np.str_('Button3 released')]
+INFO - 
+Se usarán 12 eventos extraídos de las anotaciones
+INFO - 
+=== MAPEO DE EVENTOS ===
+INFO - Descripción                                        | Código de evento
+INFO - -------------------------------------------------- | ---------------
+INFO - Button0 pressed                                    | 1              
+INFO - Button0 released                                   | 2              
+INFO - Button1 pressed                                    | 3              
+INFO - Button1 released                                   | 4              
+INFO - Button3 pressed                                    | 5              
+INFO - Button3 released                                   | 6              
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-a_space-CapTrak_electrodes.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-a_space-CapTrak_coordsystem.json'...
+Used Annotations descriptions: [np.str_('Button0 pressed'), np.str_('Button0 released'), np.str_('Button1 pressed'), np.str_('Button1 released'), np.str_('Button3 pressed'), np.str_('Button3 released')]
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-03_acq-a_run-004_events.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-03_acq-a_run-004_events.json'...
+C:\Users\au805392\micromamba\envs\campeones\Lib\site-packages\mne_bids\write.py:1589: UserWarning: Conflicting BIDSVersion found in dataset_description.json! Consider setting BIDS root to a new directory and redo conversion after ensuring all software has been updated. Original dataset description will not be overwritten.
+  warnings.warn(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\dataset_description.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-03_acq-a_run-004_eeg.json'...
+Copying data files to sub-24_ses-vr_task-03_acq-a_run-004_eeg.vhdr
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-03_acq-a_run-004_channels.tsv'...
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Converting data files to BrainVision format
+  write_raw_bids(
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Encountered data in "double" format. Converting to float32.
+  write_raw_bids(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv'...
+Wrote C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv entry with eeg\sub-24_ses-vr_task-03_acq-a_run-004_eeg.vhdr.
+INFO - 
+Procesamiento BIDS completado exitosamente.
+INFO - ✅ Successfully processed sub-24_ses-vr_day-a_task-03_run-004_eeg.xdf
+INFO - 
+Evaluating file: sub-24_ses-vr_day-a_task-04_run-005_eeg.xdf
+INFO - 🔄 PROCESANDO: sub-24_ses-vr_day-a_task-04_run-005_eeg.xdf
+INFO - Directorio raíz del proyecto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis
+INFO - 
+Buscando archivo en:
+INFO - Path relativo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-04_run-005_eeg.xdf
+INFO - Path absoluto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-04_run-005_eeg.xdf
+INFO - 
+Procesando archivo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-04_run-005_eeg.xdf
+INFO - 
+=============================================
+INFO - IMPORTANTE: Filtrando marcas con problemas de sincronización
+INFO - Se preservarán solo las marcas dentro del rango válido del EEG
+INFO - =============================================
+
+INFO - 
+Streams encontrados:
+INFO - 
+Stream 1:
+INFO - Tipo: Markers
+INFO - Nombre: markers
+INFO - Stream ID: 1
+INFO - 
+Stream 2:
+INFO - Tipo: Markers
+INFO - Nombre: BrainAmpSeries-Markers
+INFO - Stream ID: 5
+INFO - 
+Stream 3:
+INFO - Tipo: Position
+INFO - Nombre: T.16000MAxes
+INFO - Stream ID: 2
+INFO - 
+Información de los ejes del joystick (X e Y):
+INFO - Número total de muestras: 77658
+INFO - Frecuencia de muestreo: 60.0 Hz
+INFO - 
+Análisis detallado de timing del joystick:
+INFO - Tiempo de inicio: 52872.80 segundos
+INFO - Tiempo final: 54115.31 segundos
+INFO - Duración total: 1242.51 segundos
+INFO - Intervalo entre muestras promedio: 0.016000 segundos
+INFO - Duración total: 00:20:42.51 (HH:MM:SS)
+INFO - 
+Stream 4:
+INFO - Tipo: Markers
+INFO - Nombre: T.16000MButtons
+INFO - Stream ID: 3
+INFO - 
+Stream 5:
+INFO - Tipo: EEG
+INFO - Nombre: BrainAmpSeries
+INFO - Stream ID: 4
+INFO - ¡Este es el stream de EEG!
+INFO - 
+Información del stream de EEG:
+INFO - Número total de muestras: 621300
+INFO - Frecuencia de muestreo: 500.0 Hz
+INFO - Número de canales: 49
+INFO - 
+Análisis detallado de timing del EEG:
+INFO - Tiempo de inicio: 52872.78 segundos
+INFO - Tiempo final: 54115.38 segundos
+INFO - Duración total: 1242.60 segundos
+INFO - Intervalo entre muestras promedio: 0.002000 segundos
+INFO - Duración total: 00:20:42.60 (HH:MM:SS)
+INFO - 
+Procesando stream EEG...
+INFO - Info del raw EEG:
+INFO - <Info | 7 non-empty values
+ bads: []
+ ch_names: FP1, FP2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T7, T8, P7, ...
+ chs: 32 EEG, 17 misc
+ custom_ref_applied: False
+ highpass: 0.0 Hz
+ lowpass: 250.0 Hz
+ meas_date: 2025-11-18 21:33:08 UTC
+ nchan: 49
+ projs: []
+ sfreq: 500.0 Hz
+>
+INFO - 
+Se utilizarán solo las anotaciones dentro del rango válido del EEG
+INFO - 
+Manteniendo sampling rate nativo del EEG: 499.99830675080796 Hz (sin resamplear)
+INFO - 
+Procesando joystick...
+INFO - Duración EEG: 1242.60s, Duración Joystick: 1242.51s
+Creating RawArray with float64 data, n_channels=2, n_times=621254
+    Range : 0 ... 621253 =      0.000 ...  1242.510 secs
+Ready.
+INFO - Muestras EEG: 621300, Muestras Joystick: 621254
+INFO - Ajustando longitud de datos: diferencia de 46 muestras
+Joystick data resampled from 77658 points to 621254 points
+Original duration: 1242.51s, Resampled duration: 1242.51s
+Creating RawArray with float64 data, n_channels=2, n_times=621300
+    Range : 0 ... 621299 =      0.000 ...  1242.602 secs
+Ready.
+INFO - Joystick rellenado con 46 muestras adicionales
+INFO - Dimensiones finales - EEG: 621300, Joystick: 621300
+INFO - 
+Agregando canales de joystick al objeto Raw...
+INFO - Canales de joystick agregados correctamente
+INFO - 
+Aplicando montaje de canales EEG...
+INFO - 
+Documentando información de canales...
+INFO - 
+=== UNIDADES DE CANALES ANTES DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - PHOTO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - GSR (OTHER): unidad=110 (FIFF_UNIT_S), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - X (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Z (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - 
+=== APLICANDO CAMBIOS A UNIDADES ===
+INFO - Cambiando unidad de AUDIO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de PHOTO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de GSR de 110 (FIFF_UNIT_S) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de RESP de 107 (FIFF_UNIT_V) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de X de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Z de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_x de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - 
+=== UNIDADES DE CANALES DESPUÉS DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - PHOTO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - GSR (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - X (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Z (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - joystick_y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Información de canales guardada en: C:/Users/au805392/OneDrive - Aarhus universitet/Escritorio/Investigacion/campeones_analysis/data/raw/sub-24/ses-vr/eeg/sub-24_ses-vr_task-04_acq-a_run-005_channels.tsv
+INFO - Metadata de canales guardada en: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-04_acq-a_run-005_channels.json
+INFO - 
+Guardando datos EEG en formato BIDS...
+INFO - El objeto raw contiene 25 anotaciones
+INFO - 
+=== DETALLE DE ANOTACIONES ORIGINALES ===
+INFO - Índice  | Tiempo (s) | Descripción                                        | Estado    
+INFO - ------- | ---------- | -------------------------------------------------- | ----------
+INFO - 0       | 82.01      | Button3 pressed                                    | VÁLIDA    
+INFO - 1       | 82.05      | Button3 released                                   | VÁLIDA    
+INFO - 2       | 82.08      | Button3 pressed                                    | VÁLIDA    
+INFO - 3       | 145.11     | Button3 released                                   | VÁLIDA    
+INFO - 4       | 268.26     | Button0 pressed                                    | VÁLIDA    
+INFO - 5       | 272.50     | Button0 released                                   | VÁLIDA    
+INFO - 6       | 273.86     | Button0 pressed                                    | VÁLIDA    
+INFO - 7       | 280.22     | Button0 released                                   | VÁLIDA    
+INFO - 8       | 281.37     | Button0 pressed                                    | VÁLIDA    
+INFO - 9       | 281.67     | Button0 released                                   | VÁLIDA    
+INFO - 10      | 370.24     | Button3 pressed                                    | VÁLIDA    
+INFO - 11      | 371.64     | Button3 released                                   | VÁLIDA    
+INFO - 12      | 576.49     | Button3 pressed                                    | VÁLIDA    
+INFO - 13      | 577.65     | Button3 released                                   | VÁLIDA    
+INFO - 14      | 591.26     | Button0 pressed                                    | VÁLIDA    
+INFO - 15      | 591.98     | Button0 released                                   | VÁLIDA    
+INFO - 16      | 593.31     | Button0 pressed                                    | VÁLIDA    
+INFO - 17      | 593.35     | Button0 released                                   | VÁLIDA    
+INFO - 18      | 593.94     | Button0 pressed                                    | VÁLIDA    
+INFO - 19      | 608.81     | Button0 released                                   | VÁLIDA    
+INFO - 20      | 716.36     | Button3 pressed                                    | VÁLIDA    
+INFO - 21      | 719.47     | Button3 released                                   | VÁLIDA    
+INFO - 22      | 764.71     | Button0 pressed                                    | VÁLIDA    
+INFO - 23      | 771.12     | Button0 released                                   | VÁLIDA    
+INFO - 24      | 1242.83    | SUPRABLOCK_VR_END                                  | FUERA RANGO
+INFO - 
+Filtrando 1 anotaciones fuera del rango válido (0-1242.60s)
+INFO - Se conservaron 24 anotaciones dentro del rango válido
+INFO - 
+=== ANOTACIONES CONSERVADAS PARA EL ARCHIVO BIDS ===
+INFO - Índice  | Tiempo (s) | Descripción                                       
+INFO - ------- | ---------- | --------------------------------------------------
+INFO - 0       | 82.01      | Button3 pressed                                   
+INFO - 1       | 82.05      | Button3 released                                  
+INFO - 2       | 82.08      | Button3 pressed                                   
+INFO - 3       | 145.11     | Button3 released                                  
+INFO - 4       | 268.26     | Button0 pressed                                   
+INFO - 5       | 272.50     | Button0 released                                  
+INFO - 6       | 273.86     | Button0 pressed                                   
+INFO - 7       | 280.22     | Button0 released                                  
+INFO - 8       | 281.37     | Button0 pressed                                   
+INFO - 9       | 281.67     | Button0 released                                  
+INFO - 10      | 370.24     | Button3 pressed                                   
+INFO - 11      | 371.64     | Button3 released                                  
+INFO - 12      | 576.49     | Button3 pressed                                   
+INFO - 13      | 577.65     | Button3 released                                  
+INFO - 14      | 591.26     | Button0 pressed                                   
+INFO - 15      | 591.98     | Button0 released                                  
+INFO - 16      | 593.31     | Button0 pressed                                   
+INFO - 17      | 593.35     | Button0 released                                  
+INFO - 18      | 593.94     | Button0 pressed                                   
+INFO - 19      | 608.81     | Button0 released                                  
+INFO - 20      | 716.36     | Button3 pressed                                   
+INFO - 21      | 719.47     | Button3 released                                  
+INFO - 22      | 764.71     | Button0 pressed                                   
+INFO - 23      | 771.12     | Button0 released                                  
+INFO - 
+=== RESUMEN POR TIPO DE ANOTACIÓN ===
+INFO - Tipo de anotación                                  | Cantidad  
+INFO - -------------------------------------------------- | ----------
+INFO - Button3 pressed                                    | 5         
+INFO - Button3 released                                   | 5         
+INFO - Button0 pressed                                    | 7         
+INFO - Button0 released                                   | 7         
+Cargando montaje desde: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\BC-32.bvef
+Used Annotations descriptions: [np.str_('Button0 pressed'), np.str_('Button0 released'), np.str_('Button3 pressed'), np.str_('Button3 released')]
+INFO - 
+Se usarán 24 eventos extraídos de las anotaciones
+INFO - 
+=== MAPEO DE EVENTOS ===
+INFO - Descripción                                        | Código de evento
+INFO - -------------------------------------------------- | ---------------
+INFO - Button0 pressed                                    | 1              
+INFO - Button0 released                                   | 2              
+INFO - Button3 pressed                                    | 3              
+INFO - Button3 released                                   | 4              
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-a_space-CapTrak_electrodes.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-a_space-CapTrak_coordsystem.json'...
+Used Annotations descriptions: [np.str_('Button0 pressed'), np.str_('Button0 released'), np.str_('Button3 pressed'), np.str_('Button3 released')]
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-04_acq-a_run-005_events.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-04_acq-a_run-005_events.json'...
+C:\Users\au805392\micromamba\envs\campeones\Lib\site-packages\mne_bids\write.py:1589: UserWarning: Conflicting BIDSVersion found in dataset_description.json! Consider setting BIDS root to a new directory and redo conversion after ensuring all software has been updated. Original dataset description will not be overwritten.
+  warnings.warn(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\dataset_description.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-04_acq-a_run-005_eeg.json'...
+Copying data files to sub-24_ses-vr_task-04_acq-a_run-005_eeg.vhdr
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-04_acq-a_run-005_channels.tsv'...
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Converting data files to BrainVision format
+  write_raw_bids(
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Encountered data in "double" format. Converting to float32.
+  write_raw_bids(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv'...
+Wrote C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv entry with eeg\sub-24_ses-vr_task-04_acq-a_run-005_eeg.vhdr.
+INFO - 
+Procesamiento BIDS completado exitosamente.
+INFO - ✅ Successfully processed sub-24_ses-vr_day-a_task-04_run-005_eeg.xdf
+INFO - 
+Evaluating file: sub-24_ses-vr_day-a_task-practice_run-001_eeg.xdf
+INFO - 🔄 PROCESANDO: sub-24_ses-vr_day-a_task-practice_run-001_eeg.xdf
+INFO - Directorio raíz del proyecto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis
+INFO - 
+Buscando archivo en:
+INFO - Path relativo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-practice_run-001_eeg.xdf
+INFO - Path absoluto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-practice_run-001_eeg.xdf
+INFO - 
+Procesando archivo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-a_task-practice_run-001_eeg.xdf
+INFO - 
+=============================================
+INFO - IMPORTANTE: Filtrando marcas con problemas de sincronización
+INFO - Se preservarán solo las marcas dentro del rango válido del EEG
+INFO - =============================================
+
+INFO - 
+Streams encontrados:
+INFO - 
+Stream 1:
+INFO - Tipo: Markers
+INFO - Nombre: T.16000MButtons
+INFO - Stream ID: 1
+INFO - 
+Stream 2:
+INFO - Tipo: Markers
+INFO - Nombre: BrainAmpSeries-Markers
+INFO - Stream ID: 2
+INFO - 
+Stream 3:
+INFO - Tipo: Markers
+INFO - Nombre: markers
+INFO - Stream ID: 5
+INFO - 
+Stream 4:
+INFO - Tipo: EEG
+INFO - Nombre: BrainAmpSeries
+INFO - Stream ID: 3
+INFO - ¡Este es el stream de EEG!
+INFO - 
+Información del stream de EEG:
+INFO - Número total de muestras: 378300
+INFO - Frecuencia de muestreo: 500.0 Hz
+INFO - Número de canales: 49
+INFO - 
+Análisis detallado de timing del EEG:
+INFO - Tiempo de inicio: 44643.80 segundos
+INFO - Tiempo final: 45400.40 segundos
+INFO - Duración total: 756.60 segundos
+INFO - Intervalo entre muestras promedio: 0.002000 segundos
+INFO - Duración total: 00:12:36.60 (HH:MM:SS)
+INFO - 
+Stream 5:
+INFO - Tipo: Position
+INFO - Nombre: T.16000MAxes
+INFO - Stream ID: 4
+INFO - 
+Información de los ejes del joystick (X e Y):
+INFO - Número total de muestras: 47282
+INFO - Frecuencia de muestreo: 60.0 Hz
+INFO - 
+Análisis detallado de timing del joystick:
+INFO - Tiempo de inicio: 44643.86 segundos
+INFO - Tiempo final: 45400.35 segundos
+INFO - Duración total: 756.50 segundos
+INFO - Intervalo entre muestras promedio: 0.016000 segundos
+INFO - Duración total: 00:12:36.50 (HH:MM:SS)
+INFO - 
+Procesando stream EEG...
+INFO - Info del raw EEG:
+INFO - <Info | 7 non-empty values
+ bads: []
+ ch_names: FP1, FP2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T7, T8, P7, ...
+ chs: 32 EEG, 17 misc
+ custom_ref_applied: False
+ highpass: 0.0 Hz
+ lowpass: 250.0 Hz
+ meas_date: 2025-11-18 19:15:59 UTC
+ nchan: 49
+ projs: []
+ sfreq: 500.0 Hz
+>
+INFO - 
+Se utilizarán solo las anotaciones dentro del rango válido del EEG
+INFO - 
+Manteniendo sampling rate nativo del EEG: 499.99827555991124 Hz (sin resamplear)
+INFO - 
+Procesando joystick...
+INFO - Duración EEG: 756.60s, Duración Joystick: 756.50s
+Creating RawArray with float64 data, n_channels=2, n_times=378247
+    Range : 0 ... 378246 =      0.000 ...   756.495 secs
+Ready.
+INFO - Muestras EEG: 378300, Muestras Joystick: 378247
+INFO - Ajustando longitud de datos: diferencia de 53 muestras
+Joystick data resampled from 47282 points to 378247 points
+Original duration: 756.50s, Resampled duration: 756.49s
+Creating RawArray with float64 data, n_channels=2, n_times=378300
+    Range : 0 ... 378299 =      0.000 ...   756.601 secs
+Ready.
+INFO - Joystick rellenado con 53 muestras adicionales
+INFO - Dimensiones finales - EEG: 378300, Joystick: 378300
+INFO - 
+Agregando canales de joystick al objeto Raw...
+INFO - Canales de joystick agregados correctamente
+INFO - 
+Aplicando montaje de canales EEG...
+INFO - 
+Documentando información de canales...
+INFO - 
+=== UNIDADES DE CANALES ANTES DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - PHOTO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - GSR (OTHER): unidad=110 (FIFF_UNIT_S), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - X (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Z (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - 
+=== APLICANDO CAMBIOS A UNIDADES ===
+INFO - Cambiando unidad de AUDIO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de PHOTO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de GSR de 110 (FIFF_UNIT_S) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de RESP de 107 (FIFF_UNIT_V) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de X de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Z de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_x de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - 
+=== UNIDADES DE CANALES DESPUÉS DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - PHOTO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - GSR (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - X (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Z (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - joystick_y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Información de canales guardada en: C:/Users/au805392/OneDrive - Aarhus universitet/Escritorio/Investigacion/campeones_analysis/data/raw/sub-24/ses-vr/eeg/sub-24_ses-vr_task-practice_acq-a_run-001_channels.tsv
+INFO - Metadata de canales guardada en: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-practice_acq-a_run-001_channels.json
+INFO - 
+Guardando datos EEG en formato BIDS...
+INFO - El objeto raw contiene 1 anotaciones
+INFO - 
+=== DETALLE DE ANOTACIONES ORIGINALES ===
+INFO - Índice  | Tiempo (s) | Descripción                                        | Estado    
+INFO - ------- | ---------- | -------------------------------------------------- | ----------
+INFO - 0       | 756.85     | SUPRABLOCK_VR_END                                  | FUERA RANGO
+INFO - 
+Filtrando 1 anotaciones fuera del rango válido (0-756.60s)
+INFO - Se conservaron 0 anotaciones dentro del rango válido
+INFO - 
+=== ANOTACIONES CONSERVADAS PARA EL ARCHIVO BIDS ===
+INFO - Índice  | Tiempo (s) | Descripción                                       
+INFO - ------- | ---------- | --------------------------------------------------
+INFO - 
+=== RESUMEN POR TIPO DE ANOTACIÓN ===
+INFO - Tipo de anotación                                  | Cantidad  
+INFO - -------------------------------------------------- | ----------
+Cargando montaje desde: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\BC-32.bvef
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-a_space-CapTrak_electrodes.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-a_space-CapTrak_coordsystem.json'...
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: No events found or provided. Please add annotations to the raw data, or provide the events and event_id parameters. For resting state data, BIDS recommends naming the task using labels beginning with "rest".
+  write_raw_bids(
+C:\Users\au805392\micromamba\envs\campeones\Lib\site-packages\mne_bids\write.py:1589: UserWarning: Conflicting BIDSVersion found in dataset_description.json! Consider setting BIDS root to a new directory and redo conversion after ensuring all software has been updated. Original dataset description will not be overwritten.
+  warnings.warn(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\dataset_description.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-practice_acq-a_run-001_eeg.json'...
+Copying data files to sub-24_ses-vr_task-practice_acq-a_run-001_eeg.vhdr
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-practice_acq-a_run-001_channels.tsv'...
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Converting data files to BrainVision format
+  write_raw_bids(
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Encountered data in "double" format. Converting to float32.
+  write_raw_bids(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv'...
+Wrote C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv entry with eeg\sub-24_ses-vr_task-practice_acq-a_run-001_eeg.vhdr.
+INFO - 
+Procesamiento BIDS completado exitosamente.
+INFO - ✅ Successfully processed sub-24_ses-vr_day-a_task-practice_run-001_eeg.xdf
+INFO - 
+Evaluating file: sub-24_ses-vr_day-b_task-01_run-006_eeg.xdf
+INFO - 🔄 PROCESANDO: sub-24_ses-vr_day-b_task-01_run-006_eeg.xdf
+INFO - Directorio raíz del proyecto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis
+INFO - 
+Buscando archivo en:
+INFO - Path relativo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-b_task-01_run-006_eeg.xdf
+INFO - Path absoluto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-b_task-01_run-006_eeg.xdf
+INFO - 
+Procesando archivo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-b_task-01_run-006_eeg.xdf
+found likely XDF file corruption (no element found: line 1, column 17276), ignoring corrupted XML element in footer.
+INFO - 
+=============================================
+INFO - IMPORTANTE: Filtrando marcas con problemas de sincronización
+INFO - Se preservarán solo las marcas dentro del rango válido del EEG
+INFO - =============================================
+
+INFO - 
+Streams encontrados:
+INFO - 
+Stream 1:
+INFO - Tipo: Markers
+INFO - Nombre: BrainAmpSeries-Markers
+INFO - Stream ID: 5
+INFO - 
+Stream 2:
+INFO - Tipo: Markers
+INFO - Nombre: markers
+INFO - Stream ID: 1
+INFO - 
+Stream 3:
+INFO - Tipo: Position
+INFO - Nombre: T.16000MAxes
+INFO - Stream ID: 4
+INFO - 
+Información de los ejes del joystick (X e Y):
+INFO - Número total de muestras: 72562
+INFO - Frecuencia de muestreo: 60.0 Hz
+INFO - 
+Análisis detallado de timing del joystick:
+INFO - Tiempo de inicio: 518440.54 segundos
+INFO - Tiempo final: 519601.52 segundos
+INFO - Duración total: 1160.98 segundos
+INFO - Intervalo entre muestras promedio: 0.016000 segundos
+INFO - Duración total: 00:19:20.98 (HH:MM:SS)
+INFO - 
+Stream 4:
+INFO - Tipo: Markers
+INFO - Nombre: T.16000MButtons
+INFO - Stream ID: 3
+INFO - 
+Stream 5:
+INFO - Tipo: EEG
+INFO - Nombre: BrainAmpSeries
+INFO - Stream ID: 2
+INFO - ¡Este es el stream de EEG!
+INFO - 
+Información del stream de EEG:
+INFO - Número total de muestras: 580500
+INFO - Frecuencia de muestreo: 500.0 Hz
+INFO - Número de canales: 49
+INFO - 
+Análisis detallado de timing del EEG:
+INFO - Tiempo de inicio: 518440.51 segundos
+INFO - Tiempo final: 519601.52 segundos
+INFO - Duración total: 1161.00 segundos
+INFO - Intervalo entre muestras promedio: 0.002000 segundos
+INFO - Duración total: 00:19:21.00 (HH:MM:SS)
+INFO - 
+Procesando stream EEG...
+found likely XDF file corruption (no element found: line 1, column 17276), ignoring corrupted XML element in footer.
+INFO - Info del raw EEG:
+INFO - <Info | 7 non-empty values
+ bads: []
+ ch_names: FP1, FP2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T7, T8, P7, ...
+ chs: 32 EEG, 17 misc
+ custom_ref_applied: False
+ highpass: 0.0 Hz
+ lowpass: 250.0 Hz
+ meas_date: 2025-12-15 20:33:10 UTC
+ nchan: 49
+ projs: []
+ sfreq: 500.0 Hz
+>
+INFO - 
+Se utilizarán solo las anotaciones dentro del rango válido del EEG
+INFO - 
+Manteniendo sampling rate nativo del EEG: 499.99767986772065 Hz (sin resamplear)
+INFO - 
+Procesando joystick...
+INFO - Duración EEG: 1161.00s, Duración Joystick: 1160.98s
+Creating RawArray with float64 data, n_channels=2, n_times=580486
+    Range : 0 ... 580485 =      0.000 ...  1160.975 secs
+Ready.
+INFO - Muestras EEG: 580500, Muestras Joystick: 580486
+INFO - Ajustando longitud de datos: diferencia de 14 muestras
+Joystick data resampled from 72562 points to 580486 points
+Original duration: 1160.98s, Resampled duration: 1160.98s
+Creating RawArray with float64 data, n_channels=2, n_times=580500
+    Range : 0 ... 580499 =      0.000 ...  1161.003 secs
+Ready.
+INFO - Joystick rellenado con 14 muestras adicionales
+INFO - Dimensiones finales - EEG: 580500, Joystick: 580500
+INFO - 
+Agregando canales de joystick al objeto Raw...
+INFO - Canales de joystick agregados correctamente
+INFO - 
+Aplicando montaje de canales EEG...
+INFO - 
+Documentando información de canales...
+INFO - 
+=== UNIDADES DE CANALES ANTES DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - PHOTO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - GSR (OTHER): unidad=110 (FIFF_UNIT_S), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - X (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Z (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - 
+=== APLICANDO CAMBIOS A UNIDADES ===
+INFO - Cambiando unidad de AUDIO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de PHOTO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de GSR de 110 (FIFF_UNIT_S) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de RESP de 107 (FIFF_UNIT_V) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de X de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Z de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_x de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - 
+=== UNIDADES DE CANALES DESPUÉS DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - PHOTO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - GSR (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - X (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Z (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - joystick_y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Información de canales guardada en: C:/Users/au805392/OneDrive - Aarhus universitet/Escritorio/Investigacion/campeones_analysis/data/raw/sub-24/ses-vr/eeg/sub-24_ses-vr_task-01_acq-b_run-006_channels.tsv
+INFO - Metadata de canales guardada en: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-01_acq-b_run-006_channels.json
+INFO - 
+Guardando datos EEG en formato BIDS...
+INFO - El objeto raw contiene 1 anotaciones
+INFO - 
+=== DETALLE DE ANOTACIONES ORIGINALES ===
+INFO - Índice  | Tiempo (s) | Descripción                                        | Estado    
+INFO - ------- | ---------- | -------------------------------------------------- | ----------
+INFO - 0       | 1161.22    | SUPRABLOCK_VR_END                                  | FUERA RANGO
+INFO - 
+Filtrando 1 anotaciones fuera del rango válido (0-1161.00s)
+INFO - Se conservaron 0 anotaciones dentro del rango válido
+INFO - 
+=== ANOTACIONES CONSERVADAS PARA EL ARCHIVO BIDS ===
+INFO - Índice  | Tiempo (s) | Descripción                                       
+INFO - ------- | ---------- | --------------------------------------------------
+INFO - 
+=== RESUMEN POR TIPO DE ANOTACIÓN ===
+INFO - Tipo de anotación                                  | Cantidad  
+INFO - -------------------------------------------------- | ----------
+Cargando montaje desde: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\BC-32.bvef
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-b_space-CapTrak_electrodes.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-b_space-CapTrak_coordsystem.json'...
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: No events found or provided. Please add annotations to the raw data, or provide the events and event_id parameters. For resting state data, BIDS recommends naming the task using labels beginning with "rest".
+  write_raw_bids(
+C:\Users\au805392\micromamba\envs\campeones\Lib\site-packages\mne_bids\write.py:1589: UserWarning: Conflicting BIDSVersion found in dataset_description.json! Consider setting BIDS root to a new directory and redo conversion after ensuring all software has been updated. Original dataset description will not be overwritten.
+  warnings.warn(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\dataset_description.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-01_acq-b_run-006_eeg.json'...
+Copying data files to sub-24_ses-vr_task-01_acq-b_run-006_eeg.vhdr
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-01_acq-b_run-006_channels.tsv'...
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Converting data files to BrainVision format
+  write_raw_bids(
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Encountered data in "double" format. Converting to float32.
+  write_raw_bids(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv'...
+Wrote C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv entry with eeg\sub-24_ses-vr_task-01_acq-b_run-006_eeg.vhdr.
+INFO - 
+Procesamiento BIDS completado exitosamente.
+INFO - ✅ Successfully processed sub-24_ses-vr_day-b_task-01_run-006_eeg.xdf
+INFO - 
+Evaluating file: sub-24_ses-vr_day-b_task-02_run-007_eeg.xdf
+INFO - 🔄 PROCESANDO: sub-24_ses-vr_day-b_task-02_run-007_eeg.xdf
+INFO - Directorio raíz del proyecto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis
+INFO - 
+Buscando archivo en:
+INFO - Path relativo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-b_task-02_run-007_eeg.xdf
+INFO - Path absoluto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-b_task-02_run-007_eeg.xdf
+INFO - 
+Procesando archivo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-b_task-02_run-007_eeg.xdf
+INFO - 
+=============================================
+INFO - IMPORTANTE: Filtrando marcas con problemas de sincronización
+INFO - Se preservarán solo las marcas dentro del rango válido del EEG
+INFO - =============================================
+
+INFO - 
+Streams encontrados:
+INFO - 
+Stream 1:
+INFO - Tipo: Markers
+INFO - Nombre: BrainAmpSeries-Markers
+INFO - Stream ID: 3
+INFO - 
+Stream 2:
+INFO - Tipo: Position
+INFO - Nombre: T.16000MAxes
+INFO - Stream ID: 5
+INFO - 
+Información de los ejes del joystick (X e Y):
+INFO - Número total de muestras: 78124
+INFO - Frecuencia de muestreo: 60.0 Hz
+INFO - 
+Análisis detallado de timing del joystick:
+INFO - Tiempo de inicio: 601763.90 segundos
+INFO - Tiempo final: 603013.86 segundos
+INFO - Duración total: 1249.97 segundos
+INFO - Intervalo entre muestras promedio: 0.016000 segundos
+INFO - Duración total: 00:20:49.97 (HH:MM:SS)
+INFO - 
+Stream 3:
+INFO - Tipo: Markers
+INFO - Nombre: markers
+INFO - Stream ID: 2
+INFO - 
+Stream 4:
+INFO - Tipo: EEG
+INFO - Nombre: BrainAmpSeries
+INFO - Stream ID: 1
+INFO - ¡Este es el stream de EEG!
+INFO - 
+Información del stream de EEG:
+INFO - Número total de muestras: 625050
+INFO - Frecuencia de muestreo: 500.0 Hz
+INFO - Número de canales: 49
+INFO - 
+Análisis detallado de timing del EEG:
+INFO - Tiempo de inicio: 601763.80 segundos
+INFO - Tiempo final: 603013.91 segundos
+INFO - Duración total: 1250.10 segundos
+INFO - Intervalo entre muestras promedio: 0.002000 segundos
+INFO - Duración total: 00:20:50.10 (HH:MM:SS)
+INFO - 
+Stream 5:
+INFO - Tipo: Markers
+INFO - Nombre: T.16000MButtons
+INFO - Stream ID: 4
+INFO - 
+Procesando stream EEG...
+INFO - Info del raw EEG:
+INFO - <Info | 7 non-empty values
+ bads: []
+ ch_names: FP1, FP2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T7, T8, P7, ...
+ chs: 32 EEG, 17 misc
+ custom_ref_applied: False
+ highpass: 0.0 Hz
+ lowpass: 250.0 Hz
+ meas_date: 2025-12-16 19:41:51 UTC
+ nchan: 49
+ projs: []
+ sfreq: 500.0 Hz
+>
+INFO - 
+Se utilizarán solo las anotaciones dentro del rango válido del EEG
+INFO - 
+Manteniendo sampling rate nativo del EEG: 499.99770234488744 Hz (sin resamplear)
+INFO - 
+Procesando joystick...
+INFO - Duración EEG: 1250.10s, Duración Joystick: 1249.97s
+Creating RawArray with float64 data, n_channels=2, n_times=624982
+    Range : 0 ... 624981 =      0.000 ...  1249.968 secs
+Ready.
+INFO - Muestras EEG: 625050, Muestras Joystick: 624982
+INFO - Ajustando longitud de datos: diferencia de 68 muestras
+Joystick data resampled from 78124 points to 624982 points
+Original duration: 1249.97s, Resampled duration: 1249.97s
+Creating RawArray with float64 data, n_channels=2, n_times=625050
+    Range : 0 ... 625049 =      0.000 ...  1250.104 secs
+Ready.
+INFO - Joystick rellenado con 68 muestras adicionales
+INFO - Dimensiones finales - EEG: 625050, Joystick: 625050
+INFO - 
+Agregando canales de joystick al objeto Raw...
+INFO - Canales de joystick agregados correctamente
+INFO - 
+Aplicando montaje de canales EEG...
+INFO - 
+Documentando información de canales...
+INFO - 
+=== UNIDADES DE CANALES ANTES DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - PHOTO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - GSR (OTHER): unidad=110 (FIFF_UNIT_S), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - X (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Z (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - 
+=== APLICANDO CAMBIOS A UNIDADES ===
+INFO - Cambiando unidad de AUDIO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de PHOTO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de GSR de 110 (FIFF_UNIT_S) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de RESP de 107 (FIFF_UNIT_V) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de X de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Z de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_x de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - 
+=== UNIDADES DE CANALES DESPUÉS DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - PHOTO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - GSR (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - X (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Z (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - joystick_y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Información de canales guardada en: C:/Users/au805392/OneDrive - Aarhus universitet/Escritorio/Investigacion/campeones_analysis/data/raw/sub-24/ses-vr/eeg/sub-24_ses-vr_task-02_acq-b_run-007_channels.tsv
+INFO - Metadata de canales guardada en: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-02_acq-b_run-007_channels.json
+INFO - 
+Guardando datos EEG en formato BIDS...
+INFO - El objeto raw contiene 9 anotaciones
+INFO - 
+=== DETALLE DE ANOTACIONES ORIGINALES ===
+INFO - Índice  | Tiempo (s) | Descripción                                        | Estado    
+INFO - ------- | ---------- | -------------------------------------------------- | ----------
+INFO - 0       | 489.54     | Button1 pressed                                    | VÁLIDA    
+INFO - 1       | 489.56     | Button1 released                                   | VÁLIDA    
+INFO - 2       | 489.58     | Button1 pressed                                    | VÁLIDA    
+INFO - 3       | 489.59     | Button1 released                                   | VÁLIDA    
+INFO - 4       | 489.62     | Button1 pressed                                    | VÁLIDA    
+INFO - 5       | 489.64     | Button1 released                                   | VÁLIDA    
+INFO - 6       | 489.68     | Button1 pressed                                    | VÁLIDA    
+INFO - 7       | 491.87     | Button1 released                                   | VÁLIDA    
+INFO - 8       | 1250.15    | SUPRABLOCK_VR_END                                  | FUERA RANGO
+INFO - 
+Filtrando 1 anotaciones fuera del rango válido (0-1250.10s)
+INFO - Se conservaron 8 anotaciones dentro del rango válido
+INFO - 
+=== ANOTACIONES CONSERVADAS PARA EL ARCHIVO BIDS ===
+INFO - Índice  | Tiempo (s) | Descripción                                       
+INFO - ------- | ---------- | --------------------------------------------------
+INFO - 0       | 489.54     | Button1 pressed                                   
+INFO - 1       | 489.56     | Button1 released                                  
+INFO - 2       | 489.58     | Button1 pressed                                   
+INFO - 3       | 489.59     | Button1 released                                  
+INFO - 4       | 489.62     | Button1 pressed                                   
+INFO - 5       | 489.64     | Button1 released                                  
+INFO - 6       | 489.68     | Button1 pressed                                   
+INFO - 7       | 491.87     | Button1 released                                  
+INFO - 
+=== RESUMEN POR TIPO DE ANOTACIÓN ===
+INFO - Tipo de anotación                                  | Cantidad  
+INFO - -------------------------------------------------- | ----------
+INFO - Button1 pressed                                    | 4         
+INFO - Button1 released                                   | 4         
+Cargando montaje desde: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\BC-32.bvef
+Used Annotations descriptions: [np.str_('Button1 pressed'), np.str_('Button1 released')]
+INFO - 
+Se usarán 8 eventos extraídos de las anotaciones
+INFO - 
+=== MAPEO DE EVENTOS ===
+INFO - Descripción                                        | Código de evento
+INFO - -------------------------------------------------- | ---------------
+INFO - Button1 pressed                                    | 1              
+INFO - Button1 released                                   | 2              
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-b_space-CapTrak_electrodes.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-b_space-CapTrak_coordsystem.json'...
+Used Annotations descriptions: [np.str_('Button1 pressed'), np.str_('Button1 released')]
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-02_acq-b_run-007_events.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-02_acq-b_run-007_events.json'...
+C:\Users\au805392\micromamba\envs\campeones\Lib\site-packages\mne_bids\write.py:1589: UserWarning: Conflicting BIDSVersion found in dataset_description.json! Consider setting BIDS root to a new directory and redo conversion after ensuring all software has been updated. Original dataset description will not be overwritten.
+  warnings.warn(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\dataset_description.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-02_acq-b_run-007_eeg.json'...
+Copying data files to sub-24_ses-vr_task-02_acq-b_run-007_eeg.vhdr
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-02_acq-b_run-007_channels.tsv'...
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Converting data files to BrainVision format
+  write_raw_bids(
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Encountered data in "double" format. Converting to float32.
+  write_raw_bids(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv'...
+Wrote C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv entry with eeg\sub-24_ses-vr_task-02_acq-b_run-007_eeg.vhdr.
+INFO - 
+Procesamiento BIDS completado exitosamente.
+INFO - ✅ Successfully processed sub-24_ses-vr_day-b_task-02_run-007_eeg.xdf
+INFO - 
+Evaluating file: sub-24_ses-vr_day-b_task-03_run-008_eeg.xdf
+INFO - 🔄 PROCESANDO: sub-24_ses-vr_day-b_task-03_run-008_eeg.xdf
+INFO - Directorio raíz del proyecto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis
+INFO - 
+Buscando archivo en:
+INFO - Path relativo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-b_task-03_run-008_eeg.xdf
+INFO - Path absoluto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-b_task-03_run-008_eeg.xdf
+INFO - 
+Procesando archivo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-b_task-03_run-008_eeg.xdf
+INFO - 
+=============================================
+INFO - IMPORTANTE: Filtrando marcas con problemas de sincronización
+INFO - Se preservarán solo las marcas dentro del rango válido del EEG
+INFO - =============================================
+
+INFO - 
+Streams encontrados:
+INFO - 
+Stream 1:
+INFO - Tipo: Markers
+INFO - Nombre: T.16000MButtons
+INFO - Stream ID: 4
+INFO - 
+Stream 2:
+INFO - Tipo: Markers
+INFO - Nombre: BrainAmpSeries-Markers
+INFO - Stream ID: 5
+INFO - 
+Stream 3:
+INFO - Tipo: Markers
+INFO - Nombre: markers
+INFO - Stream ID: 1
+INFO - 
+Stream 4:
+INFO - Tipo: EEG
+INFO - Nombre: BrainAmpSeries
+INFO - Stream ID: 3
+INFO - ¡Este es el stream de EEG!
+INFO - 
+Información del stream de EEG:
+INFO - Número total de muestras: 830750
+INFO - Frecuencia de muestreo: 500.0 Hz
+INFO - Número de canales: 49
+INFO - 
+Análisis detallado de timing del EEG:
+INFO - Tiempo de inicio: 599884.51 segundos
+INFO - Tiempo final: 601546.02 segundos
+INFO - Duración total: 1661.51 segundos
+INFO - Intervalo entre muestras promedio: 0.002000 segundos
+INFO - Duración total: 00:27:41.51 (HH:MM:SS)
+INFO - 
+Stream 5:
+INFO - Tipo: Position
+INFO - Nombre: T.16000MAxes
+INFO - Stream ID: 2
+INFO - 
+Información de los ejes del joystick (X e Y):
+INFO - Número total de muestras: 103840
+INFO - Frecuencia de muestreo: 60.0 Hz
+INFO - 
+Análisis detallado de timing del joystick:
+INFO - Tiempo de inicio: 599884.56 segundos
+INFO - Tiempo final: 601545.98 segundos
+INFO - Duración total: 1661.42 segundos
+INFO - Intervalo entre muestras promedio: 0.016000 segundos
+INFO - Duración total: 00:27:41.42 (HH:MM:SS)
+INFO - 
+Procesando stream EEG...
+INFO - Info del raw EEG:
+INFO - <Info | 7 non-empty values
+ bads: []
+ ch_names: FP1, FP2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T7, T8, P7, ...
+ chs: 32 EEG, 17 misc
+ custom_ref_applied: False
+ highpass: 0.0 Hz
+ lowpass: 250.0 Hz
+ meas_date: 2025-12-16 19:10:31 UTC
+ nchan: 49
+ projs: []
+ sfreq: 500.0 Hz
+>
+INFO - 
+Se utilizarán solo las anotaciones dentro del rango válido del EEG
+INFO - 
+Manteniendo sampling rate nativo del EEG: 499.99772863779754 Hz (sin resamplear)
+INFO - 
+Procesando joystick...
+INFO - Duración EEG: 1661.51s, Duración Joystick: 1661.42s
+Creating RawArray with float64 data, n_channels=2, n_times=830709
+    Range : 0 ... 830708 =      0.000 ...  1661.424 secs
+Ready.
+INFO - Muestras EEG: 830750, Muestras Joystick: 830709
+INFO - Ajustando longitud de datos: diferencia de 41 muestras
+Joystick data resampled from 103840 points to 830709 points
+Original duration: 1661.42s, Resampled duration: 1661.42s
+Creating RawArray with float64 data, n_channels=2, n_times=830750
+    Range : 0 ... 830749 =      0.000 ...  1661.506 secs
+Ready.
+INFO - Joystick rellenado con 41 muestras adicionales
+INFO - Dimensiones finales - EEG: 830750, Joystick: 830750
+INFO - 
+Agregando canales de joystick al objeto Raw...
+INFO - Canales de joystick agregados correctamente
+INFO - 
+Aplicando montaje de canales EEG...
+INFO - 
+Documentando información de canales...
+INFO - 
+=== UNIDADES DE CANALES ANTES DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - PHOTO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - GSR (OTHER): unidad=110 (FIFF_UNIT_S), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - X (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Z (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - 
+=== APLICANDO CAMBIOS A UNIDADES ===
+INFO - Cambiando unidad de AUDIO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de PHOTO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de GSR de 110 (FIFF_UNIT_S) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de RESP de 107 (FIFF_UNIT_V) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de X de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Z de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_x de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - 
+=== UNIDADES DE CANALES DESPUÉS DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - PHOTO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - GSR (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - X (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Z (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - joystick_y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Información de canales guardada en: C:/Users/au805392/OneDrive - Aarhus universitet/Escritorio/Investigacion/campeones_analysis/data/raw/sub-24/ses-vr/eeg/sub-24_ses-vr_task-03_acq-b_run-008_channels.tsv
+INFO - Metadata de canales guardada en: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-03_acq-b_run-008_channels.json
+INFO - 
+Guardando datos EEG en formato BIDS...
+INFO - El objeto raw contiene 1 anotaciones
+INFO - 
+=== DETALLE DE ANOTACIONES ORIGINALES ===
+INFO - Índice  | Tiempo (s) | Descripción                                        | Estado    
+INFO - ------- | ---------- | -------------------------------------------------- | ----------
+INFO - 0       | 1661.61    | SUPRABLOCK_VR_END                                  | FUERA RANGO
+INFO - 
+Filtrando 1 anotaciones fuera del rango válido (0-1661.51s)
+INFO - Se conservaron 0 anotaciones dentro del rango válido
+INFO - 
+=== ANOTACIONES CONSERVADAS PARA EL ARCHIVO BIDS ===
+INFO - Índice  | Tiempo (s) | Descripción                                       
+INFO - ------- | ---------- | --------------------------------------------------
+INFO - 
+=== RESUMEN POR TIPO DE ANOTACIÓN ===
+INFO - Tipo de anotación                                  | Cantidad  
+INFO - -------------------------------------------------- | ----------
+Cargando montaje desde: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\BC-32.bvef
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-b_space-CapTrak_electrodes.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-b_space-CapTrak_coordsystem.json'...
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: No events found or provided. Please add annotations to the raw data, or provide the events and event_id parameters. For resting state data, BIDS recommends naming the task using labels beginning with "rest".
+  write_raw_bids(
+C:\Users\au805392\micromamba\envs\campeones\Lib\site-packages\mne_bids\write.py:1589: UserWarning: Conflicting BIDSVersion found in dataset_description.json! Consider setting BIDS root to a new directory and redo conversion after ensuring all software has been updated. Original dataset description will not be overwritten.
+  warnings.warn(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\dataset_description.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-03_acq-b_run-008_eeg.json'...
+Copying data files to sub-24_ses-vr_task-03_acq-b_run-008_eeg.vhdr
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-03_acq-b_run-008_channels.tsv'...
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Converting data files to BrainVision format
+  write_raw_bids(
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Encountered data in "double" format. Converting to float32.
+  write_raw_bids(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv'...
+Wrote C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv entry with eeg\sub-24_ses-vr_task-03_acq-b_run-008_eeg.vhdr.
+INFO - 
+Procesamiento BIDS completado exitosamente.
+INFO - ✅ Successfully processed sub-24_ses-vr_day-b_task-03_run-008_eeg.xdf
+INFO - 
+Evaluating file: sub-24_ses-vr_day-b_task-04_run-009_eeg.xdf
+INFO - 🔄 PROCESANDO: sub-24_ses-vr_day-b_task-04_run-009_eeg.xdf
+INFO - Directorio raíz del proyecto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis
+INFO - 
+Buscando archivo en:
+INFO - Path relativo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-b_task-04_run-009_eeg.xdf
+INFO - Path absoluto: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-b_task-04_run-009_eeg.xdf
+INFO - 
+Procesando archivo: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\sourcedata\xdf\sub-24\ses-VR\physio\sub-24_ses-vr_day-b_task-04_run-009_eeg.xdf
+INFO - 
+=============================================
+INFO - IMPORTANTE: Filtrando marcas con problemas de sincronización
+INFO - Se preservarán solo las marcas dentro del rango válido del EEG
+INFO - =============================================
+
+INFO - 
+Streams encontrados:
+INFO - 
+Stream 1:
+INFO - Tipo: Markers
+INFO - Nombre: markers
+INFO - Stream ID: 5
+INFO - 
+Stream 2:
+INFO - Tipo: Markers
+INFO - Nombre: BrainAmpSeries-Markers
+INFO - Stream ID: 2
+INFO - 
+Stream 3:
+INFO - Tipo: Position
+INFO - Nombre: T.16000MAxes
+INFO - Stream ID: 4
+INFO - 
+Información de los ejes del joystick (X e Y):
+INFO - Número total de muestras: 93344
+INFO - Frecuencia de muestreo: 60.0 Hz
+INFO - 
+Análisis detallado de timing del joystick:
+INFO - Tiempo de inicio: 604666.90 segundos
+INFO - Tiempo final: 606160.39 segundos
+INFO - Duración total: 1493.49 segundos
+INFO - Intervalo entre muestras promedio: 0.016000 segundos
+INFO - Duración total: 00:24:53.49 (HH:MM:SS)
+INFO - 
+Stream 4:
+INFO - Tipo: Markers
+INFO - Nombre: T.16000MButtons
+INFO - Stream ID: 3
+INFO - 
+Stream 5:
+INFO - Tipo: EEG
+INFO - Nombre: BrainAmpSeries
+INFO - Stream ID: 1
+INFO - ¡Este es el stream de EEG!
+INFO - 
+Información del stream de EEG:
+INFO - Número total de muestras: 746750
+INFO - Frecuencia de muestreo: 500.0 Hz
+INFO - Número de canales: 49
+INFO - 
+Análisis detallado de timing del EEG:
+INFO - Tiempo de inicio: 604666.87 segundos
+INFO - Tiempo final: 606160.38 segundos
+INFO - Duración total: 1493.50 segundos
+INFO - Intervalo entre muestras promedio: 0.002000 segundos
+INFO - Duración total: 00:24:53.50 (HH:MM:SS)
+INFO - 
+Procesando stream EEG...
+INFO - Info del raw EEG:
+INFO - <Info | 7 non-empty values
+ bads: []
+ ch_names: FP1, FP2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T7, T8, P7, ...
+ chs: 32 EEG, 17 misc
+ custom_ref_applied: False
+ highpass: 0.0 Hz
+ lowpass: 250.0 Hz
+ meas_date: 2025-12-16 20:30:14 UTC
+ nchan: 49
+ projs: []
+ sfreq: 500.0 Hz
+>
+INFO - 
+Se utilizarán solo las anotaciones dentro del rango válido del EEG
+INFO - 
+Manteniendo sampling rate nativo del EEG: 499.99774873936485 Hz (sin resamplear)
+INFO - 
+Procesando joystick...
+INFO - Duración EEG: 1493.50s, Duración Joystick: 1493.49s
+Creating RawArray with float64 data, n_channels=2, n_times=746741
+    Range : 0 ... 746740 =      0.000 ...  1493.487 secs
+Ready.
+INFO - Muestras EEG: 746750, Muestras Joystick: 746741
+INFO - Ajustando longitud de datos: diferencia de 9 muestras
+Joystick data resampled from 93344 points to 746741 points
+Original duration: 1493.49s, Resampled duration: 1493.49s
+Creating RawArray with float64 data, n_channels=2, n_times=746750
+    Range : 0 ... 746749 =      0.000 ...  1493.505 secs
+Ready.
+INFO - Joystick rellenado con 9 muestras adicionales
+INFO - Dimensiones finales - EEG: 746750, Joystick: 746750
+INFO - 
+Agregando canales de joystick al objeto Raw...
+INFO - Canales de joystick agregados correctamente
+INFO - 
+Aplicando montaje de canales EEG...
+INFO - 
+Documentando información de canales...
+INFO - 
+=== UNIDADES DE CANALES ANTES DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - PHOTO (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - GSR (OTHER): unidad=110 (FIFF_UNIT_S), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - X (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Z (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_y (MISC): unidad=-1 (FIFF_UNIT_NONE), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - 
+=== APLICANDO CAMBIOS A UNIDADES ===
+INFO - Cambiando unidad de AUDIO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de PHOTO de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de GSR de 110 (FIFF_UNIT_S) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de RESP de 107 (FIFF_UNIT_V) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de X de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de Z de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_x de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - Cambiando unidad de joystick_y de -1 (FIFF_UNIT_NONE) a FIFF_UNIT_V con multiplicador -6 (µV)
+INFO - 
+=== UNIDADES DE CANALES DESPUÉS DE CAMBIOS ===
+INFO - Fp1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fp2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - C4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P3 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P4 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - O2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - F8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - T8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P7 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - P8 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Fz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Cz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - Pz (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP1 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP2 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FC6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP5 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - CP6 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - FT10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP9 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - TP10 (EEG): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - ECG (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - R_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - L_EYE (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - AUDIO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - PHOTO (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - GSR (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - RESP (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - X (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Z (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - triggerStream (OTHER): unidad=107 (FIFF_UNIT_V), multiplicador=0 (FIFF_UNITM_NONE)
+INFO - joystick_x (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - joystick_y (MISC): unidad=107 (FIFF_UNIT_V), multiplicador=-6
+INFO - Información de canales guardada en: C:/Users/au805392/OneDrive - Aarhus universitet/Escritorio/Investigacion/campeones_analysis/data/raw/sub-24/ses-vr/eeg/sub-24_ses-vr_task-04_acq-b_run-009_channels.tsv
+INFO - Metadata de canales guardada en: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-04_acq-b_run-009_channels.json
+INFO - 
+Guardando datos EEG en formato BIDS...
+INFO - El objeto raw contiene 5 anotaciones
+INFO - 
+=== DETALLE DE ANOTACIONES ORIGINALES ===
+INFO - Índice  | Tiempo (s) | Descripción                                        | Estado    
+INFO - ------- | ---------- | -------------------------------------------------- | ----------
+INFO - 0       | 542.80     | Button3 pressed                                    | VÁLIDA    
+INFO - 1       | 546.60     | Button3 released                                   | VÁLIDA    
+INFO - 2       | 687.77     | Button3 pressed                                    | VÁLIDA    
+INFO - 3       | 698.54     | Button3 released                                   | VÁLIDA    
+INFO - 4       | 1493.89    | SUPRABLOCK_VR_END                                  | FUERA RANGO
+INFO - 
+Filtrando 1 anotaciones fuera del rango válido (0-1493.50s)
+INFO - Se conservaron 4 anotaciones dentro del rango válido
+INFO - 
+=== ANOTACIONES CONSERVADAS PARA EL ARCHIVO BIDS ===
+INFO - Índice  | Tiempo (s) | Descripción                                       
+INFO - ------- | ---------- | --------------------------------------------------
+INFO - 0       | 542.80     | Button3 pressed                                   
+INFO - 1       | 546.60     | Button3 released                                  
+INFO - 2       | 687.77     | Button3 pressed                                   
+INFO - 3       | 698.54     | Button3 released                                  
+INFO - 
+=== RESUMEN POR TIPO DE ANOTACIÓN ===
+INFO - Tipo de anotación                                  | Cantidad  
+INFO - -------------------------------------------------- | ----------
+INFO - Button3 pressed                                    | 2         
+INFO - Button3 released                                   | 2         
+Cargando montaje desde: C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\BC-32.bvef
+Used Annotations descriptions: [np.str_('Button3 pressed'), np.str_('Button3 released')]
+INFO - 
+Se usarán 4 eventos extraídos de las anotaciones
+INFO - 
+=== MAPEO DE EVENTOS ===
+INFO - Descripción                                        | Código de evento
+INFO - -------------------------------------------------- | ---------------
+INFO - Button3 pressed                                    | 1              
+INFO - Button3 released                                   | 2              
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\participants.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-b_space-CapTrak_electrodes.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_acq-b_space-CapTrak_coordsystem.json'...
+Used Annotations descriptions: [np.str_('Button3 pressed'), np.str_('Button3 released')]
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-04_acq-b_run-009_events.tsv'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-04_acq-b_run-009_events.json'...
+C:\Users\au805392\micromamba\envs\campeones\Lib\site-packages\mne_bids\write.py:1589: UserWarning: Conflicting BIDSVersion found in dataset_description.json! Consider setting BIDS root to a new directory and redo conversion after ensuring all software has been updated. Original dataset description will not be overwritten.
+  warnings.warn(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\dataset_description.json'...
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-04_acq-b_run-009_eeg.json'...
+Copying data files to sub-24_ses-vr_task-04_acq-b_run-009_eeg.vhdr
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\eeg\sub-24_ses-vr_task-04_acq-b_run-009_channels.tsv'...
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Converting data files to BrainVision format
+  write_raw_bids(
+C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\src\campeones_analysis\physio\read_xdf.py:669: RuntimeWarning: Encountered data in "double" format. Converting to float32.
+  write_raw_bids(
+Writing 'C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv'...
+Wrote C:\Users\au805392\OneDrive - Aarhus universitet\Escritorio\Investigacion\campeones_analysis\data\raw\sub-24\ses-vr\sub-24_ses-vr_scans.tsv entry with eeg\sub-24_ses-vr_task-04_acq-b_run-009_eeg.vhdr.
+INFO - 
+Procesamiento BIDS completado exitosamente.
+INFO - ✅ Successfully processed sub-24_ses-vr_day-b_task-04_run-009_eeg.xdf
+INFO - 
+📊 RESUMEN SESIÓN VR:
+INFO -    Archivos procesados: 9
+INFO -    Archivos omitidos: 0
+INFO -    Total archivos encontrados: 9
+=== sub-24 END exit=0 ===
+=== sub-30 START ===
+INFO - Found 1 subjects: 30
+INFO - 
+================================================================================
+INFO - Processing subject: 30
+INFO - ================================================================================
+INFO - Found 1 sessions: VR
+INFO - 
+------------------------------------------------------------
+INFO - Processing session: VR
+INFO - ------------------------------------------------------------
+INFO - Found 9 XDF files.
+INFO - 
+Evaluating file: sub-30_ses-vr_day-a_task-01_run-002_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-30_ses-vr_day-a_task-01_run-002_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-30_ses-vr_day-a_task-02_run-003_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-30_ses-vr_day-a_task-02_run-003_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-30_ses-vr_day-a_task-03_run-004_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-30_ses-vr_day-a_task-03_run-004_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-30_ses-vr_day-a_task-04_run-005_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-30_ses-vr_day-a_task-04_run-005_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-30_ses-vr_day-a_task-practice_run-001_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-30_ses-vr_day-a_task-practice_run-001_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-30_ses-vr_day-b_task-01_run-006_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-30_ses-vr_day-b_task-01_run-006_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-30_ses-vr_day-b_task-02_run-007_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-30_ses-vr_day-b_task-02_run-007_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-30_ses-vr_day-b_task-03_run-008_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-30_ses-vr_day-b_task-03_run-008_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-30_ses-vr_day-b_task-04_run-009_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-30_ses-vr_day-b_task-04_run-009_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+📊 RESUMEN SESIÓN VR:
+INFO -    Archivos procesados: 0
+INFO -    Archivos omitidos: 9
+INFO -    Total archivos encontrados: 9
+=== sub-30 END exit=0 ===
+=== sub-33 START ===
+INFO - Found 1 subjects: 33
+INFO - 
+================================================================================
+INFO - Processing subject: 33
+INFO - ================================================================================
+INFO - Found 1 sessions: VR
+INFO - 
+------------------------------------------------------------
+INFO - Processing session: VR
+INFO - ------------------------------------------------------------
+INFO - Found 9 XDF files.
+INFO - 
+Evaluating file: sub-33_ses-vr_day-a_task-01_run-002_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-33_ses-vr_day-a_task-01_run-002_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-33_ses-vr_day-a_task-02_run-003_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-33_ses-vr_day-a_task-02_run-003_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-33_ses-vr_day-a_task-03_run-004_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-33_ses-vr_day-a_task-03_run-004_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-33_ses-vr_day-a_task-04_run-005_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-33_ses-vr_day-a_task-04_run-005_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-33_ses-vr_day-a_task-practice_run-001_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-33_ses-vr_day-a_task-practice_run-001_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-33_ses-vr_day-b_task-01_run-006_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-33_ses-vr_day-b_task-01_run-006_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-33_ses-vr_day-b_task-02_run-007_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-33_ses-vr_day-b_task-02_run-007_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-33_ses-vr_day-b_task-03_run-008_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-33_ses-vr_day-b_task-03_run-008_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+Evaluating file: sub-33_ses-vr_day-b_task-04_run-009_eeg.xdf
+INFO - ⏭️  OMITIENDO: sub-33_ses-vr_day-b_task-04_run-009_eeg.xdf - Ya fue procesado
+INFO -    Los archivos BIDS correspondientes ya existen
+INFO -    Usa --force para reprocesar archivos existentes
+INFO - 
+📊 RESUMEN SESIÓN VR:
+INFO -    Archivos procesados: 0
+INFO -    Archivos omitidos: 9
+INFO -    Total archivos encontrados: 9
+=== sub-33 END exit=0 ===
+PHASE1_DONE 2026-04-15T21:34:02.673449

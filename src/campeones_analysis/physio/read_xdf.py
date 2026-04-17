@@ -353,11 +353,7 @@ def read_and_process_xdf(subject, session, task, run, acq="b", xdf_path=None, de
     """
     logger.info("\nSe utilizarán solo las anotaciones dentro del rango válido del EEG")
 
-    # Resample EEG to 250 Hz if necessary
-    target_sfreq = 250
-    if raw.info["sfreq"] != target_sfreq:
-        logger.info(f"\nResampleando EEG de {raw.info['sfreq']} Hz a {target_sfreq} Hz...")
-        raw = raw.resample(target_sfreq, npad="auto")
+    logger.info(f"\nManteniendo sampling rate nativo del EEG: {raw.info['sfreq']} Hz (sin resamplear)")
 
     # Process joystick stream if it exists
     joystick_raw = None
