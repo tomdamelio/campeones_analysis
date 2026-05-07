@@ -33,6 +33,10 @@ venv/
 *.zip
 *.npy
 *.html
+*.pdf
+
+# Research diary (personal notes, not for version control)
+research_diary/
 
 # External data storage - ignore most things in data/
 data/*
