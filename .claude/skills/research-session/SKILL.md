@@ -18,8 +18,19 @@
   **Modo alternativo — respuesta a supervisores:**
   Si el usuario invoca `/research-session --response` seguido de los comentarios en texto libre, activar el flujo definido en `references/response.md`. El interlocutor puede ser un supervisor (Diego, Enzo), un colega, colaborador, o estudiante de doctorado. El tono y nivel de detalle de la respuesta se adapta según quién es.
 
-  **Modo alternativo — intake de grabación de reunión:**
-  Si el usuario invoca `/research-session --from-recording [filename]`, activar el flujo definido en `references/recording-intake.md`. El archivo debe estar en `research_diary/recordings/`. Este modo extrae tareas y decisiones de la reunión, las presenta al usuario para validación, y crea el nuevo diario de tareas a partir de eso. Este modo clasifica los comentarios, corre análisis suplementarios si es necesario, documenta en el diario existente, y genera mensajes de Slack de respuesta.
+    **Modo alternativo — intake de grabación de reunión:**
+    Si el usuario invoca `/research-session --from-recording [filename]`, activar el flujo definido en `references/recording-intake.md`. El archivo debe estar en `research_diary/recordings/`. Este modo extrae tareas y decisiones de la reunión, las presenta al usuario para validación, y crea el nuevo diario de tareas a partir de eso. Este modo clasifica los comentarios, corre análisis suplementarios si es necesario, documenta en el diario existente, y genera mensajes de Slack de respuesta.
+
+    **Modo alternativo — brainstorming estructurado:**
+    Si el usuario invoca `/research-session --brainstorm <tema>`, activar el flujo definido en `references/brainstorm.md`. Sirve para explorar un tema antes de planificar implementación: preguntas Socráticas, alternativas, gaps. Output queda en
+  `research_diary/brainstorm/`.
+
+    **Modo alternativo — revisión de literatura estructurada:**
+    Si el usuario invoca `/research-session --lit-review <tema>`, activar el flujo definido en `references/lit-review.md`. Produce bibliografía anotada en formato académico (no draft de paper), con verificación de citas en PubMed/bioRxiv/arXiv. Output queda en
+  `research_diary/lit_reviews/`.
+
+    **Modo alternativo — síntesis semanal para supervisores:**
+    Si el usuario invoca `/research-session --weekly-synthesis [N_diarios]`, activar el flujo definido en `references/weekly-synthesis.md`. Produce una vista temática (no cronológica) del trabajo reciente — desde la última reunión por default — pensada como input al HTML + Slack del cierre, NO como draft de paper.
 
   ---
 
@@ -75,7 +86,45 @@
 
   Antes de escribir cualquier código:
 
-  1. Descomponer la tarea en subtareas pequeñas y verificables. Presentarlas como lista numerada y confirmar con el usuario antes de continuar. Al descomponer, intentar que cada subtarea sea **autocontenida** (inputs y outputs claros, sin dependencias implícitas con el estado de otras subtareas) y, cuando sea posible, **paralelizable** (que dos subtareas puedan correrse simultáneamente sin interferir). Esto permite: (a) hacer `/clear` al terminar una subtarea para comprimir el contexto, (b) correr subtareas independientes en sesiones paralelas de Claude en worktrees distintos. Solo cuando esto tenga sentido — no forzarlo si las subtareas son intrínsecamente secuenciales.
+    1. **Descomponer la tarea en subtareas paralelizables por default.** Presentarlas como lista numerada y confirmar con el usuario antes de continuar. La
+  descomposición **debe** buscar activamente paralelización en dos niveles:
+
+       **Nivel 1 — Paralelización entre subtareas:**
+       Cada subtarea debe ser **autocontenida**: inputs explícitos, output explícito (idealmente un archivo o conjunto de archivos con path conocido), cero estado       
+  compartido con otras subtareas. Si dos subtareas son autocontenidas respecto a la misma tarea madre, por default deben poder correrse simultáneamente en pestañas      
+  independientes de Claude Code, cada una con su propio `/clear`.
+
+       **Nivel 2 — Paralelización dentro de una subtarea:**
+       Cuando una subtarea se aplica sobre una colección de unidades independientes (N papers, N sujetos, N feature sets, N modelos, N condiciones experimentales),      
+  descomponerla en **un prompt por unidad**. Cada prompt:
+         - Se escribe a un archivo bajo una carpeta `prompts/` relativa al workspace de la subtarea.
+         - Declara su input específico (ej: el PDF concreto que procesa), su output específico (ej: el `.md` que va a generar), y las restricciones (herramientas        
+  permitidas, qué NO tocar).
+         - Incluye el contexto mínimo necesario para que una pestaña fresca de Claude pueda ejecutarlo sin leer la conversación madre.
+         - Termina con una **consolidación explícita**: un prompt adicional que lee todos los outputs por-unidad y los integra en un único documento.
+
+       **Regla de diseño:**
+       Preferir N subtareas/prompts autocontenidos y un paso final de consolidación, antes que una subtarea monolítica secuencial. El costo adicional (escribir N+1      
+  prompts en lugar de 1) se amortiza con creces por el paralelismo real (N pestañas corriendo a la vez) y por el contexto limpio de cada pestaña.
+
+       **Cuándo NO forzar paralelización:**
+       - Si las subtareas son intrínsecamente secuenciales (la subtarea 2 necesita el output validado de la subtarea 1 para existir). En ese caso, documentar la
+  dependencia explícitamente ("bloqueada por subtarea N") en lugar de paralelizar.
+       - Si el costo de preparar prompts autocontenidos supera el beneficio (ej.: una subtarea de 10 minutos que no se repite).
+       - Si la subtarea requiere interacción iterativa con el usuario que sería costosa de replicar en N pestañas.
+
+       **Patrón de referencia aplicado en este proyecto:**
+       La Subtarea 0 del pre-registro OSF se descompuso en 6 frentes (A–F) paralelizables entre sí (Nivel 1), más paralelización interna en los frentes A y F (Nivel 2:  
+  un prompt por paper, 6 + 7 unidades independientes, más dos prompts de consolidación). Ver `research_diary/preregistro_notes/prompts/` como template reproducible. El  
+  máximo paralelismo efectivo fue 17 pestañas simultáneas.
+
+       **Presentación al usuario:**
+       Cuando se le muestre la descomposición, **marcar explícitamente**:
+       - Cuáles subtareas corren en paralelo (Nivel 1) y cuáles son secuenciales.
+       - Qué subtareas se sub-paralelizan internamente (Nivel 2) y en cuántas unidades.
+       - Dónde va a vivir cada prompt autocontenido (path al `prompts/`).
+       - Cuál es el paso de consolidación y qué va a leer.
+       Esto permite al usuario validar la estrategia de paralelización antes de escribir nada.
   2. Explicar la matemática y neurociencia de cada subtarea siguiendo este orden fijo:
     - Intuición primero: ¿qué problema resuelve esto? ¿Por qué tiene sentido hacerlo?
     - Ejemplo concreto: con números pequeños o analogía del proyecto (ej: "imaginate que tenés 17 PCs y 7 runs LORO...")
@@ -91,12 +140,19 @@
     - ¿Las métricas elegidas (accuracy, AUC) son las más adecuadas para la pregunta científica?
     - Si hay dudas metodológicas profundas, invocar `/scientific-critical-thinking` para análisis formal
 
-  6. **Consultar agentes supervisores** cuando la tarea lo requiera (ver `agents/`):
-    - **modeler-supervisor** (`agents/modeler-supervisor.md`): invocar cuando haya decisiones no triviales de estadística, ML o validación — esquema de CV, regularización, comparación de modelos, interpretación de métricas, revisión del pipeline de otro investigador. Leer el archivo del agente y adoptar ese rol para responder.
-    - **experimentalist-supervisor** (`agents/experimentalist-supervisor.md`): invocar cuando haya que interpretar resultados en términos neurofisiológicos, tomar decisiones de preprocesamiento EEG, contextualizar hallazgos en la literatura de neurociencias, o evaluar si un resultado tiene sentido biológico. Leer el archivo del agente y adoptar ese rol para responder.
-    - Ambos agentes tienen instrucciones explícitas sobre cuándo usar PubMed, Context7 y WebSearch para verificar claims antes de responder. Seguir esas instrucciones estrictamente — no afirmar nada no trivial sin verificación.
-    - Los agentes pueden invocarse solos o en combinación cuando una pregunta tiene componentes tanto metodológicos como neurofisiológicos.
-    - El usuario también puede pedir explícitamente consultar un agente en cualquier momento de la sesión.
+    6. **Consultar agentes supervisores** cuando la tarea lo requiera (ver `agents/`):
+      - **modeler-supervisor** (`agents/modeler-supervisor.md`): invocar cuando haya decisiones no triviales de estadística, ML o validación — esquema de CV, regularización,
+  comparación de modelos, interpretación de métricas, revisión del pipeline de otro investigador. Leer el archivo del agente y adoptar ese rol para responder.
+      - **experimentalist-supervisor** (`agents/experimentalist-supervisor.md`): invocar cuando haya que interpretar resultados en términos neurofisiológicos, tomar decisiones de
+   preprocesamiento EEG, contextualizar hallazgos en la literatura de neurociencias, o evaluar si un resultado tiene sentido biológico. Leer el archivo del agente y adoptar ese
+  rol para responder.
+      - **synthesis-supervisor** (`agents/synthesis-supervisor.md`): invocar cuando haya que integrar múltiples fuentes (papers, resultados de varios sujetos, varios feature
+  sets), detectar contradicciones entre papers o entre resultados propios y la literatura, o identificar gaps. Útil sobre todo después de `--lit-review` o antes de
+  `--weekly-synthesis`. Leer el archivo del agente y adoptar ese rol para responder.
+      - Los tres agentes tienen instrucciones explícitas sobre cuándo usar PubMed, Context7, WebSearch (y bioRxiv para synthesis) para verificar claims antes de responder. Seguir
+   esas instrucciones estrictamente — no afirmar nada no trivial sin verificación.
+      - Los agentes pueden invocarse solos o en combinación cuando una pregunta tiene componentes metodológicos, neurofisiológicos, y/o de integración cross-source.
+      - El usuario también puede pedir explícitamente consultar un agente en cualquier momento de la sesión.
 
   ---
 
