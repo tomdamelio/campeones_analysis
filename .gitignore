@@ -6,6 +6,11 @@ __pycache__/
 # Virtual environments
 .env/
 .venv/
+
+# Secrets / credentials (dotenv file at project root)
+.env
+.env.local
+*.env.secret
 env/
 venv/
 .micromamba/

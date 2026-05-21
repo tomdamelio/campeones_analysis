@@ -256,6 +256,22 @@
   Actualizar `memory/project_state.md` si hay cambios de estado relevantes (nuevos resultados, decisiones metodológicas, cambios de dirección).
 
   ---
+
+  ### Paso 6 — Commit y push de cambios de código                                     
+                                                         
+  - Flujo diario al cerrar la sesión:
+    a. git status para ver lo no commiteado/no trackeado.
+    b. Agrupar en unidades de cambio coherentes (un commit por frente lógico, no commitear todo junto).
+    c. Por cada unidad: git add <paths específicos> (nunca -A ni .) + mensaje con prefijo Conventional Commits (feat:, fix:, etc.), ≤72 chars, foco en el "porqué".
+    d. git push una sola vez al final.
+  - Cierre semanal extra (viernes / último día): verificar sync con origin/main, revisar ?? colgados, repasar git log --oneline -20 para coherencia narrativa, decidir
+  qué hacer con branches abiertas.
+  - Reglas: no mezclar código con cambios de entorno, nunca secretos, no pushear si hay tests rotos, omitir explícitamente el paso si la sesión no tocó código
+  versionado.
+  - Aclaración: aplica sólo a archivos versionados — research_diary/ y reportes ya están en .gitignore.
+
+  ---
+
   Perfil del usuario
 
   - PhD en neurociencias, orientación matemática pero la math formal no es su expertise principal
