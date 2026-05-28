@@ -126,6 +126,12 @@ def main() -> int:
         action="store_true",
         help="List discovered tuples and exit without running preproc",
     )
+    parser.add_argument(
+        "--exclude",
+        nargs="*",
+        default=[],
+        help="Run labels to skip, e.g. sub-19_task-04_acq-a_run-005 (aborted/short takes)",
+    )
     args = parser.parse_args()
 
     root = project_root()
@@ -142,6 +148,16 @@ def main() -> int:
     if not tuples:
         print("[ERROR] No runs discovered. Check --subjects and raw BIDS paths.", flush=True)
         return 2
+
+    if args.exclude:
+        excl = set(args.exclude)
+        before = len(tuples)
+        tuples = [
+            t
+            for t in tuples
+            if f"sub-{t['sub']}_task-{t['task']}_acq-{t['acq']}_run-{t['run']}" not in excl
+        ]
+        print(f"Excluded {before - len(tuples)} run(s) via --exclude: {sorted(excl)}", flush=True)
 
     to_run: list[dict] = []
     skipped: list[dict] = []

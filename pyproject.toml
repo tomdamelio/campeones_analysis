@@ -28,6 +28,7 @@ dependencies = [
     "mne-icalabel>=0.4.0",
     "gitpython>=3.1.0",
     "opencv-python>=4.11.0",
+    "fooof>=1.1,<2.0",
 ]
 
 [project.optional-dependencies]
