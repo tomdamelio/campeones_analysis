@@ -60,9 +60,25 @@ dist/
 .vscode/
 .idea/
 
+# Claude Code local state (worktrees, settings, projects)
+.claude/
+
 # OS files
 .DS_Store
 Thumbs.db
+
+# Log files (preproc batch logs etc.)
+*.log
+
+# Manual annotation spreadsheets
+*.xlsx
+*.xls
+
+# Deprecated data (rename target from merged_events/deprecated/)
+data/derivatives/merged_events_DEPRECATED/
+
+# Stray empty files
+/1.1
 
 
 
