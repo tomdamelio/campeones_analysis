@@ -60,7 +60,7 @@ BASELINE = (-5.0, -4.5)
 BASELINE_MODE = "percent"  # (x - mean) / mean * 100, classical ERD/ERS metric
 WIN_OF_INTEREST = (0.0, 1.0)  # post-onset; classical ERD window
 
-SUBJ_COLORS = {"sub-23": "C0", "sub-24": "C1", "sub-33": "C2"}
+from src.campeones_analysis.multimodal_arousal.cohort import SUBJ_COLORS  # noqa: E402
 
 
 def compute_alpha_tfr(epochs: mne.Epochs) -> mne.time_frequency.AverageTFR:

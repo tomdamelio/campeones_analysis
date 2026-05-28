@@ -52,16 +52,19 @@ else:
     REPO = _ROOT
 DATA = REPO / "data"
 PREP = DATA / "derivatives" / "campeones_preproc"
-NPZ_DIR = REPO / "research_diary" / "context" / "05_02" / "y_candidates"
-OUT = REPO / "research_diary" / "context" / "05_02"
+from src.campeones_analysis.multimodal_arousal.cohort import (  # noqa: E402
+    COHORT as SUBJECTS,
+    NPZ_DIR,
+    OUT,
+    keep_run,
+)
+
 (OUT / "figures").mkdir(parents=True, exist_ok=True)
 (OUT / "y_candidates").mkdir(parents=True, exist_ok=True)
 
-SUBJECTS = ["sub-23", "sub-24", "sub-33"]
-
 EDA_FS = 50.0  # SMNA in continuous npz is at 50 Hz (matches build_y_candidates v2)
 PEAK_HEIGHT_FRAC = 0.05  # min peak height = 5% of per-run max SMNA
-PEAK_MIN_SEP_S = 1.5  # min separation between consecutive peaks (s)
+PEAK_MIN_SEP_S = 4.5  # = TMAX - TMIN (epoch window span): non-overlapping peak-locked epochs (2026-05-27 v2)
 TMIN, TMAX = -1.5, 3.0  # epoch window (s) relative to peak
 BASELINE = (-1.5, -0.5)
 PLOT_CH = ["Fz", "Cz", "Pz"]  # central midline; Oz proxy = mean(O1, O2) added later
@@ -72,7 +75,8 @@ RNG = np.random.default_rng(20260513)
 
 def runs_for(sub: str) -> list[Path]:
     eeg_dir = PREP / sub / "ses-vr" / "eeg"
-    return sorted(eeg_dir.glob(f"{sub}_ses-vr_task-*_acq-*_run-*_desc-preproc_eeg.vhdr"))
+    vhdrs = sorted(eeg_dir.glob(f"{sub}_ses-vr_task-*_acq-*_run-*_desc-preproc_eeg.vhdr"))
+    return [v for v in vhdrs if keep_run(sub, run_label(v))]
 
 
 def run_label(vhdr: Path) -> str:

@@ -49,12 +49,15 @@ if "worktrees" in _ROOT.parts and ".claude" in _ROOT.parts:
     REPO = _ROOT.parents[2]
 else:
     REPO = _ROOT
-NPZ_DIR = REPO / "research_diary" / "context" / "05_02" / "y_candidates"
-FIG_DIR = REPO / "research_diary" / "context" / "05_02" / "figures"
-FIG_DIR.mkdir(parents=True, exist_ok=True)
+from src.campeones_analysis.multimodal_arousal.cohort import (  # noqa: E402
+    COHORT as SUBJECTS,
+    NPZ_DIR,
+    OUT,
+    SUBJ_COLORS,
+)
 
-SUBJECTS = ["sub-23", "sub-24", "sub-33"]
-SUBJ_COLORS = {"sub-23": "C0", "sub-24": "C1", "sub-33": "C2"}
+FIG_DIR = OUT / "figures"
+FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 # 4-ROI groupings (32 EEG channels split anteriorly-posteriorly + lateral chain).
 # Total: 10 + 10 + 8 + 4 = 32.

@@ -76,12 +76,19 @@ else:
     REPO = _ROOT
 DATA = REPO / "data"
 PREP = DATA / "derivatives" / "campeones_preproc"
-NPZ_DIR = REPO / "research_diary" / "context" / "05_02" / "y_candidates"
-OUT = REPO / "research_diary" / "context" / "05_02"
+# Cohort / output paths are centralized in cohort.py (N=8, outputs to 05_04). This module
+# is the hub: tfr_psd_scr / decoding_* / alpha_hypothesis_scr / analyze_scr_peak /
+# epoch_audit_scr / lag_sweep_3tasks import SUBJECTS, OUT, NPZ_DIR from here.
+from src.campeones_analysis.multimodal_arousal.cohort import (  # noqa: E402
+    COHORT as SUBJECTS,
+    NPZ_DIR,
+    OUT,
+    SUBJ_COLORS,
+    keep_run,
+)
+
 (OUT / "figures").mkdir(parents=True, exist_ok=True)
 (OUT / "y_candidates").mkdir(parents=True, exist_ok=True)
-
-SUBJECTS = ["sub-23", "sub-24", "sub-33"]
 
 EDA_FS = 50.0
 # Asymmetric window: longer pre to ensure a clean baseline (the cleanliness check matters
@@ -91,6 +98,13 @@ BASELINE = (-5.0, -4.5)
 PRE_S = abs(TMIN)
 POST_S = TMAX
 PRE_PHASIC_THRESH = 1e-4  # max allowed EDA phasic in PRE-window for a "clean" epoch
+# 2026-05-27 v2 (user request): relax the SCR-epoch cleanliness gate to KEEP MORE EPOCHS.
+# When False, real_scr_is_clean() becomes a no-op -> every detected SCR onset is kept, so the
+# REAL-SCR condition no longer requires a silent 5 s pre-baseline nor a 3 s SCR-free post.
+# Trade-off: more epochs, but the baseline (-5,-4.5) may contain prior phasic activity and the
+# post window may overlap subsequent SCRs (noisier ERP/decoding). The silent-EDA CONTROL
+# condition (silent_window_is_clean) is UNAFFECTED -- controls must still be EDA-silent.
+REQUIRE_CLEAN_SCR = False
 PLOT_CH = ["Fz", "Cz", "Pz"]
 TOPO_TIMES = (0.5, 1.5, 2.5)  # s post-SCR-onset; pushed later vs erp_smna because SCR onset lags impulse
 
@@ -99,7 +113,8 @@ RNG = np.random.default_rng(20260513)
 
 def runs_for(sub: str) -> list[Path]:
     eeg_dir = PREP / sub / "ses-vr" / "eeg"
-    return sorted(eeg_dir.glob(f"{sub}_ses-vr_task-*_acq-*_run-*_desc-preproc_eeg.vhdr"))
+    vhdrs = sorted(eeg_dir.glob(f"{sub}_ses-vr_task-*_acq-*_run-*_desc-preproc_eeg.vhdr"))
+    return [v for v in vhdrs if keep_run(sub, run_label(v))]
 
 
 def run_label(vhdr: Path) -> str:
@@ -155,7 +170,12 @@ def real_scr_is_clean(t_s: float, phasic: np.ndarray, fs: float,
 
     PRE  [t-pre_s, t]: max(phasic) <= pre_thresh  (clean baseline)
     POST (t, t+post_s]: no ADDITIONAL SCR onset (current SCR's rise is allowed)
+
+    If REQUIRE_CLEAN_SCR is False (2026-05-27 v2), this gate is disabled and every SCR is
+    kept (returns True) to maximize the number of epochs available for the ERP/decoding.
     """
+    if not REQUIRE_CLEAN_SCR:
+        return True
     n = len(phasic)
     lo_idx = max(0, int(np.floor((t_s - pre_s) * fs)))
     hi_idx = min(n - 1, int(np.ceil((t_s + post_s) * fs)))
@@ -193,27 +213,65 @@ def silent_window_is_clean(t_s: float, phasic: np.ndarray, fs: float, *,
     return True
 
 
-def filter_clean_onsets(onsets_s: np.ndarray, phasic: np.ndarray, fs: float) -> np.ndarray:
-    """Keep only SCR onsets whose epoch passes the REAL-SCR cleanliness check."""
+# Epoch window span (s). Two centered epochs [t+TMIN, t+TMAX] are NON-overlapping iff their
+# centers are >= EPOCH_SPAN_S apart. Used to guarantee no time sample enters two epochs
+# (sample independence), both within and across conditions (2026-05-27 v2, user request).
+EPOCH_SPAN_S = TMAX - TMIN  # 8.0 s for [-5, +3]
+
+
+def select_nonoverlapping_onsets(onsets_s: np.ndarray, span_s: float = EPOCH_SPAN_S) -> np.ndarray:
+    """Greedily keep a maximal subset of onsets with non-overlapping epoch windows.
+
+    For equal-length windows, greedy selection in increasing time order is optimal
+    (classic interval scheduling): keep an onset only if it is >= span_s after the last
+    kept one.
+    """
     if onsets_s.size == 0:
         return onsets_s
-    keep = [t for t in onsets_s if real_scr_is_clean(float(t), phasic, fs, onsets_s)]
-    return np.asarray(keep, dtype=float)
+    ordered = np.sort(np.asarray(onsets_s, dtype=float))
+    kept: list[float] = []
+    last = -np.inf
+    for t in ordered:
+        if t - last >= span_s:
+            kept.append(float(t))
+            last = t
+    return np.asarray(kept, dtype=float)
+
+
+def filter_clean_onsets(onsets_s: np.ndarray, phasic: np.ndarray, fs: float) -> np.ndarray:
+    """Keep SCR onsets passing the (optional) cleanliness check, THEN enforce
+    non-overlapping epoch windows so no time sample enters two SCR epochs.
+
+    With REQUIRE_CLEAN_SCR=False the cleanliness check is a no-op, so this reduces to
+    'all detected SCRs, greedily de-overlapped'.
+    """
+    if onsets_s.size == 0:
+        return onsets_s
+    keep = np.asarray(
+        [t for t in onsets_s if real_scr_is_clean(float(t), phasic, fs, onsets_s)],
+        dtype=float,
+    )
+    return select_nonoverlapping_onsets(keep, EPOCH_SPAN_S)
 
 
 def sample_silent_controls(n_target: int, duration_s: float, phasic: np.ndarray, fs: float,
                             rng: np.random.Generator,
                             pre_s: float = PRE_S, post_s: float = POST_S,
-                            min_separation_s: float = 1.0,
-                            max_attempts_factor: int = 500) -> np.ndarray:
+                            min_separation_s: float = EPOCH_SPAN_S,
+                            avoid_onsets_s: np.ndarray | None = None,
+                            max_attempts_factor: int = 1000) -> np.ndarray:
     """Sample `n_target` times where the entire [-pre_s, +post_s] window is EDA-silent.
 
-    Candidates are also required to be at least `min_separation_s` apart from
-    previously-picked controls (avoid duplicating epochs around the same silent stretch).
-    Returns up to n_target picks; may return fewer if budget exhausted.
+    NON-OVERLAP (2026-05-27 v2): each control's epoch window must not overlap (a) any
+    other chosen control, NOR (b) any SCR epoch window in `avoid_onsets_s`. Since all
+    windows share the same length, non-overlap == centers >= `min_separation_s` apart
+    (default EPOCH_SPAN_S). This guarantees no time sample enters two epochs of either
+    condition. Returns up to n_target picks; may return fewer if budget exhausted.
     """
     if n_target <= 0 or duration_s <= pre_s + post_s:
         return np.array([], dtype=float)
+    avoid = (np.asarray(avoid_onsets_s, dtype=float)
+             if avoid_onsets_s is not None and len(avoid_onsets_s) else np.empty(0, dtype=float))
     lo, hi = pre_s, duration_s - post_s
     out: list[float] = []
     attempts = 0
@@ -223,11 +281,12 @@ def sample_silent_controls(n_target: int, duration_s: float, phasic: np.ndarray,
         t = float(rng.uniform(lo, hi))
         if not silent_window_is_clean(t, phasic, fs, pre_s=pre_s, post_s=post_s):
             continue
-        # spacing rule: avoid picking near already-chosen control
-        if out:
-            arr = np.asarray(out, dtype=float)
-            if np.min(np.abs(arr - t)) < min_separation_s:
-                continue
+        # non-overlap vs SCR epochs (cross-condition)
+        if avoid.size and float(np.min(np.abs(avoid - t))) < min_separation_s:
+            continue
+        # non-overlap vs already-chosen controls (within-condition)
+        if out and float(np.min(np.abs(np.asarray(out, dtype=float) - t))) < min_separation_s:
+            continue
         out.append(t)
     return np.asarray(out, dtype=float)
 
@@ -408,7 +467,7 @@ def main():
                 # silent-EDA matched control: same N, full-window phasic-silent
                 rand_t_s = sample_silent_controls(
                     n_target=len(onsets_s_kept), duration_s=duration,
-                    phasic=eda_phasic, fs=EDA_FS, rng=RNG,
+                    phasic=eda_phasic, fs=EDA_FS, rng=RNG, avoid_onsets_s=onsets_s_kept,
                 )
 
                 ep_real = epoch_one_run(raw, onsets_s_kept, code=1)

@@ -84,7 +84,7 @@ def plot_subject(sub: str, out_png: Path) -> dict:
         # silent controls: same RNG state progression as erp_scr.py main()
         silent_t = sample_silent_controls(
             n_target=len(onsets_clean), duration_s=float(t[-1]),
-            phasic=phasic, fs=EDA_FS, rng=RNG,
+            phasic=phasic, fs=EDA_FS, rng=RNG, avoid_onsets_s=onsets_clean,
         )
 
         # background phasic

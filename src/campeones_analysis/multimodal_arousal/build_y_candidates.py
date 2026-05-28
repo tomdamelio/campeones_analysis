@@ -63,11 +63,14 @@ else:
     REPO = _ROOT
 DATA_RAW = REPO / "data" / "raw"
 MERGED_EVENTS = REPO / "data" / "derivatives" / "merged_events"
-OUT = REPO / "research_diary" / "context" / "05_02"
+from src.campeones_analysis.multimodal_arousal.cohort import (  # noqa: E402
+    COHORT as SUBJECTS,
+    OUT,
+    keep_run,
+)
+
 (OUT / "y_candidates").mkdir(parents=True, exist_ok=True)
 (OUT / "figures").mkdir(parents=True, exist_ok=True)
-
-SUBJECTS = ["sub-23", "sub-24", "sub-33"]  # 3 clean Tier-1; sub-27 has run anomalies (see 0.C)
 EDA_FS = 50.0  # cvxEDA target sr. DMT used its 250 Hz native; for CAMPEONES at 500 Hz, cvxopt
                 # at 250 Hz takes ~5.7 min/run (~2.3 h total over 24 runs). 50 Hz keeps Greco 2016
                 # benchmark range (Nyquist 25 Hz >> SCR bandwidth ~3 Hz, driver morphology preserved)
@@ -83,7 +86,11 @@ TRAPZ = getattr(np, "trapezoid", np.trapz)
 def runs_for(sub: str) -> list[Path]:
     eeg_dir = DATA_RAW / sub / "ses-vr" / "eeg"
     vhdrs = sorted(eeg_dir.glob(f"{sub}_ses-vr_task-*_acq-*_run-*_eeg.vhdr"))
-    return [v for v in vhdrs if "task-practice" not in v.name]
+    return [
+        v
+        for v in vhdrs
+        if "task-practice" not in v.name and keep_run(sub, run_label(v))
+    ]
 
 
 def run_label(vhdr: Path) -> str:

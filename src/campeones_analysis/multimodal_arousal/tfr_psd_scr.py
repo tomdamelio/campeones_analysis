@@ -113,7 +113,7 @@ def build_subject_epochs(sub: str) -> tuple[mne.Epochs | None, mne.Epochs | None
             onsets_clean = filter_clean_onsets(onsets_all, eda_phasic, EDA_FS)
             silent_t = sample_silent_controls(
                 n_target=len(onsets_clean), duration_s=duration,
-                phasic=eda_phasic, fs=EDA_FS, rng=RNG,
+                phasic=eda_phasic, fs=EDA_FS, rng=RNG, avoid_onsets_s=onsets_clean,
             )
             ep_real = epoch_one_run(raw, onsets_clean, code=1)
             ep_silent = epoch_one_run(raw, silent_t, code=2)

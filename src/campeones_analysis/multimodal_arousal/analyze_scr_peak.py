@@ -60,6 +60,8 @@ from src.campeones_analysis.multimodal_arousal.erp_scr import (
     runs_for,
     sample_silent_controls,
     silent_window_is_clean,
+    EPOCH_SPAN_S,
+    REQUIRE_CLEAN_SCR,
 )
 
 mne.set_log_level("ERROR")
@@ -110,7 +112,7 @@ COND_LABEL = {
     "silent":     "silent-EDA control (-5, +3)",
     "real_peak":  "real peak-aligned (-4, +4)",
 }
-SUBJ_COLORS = {"sub-23": "C0", "sub-24": "C1", "sub-33": "C2"}
+from src.campeones_analysis.multimodal_arousal.cohort import SUBJ_COLORS  # noqa: E402
 
 # Fresh RNG with the same seed as erp_scr.py so silent controls match.
 RNG = np.random.default_rng(20260513)
@@ -153,12 +155,27 @@ def filter_clean_onsets_and_peaks(onsets_s: np.ndarray, peaks_s: np.ndarray,
         return onsets_s, peaks_s
     keep_idx = []
     for i, (ot, pt) in enumerate(zip(onsets_s, peaks_s)):
-        if not real_scr_is_clean(float(ot), phasic, fs, onsets_s):
-            continue
-        if not peak_window_is_clean(float(ot), float(pt), onsets_s, phasic, fs):
-            continue
+        # cleanliness gates are skipped when REQUIRE_CLEAN_SCR is False (2026-05-27 v2)
+        if REQUIRE_CLEAN_SCR:
+            if not real_scr_is_clean(float(ot), phasic, fs, onsets_s):
+                continue
+            if not peak_window_is_clean(float(ot), float(pt), onsets_s, phasic, fs):
+                continue
         keep_idx.append(i)
-    return onsets_s[keep_idx], peaks_s[keep_idx]
+    onsets_k = np.asarray(onsets_s, dtype=float)[keep_idx]
+    peaks_k = np.asarray(peaks_s, dtype=float)[keep_idx]
+    # enforce non-overlapping onset-centered windows (carry paired peaks); greedy by time
+    if onsets_k.size:
+        order = np.argsort(onsets_k)
+        onsets_k, peaks_k = onsets_k[order], peaks_k[order]
+        sel: list[int] = []
+        last = -np.inf
+        for j, ot in enumerate(onsets_k):
+            if float(ot) - last >= EPOCH_SPAN_S:
+                sel.append(j)
+                last = float(ot)
+        onsets_k, peaks_k = onsets_k[sel], peaks_k[sel]
+    return onsets_k, peaks_k
 
 
 # -----------------------------------------------------------------------------
@@ -202,7 +219,7 @@ def build_subject_3cond_epochs(sub: str) -> dict | None:
             # silent control matched to onset window
             silent_t = sample_silent_controls(
                 n_target=len(onsets_clean), duration_s=duration,
-                phasic=phasic, fs=EDA_FS, rng=RNG,
+                phasic=phasic, fs=EDA_FS, rng=RNG, avoid_onsets_s=onsets_clean,
             )
 
             # build the 3 sets of epochs
