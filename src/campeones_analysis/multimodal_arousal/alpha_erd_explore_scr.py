@@ -84,7 +84,10 @@ def main():
             continue
         t, pr, ch = _alpha_power(real_ep)
         _, ps, _ = _alpha_power(silent_ep)
-        store[sub] = (t, _roi(pr, ch, PARIETOOCCIPITAL), _roi(ps, ch, PARIETOOCCIPITAL))
+        store[sub] = (t, {
+            "parieto-occipital": (_roi(pr, ch, PARIETOOCCIPITAL), _roi(ps, ch, PARIETOOCCIPITAL)),
+            "global": (_roi(pr, ch, ch), _roi(ps, ch, ch)),
+        })
         print(f"  {sub}: n_real={len(real_ep)} n_silent={len(silent_ep)} alpha power computed",
               flush=True)
 
@@ -94,7 +97,8 @@ def main():
         if sub not in store:
             ax.set_visible(False)
             continue
-        t, rr, rs = store[sub]
+        t, rois = store[sub]
+        rr, rs = rois["parieto-occipital"]
         erd_r = _erd_db_perepoch(t, rr, BL_SAFE)   # [n_ep, n_t] dB
         erd_s = _erd_db_perepoch(t, rs, BL_SAFE)
         tc, erd_r = _crop(t, erd_r)
@@ -122,52 +126,59 @@ def main():
     plt.close(fig)
     print("  -> alpha_erd_persubject.png", flush=True)
 
-    # ---- Figure 2: baseline sweep ----
+    # ---- Figure 2: baseline sweep, PARIETO-OCCIPITAL vs GLOBAL ----
+    ROIS = ("parieto-occipital", "global")
     rows = []
-    sweep = {sub: [] for sub in store}
-    ga_vals, ga_drop_vals = [], []
-    for bl in SWEEP_BL:
-        per_sub = {}
-        for sub, (t, rr, rs) in store.items():
-            erd_r = _erd_db_perepoch(t, rr, bl).mean(0)
-            erd_s = _erd_db_perepoch(t, rs, bl).mean(0)
-            tc, d = _crop(t, erd_r - erd_s)
-            v = _woi(tc, d, WOI_FULL)
-            per_sub[sub] = v
-            sweep[sub].append(v)
-            rows.append(dict(baseline=f"{bl[0]},{bl[1]}", subject=sub, diff_full_dB=round(v, 3)))
-        vals = np.array(list(per_sub.values()))
-        ga_vals.append(vals.mean())
-        ga_drop_vals.append(np.array([per_sub[s] for s in per_sub if s != DOMINANT]).mean())
-
-    pd.DataFrame(rows).to_csv(TBL_DIR / "alpha_erd_baseline_sweep.csv", index=False)
-    xlab = [f"{b[0]:.1f}\n{b[1]:.1f}" for b in SWEEP_BL]
+    ga_by_roi = {}
     x = np.arange(len(SWEEP_BL))
-    fig, ax = plt.subplots(figsize=(11, 6))
-    for sub in store:
-        ax.plot(x, sweep[sub], marker="o", ms=4, color=SUBJ_COLORS.get(sub, "0.6"),
-                lw=1.0, alpha=0.7, label=sub)
-    ax.plot(x, ga_vals, color="k", lw=2.6, marker="s", label="GA")
-    ax.plot(x, ga_drop_vals, color="C1", lw=2.0, ls="--", marker="s", label=f"GA sin {DOMINANT}")
-    ax.axhline(0, color="k", lw=0.6)
-    ax.set_xticks(x); ax.set_xticklabels(xlab)
-    ax.set_xlabel("ventana de baseline (s, pre-onset)")
-    ax.set_ylabel("real − silent, ventana completa (dB)")
-    ax.set_title("Sensibilidad del alfa-ERD a la ventana de baseline (PO, full window).\n"
-                 "Negativo = desync. Si fuera robusto, las líneas serían planas y negativas.",
-                 fontsize=10)
-    ax.legend(fontsize=8, ncol=2)
-    fig.tight_layout()
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharey=True)
+    for ax, rname in zip(axes, ROIS):
+        sweep = {sub: [] for sub in store}
+        ga_vals, ga_drop_vals = [], []
+        for bl in SWEEP_BL:
+            per_sub = {}
+            for sub, (t, rois) in store.items():
+                rr, rs = rois[rname]
+                erd_r = _erd_db_perepoch(t, rr, bl).mean(0)
+                erd_s = _erd_db_perepoch(t, rs, bl).mean(0)
+                tc, d = _crop(t, erd_r - erd_s)
+                v = _woi(tc, d, WOI_FULL)
+                per_sub[sub] = v
+                sweep[sub].append(v)
+                rows.append(dict(roi=rname, baseline=f"{bl[0]},{bl[1]}", subject=sub,
+                                 diff_full_dB=round(v, 3)))
+            vals = np.array(list(per_sub.values()))
+            ga_vals.append(float(vals.mean()))
+            ga_drop_vals.append(float(np.array([per_sub[s] for s in per_sub if s != DOMINANT]).mean()))
+        ga_by_roi[rname] = (ga_vals, ga_drop_vals)
+        for sub in store:
+            ax.plot(x, sweep[sub], marker="o", ms=4, color=SUBJ_COLORS.get(sub, "0.6"),
+                    lw=1.0, alpha=0.7, label=sub)
+        ax.plot(x, ga_vals, color="k", lw=2.6, marker="s", label="GA")
+        ax.plot(x, ga_drop_vals, color="C1", lw=2.0, ls="--", marker="s", label=f"GA sin {DOMINANT}")
+        ax.axhline(0, color="k", lw=0.6)
+        ax.set_xticks(x); ax.set_xticklabels([f"{b[0]:.1f}\n{b[1]:.1f}" for b in SWEEP_BL])
+        ax.set_xlabel("ventana de baseline (s, pre-onset)")
+        ax.set_title(f"ROI: {rname}", fontsize=10)
+    axes[0].set_ylabel("real - silent, ventana completa (dB)")
+    axes[0].legend(fontsize=7, ncol=2)
+    fig.suptitle("Sensibilidad del alfa-ERD al baseline: PARIETO-OCCIPITAL vs GLOBAL. "
+                 "Negativo = desync; plano y negativo = robusto.", fontsize=11)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(FIG_DIR / "alpha_erd_baseline_sweep.png", dpi=130)
     plt.close(fig)
+    pd.DataFrame(rows).to_csv(TBL_DIR / "alpha_erd_baseline_sweep.csv", index=False)
     print("  -> alpha_erd_baseline_sweep.png", flush=True)
 
-    # resumen sweep
-    df = pd.DataFrame(rows).pivot(index="subject", columns="baseline", values="diff_full_dB")
-    print("\nBarrido de baseline (real-silent full, dB):")
-    print(df.to_string(), flush=True)
-    print(f"\nGA por baseline: {[round(v,3) for v in ga_vals]}", flush=True)
-    print(f"GA sin {DOMINANT}: {[round(v,3) for v in ga_drop_vals]}", flush=True)
+    print("\nGA por baseline (real-silent full, dB):")
+    for rname in ROIS:
+        gv, gd = ga_by_roi[rname]
+        print(f"  {rname:18s} GA       = {[round(v, 3) for v in gv]}", flush=True)
+        print(f"  {rname:18s} GA-sub33 = {[round(v, 3) for v in gd]}", flush=True)
+    print("\nPer-subject (GLOBAL ROI, full, dB) by baseline:")
+    dfg = pd.DataFrame([r for r in rows if r["roi"] == "global"]).pivot(
+        index="subject", columns="baseline", values="diff_full_dB")
+    print(dfg.to_string(), flush=True)
     print(f"\nOutputs -> {FIG_DIR}", flush=True)
 
 
