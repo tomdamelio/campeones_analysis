@@ -42,6 +42,31 @@ COHORT = [
     "sub-33",
 ]
 
+# --- canales descartados globalmente del Bloque 1 (STOPGAP Track A, auditoría 2026-06-07) ---
+# FC1 = bad crónico (PyPREP lo marca en 76% de runs, 5/6 sujetos, 100% en sub-31/33; potencia
+# anómala baja post-preproc, z-outlier en 2). TP10 = #2 (62%/50% en sub-31/33, z-outlier potencia
+# alta = edge/EMG-like). Fz = marginal, fuera por prudencia (30% mean, sub-23 50%).
+# PyPREP los interpola per-run de forma INCONSISTENTE (los deja crudos en parte de los runs ->
+# contaminan CAR+ICA, que no se deshace downstream). Track A: descartarlos del set de análisis
+# (set común de 29 ch para LOSO; no se fabrica data, a diferencia de interpolar post-CAR/ICA).
+# Track B (deuda, antes de Bloque 2/paper): re-preprocesar con lista de bads curada per-sujeto
+# (PyPREP auto + manual de los crónicos) interpolando ANTES de CAR+ICA. Ver diario 05_05.
+DROP_CHANNELS: list[str] = ["FC1", "TP10", "Fz"]
+
+# --- sets topográficos curados (29 ch, post-drop Track A) para índices edge/central ---
+# Única fuente de verdad para el contraste muscular edge-vs-central (Bloque 2, tarea 2.4).
+# EMG_EDGE = borde temporal/posterolateral (firma muscular craneal). TP10 sale (era el edge
+#   más EMG-like, ahora dropeado); TP9 sobrevive (asimetría L/R documentada en el diario).
+# CENTRAL  = central-parietal (región "señal" tipo Branković). Fz sale (dropeado); FCz queda.
+# FRONTOPOLAR = Fp1/Fp2 = proxy ocular (frontopolar), se mantiene fuera del set muscular.
+# Todos auto-filtrados contra DROP_CHANNELS para que NUNCA se desincronicen del set de 29 ch.
+_EMG_EDGE_RAW = ["FT9", "FT10", "TP9", "TP10", "T7", "T8", "P7", "P8"]
+_CENTRAL_RAW = ["Cz", "Pz", "Fz", "FCz", "CP1", "CP2", "C3", "C4", "P3", "P4"]
+_FRONTOPOLAR_RAW = ["Fp1", "Fp2"]
+EMG_EDGE: list[str] = [c for c in _EMG_EDGE_RAW if c not in DROP_CHANNELS]
+CENTRAL: list[str] = [c for c in _CENTRAL_RAW if c not in DROP_CHANNELS]
+FRONTOPOLAR: list[str] = [c for c in _FRONTOPOLAR_RAW if c not in DROP_CHANNELS]
+
 # --- per-subject run exclusions for SCR/EDA analyses (acq tokens to drop) ---
 # (sub-28's acq-b exclusion is now moot — sub-28 is dropped entirely from COHORT.)
 RUN_EXCLUDE: dict[str, set[str]] = {}
