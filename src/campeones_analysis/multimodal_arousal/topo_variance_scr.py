@@ -43,6 +43,7 @@ import mne
 import numpy as np
 import pandas as pd
 
+from src.campeones_analysis.multimodal_arousal.cohort import DROP_CHANNELS
 from src.campeones_analysis.multimodal_arousal.erp_scr import OUT, SUBJECTS
 from src.campeones_analysis.multimodal_arousal.tfr_psd_scr import build_subject_epochs, compute_psd
 from src.campeones_analysis.multimodal_arousal.topomap_delta_theta_scr import channel_band_diff_db
@@ -63,10 +64,12 @@ BANDS: dict[str, tuple[float, float]] = {
 MAP_NAMES = list(BANDS.keys()) + ["variance"]
 POST_TMIN, POST_TMAX = 0.0, 3.0  # post-onset window (consistent with topomap_delta_theta_scr)
 
-# Branković dissociation regions
-CENTRAL_PARIETAL = ["Cz", "Pz", "CP1", "CP2", "C3", "C4", "P3", "P4"]
-FRONTAL_EDGE = ["Fp1", "Fp2", "F7", "F8", "FT9", "FT10", "TP9", "TP10", "T7", "T8"]
-FRONTOPOLAR = ["Fp1", "Fp2"]
+# Branković dissociation regions. Filtrados contra DROP_CHANNELS (Track A, 29 ch):
+# saca TP10 de FRONTAL_EDGE (era el edge más EMG-like, ahora dropeado) y cualquier
+# canal dropeado de las otras regiones -> consistencia con el set común de 29 ch.
+CENTRAL_PARIETAL = [c for c in ["Cz", "Pz", "CP1", "CP2", "C3", "C4", "P3", "P4"] if c not in DROP_CHANNELS]
+FRONTAL_EDGE = [c for c in ["Fp1", "Fp2", "F7", "F8", "FT9", "FT10", "TP9", "TP10", "T7", "T8"] if c not in DROP_CHANNELS]
+FRONTOPOLAR = [c for c in ["Fp1", "Fp2"] if c not in DROP_CHANNELS]
 
 
 def variance_diff_db(real_ep: mne.Epochs, silent_ep: mne.Epochs) -> np.ndarray:
@@ -176,6 +179,10 @@ def main(subjects: list[str]) -> None:
         if real_ep is None or silent_ep is None:
             print("  no epochs -- skipped")
             continue
+        # Track A: descartar FC1/TP10/Fz del topomap (29 ch curado) para no mostrar los
+        # canales crónicos malos como hotspots de borde en la disociación GA.
+        for ep in (real_ep, silent_ep):
+            ep.drop_channels([c for c in DROP_CHANNELS if c in ep.ch_names])
         real_post = real_ep.copy().crop(POST_TMIN, POST_TMAX)
         silent_post = silent_ep.copy().crop(POST_TMIN, POST_TMAX)
         psd_r, freqs, ch_names = compute_psd(real_post)

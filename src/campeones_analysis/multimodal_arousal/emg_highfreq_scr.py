@@ -34,7 +34,7 @@ import mne
 import numpy as np
 import pandas as pd
 
-from src.campeones_analysis.multimodal_arousal.cohort import COHORT
+from src.campeones_analysis.multimodal_arousal.cohort import COHORT, DROP_CHANNELS
 from src.campeones_analysis.multimodal_arousal.erp_scr import NPZ_DIR
 from src.campeones_analysis.multimodal_arousal.epochs_qc import apply_drop_only
 from src.campeones_analysis.multimodal_arousal.fooof_scr import fit_group, group_aperiodic
@@ -56,8 +56,10 @@ HF_BAND = (60.0, 90.0)
 PSD_FMAX = 95.0
 NOTCH_GUARD = 2.0          # excluir bins a ±2 Hz de 50 y 100 (faldas del notch)
 NOTCH_LINES = (50.0, 100.0)
-EMG_CHANNELS = ["FT9", "TP9", "T7", "T8", "P7", "P8"]   # temporal/edge (firma EMG)
-CENTRAL_CHANNELS = ["Cz", "Pz", "Fz", "FCz", "CP1", "CP2"]
+# Filtrados contra DROP_CHANNELS (29 ch): saca Fz de CENTRAL (dropeado). EMG_CHANNELS ya
+# estaba limpio (sin TP10/FC1/Fz). Filtro defensivo para no desincronizar del set común.
+EMG_CHANNELS = [c for c in ["FT9", "TP9", "T7", "T8", "P7", "P8"] if c not in DROP_CHANNELS]   # temporal/edge (firma EMG)
+CENTRAL_CHANNELS = [c for c in ["Cz", "Pz", "Fz", "FCz", "CP1", "CP2"] if c not in DROP_CHANNELS]
 FOOOF_WIDE_RANGE = (1.5, 90.0)
 
 
@@ -78,6 +80,9 @@ def _subject_hf(sub: str, apply_ica: bool = True) -> dict | None:
     if real_ep is None or silent_ep is None:
         print(f"  {sub}: no epochs -> skip", flush=True)
         return None
+    # Track A: descartar FC1/TP10/Fz (29 ch curado) antes del test HF edge/central.
+    for ep in (real_ep, silent_ep):
+        ep.drop_channels([c for c in DROP_CHANNELS if c in ep.ch_names])
     real_c, silent_c, thresh = apply_drop_only(real_ep, silent_ep)
     psd_r, freqs, ch = compute_psd_wide(real_c, fmax=PSD_FMAX)
     psd_s, _, _ = compute_psd_wide(silent_c, fmax=PSD_FMAX)
