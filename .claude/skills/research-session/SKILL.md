@@ -2,7 +2,7 @@
   name: research-session
   description: Gestiona sesiones de investigación de doctorado en neurociencias (proyecto campeones_analysis). Fluye en 4 fases:    
   inicialización del diario, planificación pedagógica de tareas, implementación incremental con validación, y cierre con síntesis + 
-  reporte HTML + mensajes Slack. USAR SIEMPRE cuando el usuario invoque /research-session, quiera iniciar/continuar una sesión de investigación, o 
+  presentación de avances (skill `slides`) + mensajes Slack. USAR SIEMPRE cuando el usuario invoque /research-session, quiera iniciar/continuar una sesión de investigación, o 
   mencione el diario de tareas del proyecto.
   user-invocable: true
 ---
@@ -210,15 +210,17 @@
   - [ ] [tarea pendiente 2]
   ```
 
-  ### Paso 2 — Generar reporte HTML
+  ### Paso 2 — Armar la presentación de avances (skill `slides`)
 
-  Desde `research_diary/`, correr:
+  **En vez del reporte HTML**, invocar el skill **`slides`** (Skill tool con `skill: "slides"`) para
+  construir —de forma colaborativa y slide por slide— una presentación Beamer plot-céntrica de los
+  resultados de la sesión (theme SimpleDarkBlue + Helvetica + paleta tab20c). El deck queda en
+  `research_diary/context/MM_NN/presentation/`. Seguir el flujo del SKILL.md de `slides`: inventario
+  de plots (Glob de `context/MM_NN/**/figures/*.png` + los CSV de `tables/`) → outline topico→slides
+  → esqueleto (portada/Pregunta/recap/roadmap) → slide por slide, con el **usuario marcando el ritmo**
+  y dando los ajustes por slide (titulos-titular, recorte de suptitles, leyendas, etc.).
 
-  ```
-  /c/Users/au805392/AppData/Local/Pandoc/pandoc.exe MM_NN_diario_tareas.md -o reports/MM_NN_diario_tareas.html --standalone --embed-resources --from markdown-yaml_metadata_block --include-in-header util/diary_header.html
-  ```
-
-  El reporte queda en `research_diary/reports/`. Verificar que el archivo se generó correctamente (tamaño > 1MB si hay plots embebidos).
+  (El HTML por pandoc queda deprecado como cierre; usarlo solo si el usuario lo pide explícitamente.)
 
   ### Paso 3 — Preguntar qué priorizar para los mensajes de Slack
 
