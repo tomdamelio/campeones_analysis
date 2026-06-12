@@ -1,0 +1,95 @@
+# .graphifyignore — control de exclusión para graphify (sintaxis .gitignore)
+# IMPORTANTE: este archivo es autosuficiente. graphify le da prioridad sobre
+# .gitignore, así que repetimos aquí TODO lo que no debe entrar al grafo,
+# sin depender de la precedencia (hay bugs abiertos: #188 / #861 / #1043).
+# Tras correr, VERIFICAR graphify-out/graph.json para confirmar exclusiones.
+
+# ============================================================
+# PRIVACIDAD (GDPR / datos de sujetos humanos) - NUNCA indexar
+# ============================================================
+data/
+
+# ============================================================
+# Salida del propio graphify
+# ============================================================
+graphify-out/
+
+# ============================================================
+# Salidas binarias / figuras (no son texto con conocimiento)
+# ============================================================
+results/
+stimuli/
+site/
+docs/_build/
+**/figures/
+
+# Imágenes
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.svg
+
+# Audio / video / formatos de señal EEG/fisio
+*.wav
+*.mp3
+*.mp4
+*.xdf
+*.fif
+*.set
+*.edf
+*.bdf
+*.vhdr
+*.vmrk
+*.eeg
+*.h5
+*.mat
+*.npy
+*.npz
+
+# Tablas / datos serializados grandes
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.zip
+# JSON = casi siempre tablas de resultados/config en este repo; cada clave se
+# vuelve un nodo basura en el grafo. Excluir (graphify-out/ ya está arriba).
+*.json
+
+# Config local de agentes (no es conocimiento del proyecto)
+.claude/
+
+# PDFs = literatura. NO parsear (costoso). La literatura se vincula vía Zotero
+# (ver CLAUDE.md: zotero_client). graphify se queda con código + markdown/notas.
+*.pdf
+
+# ============================================================
+# Análisis deprecados (ruido en el grafo)
+# ============================================================
+research_diary/deprecated/
+
+# ============================================================
+# Temporales / scratch / basura (ver git status)
+# ============================================================
+*.swp
+.=.swp
+*.log
+__pycache__/
+.ipynb_checkpoints/
+_verify_tmp*.py
+_loo_sub23_check.py
+texto.txt
+0
+0)
+
+# NOTA: NO excluir _*.py en bloque — hay WIP legítimo con guion bajo
+# (_phase_locking_demo.py, _plot_periph_multitarget.py). Refinar a mano.
+
+# ============================================================
+# Fase B (re-incluir conocimiento que .gitignore tapa):
+# research_diary/ y *.pdf están en .gitignore. Para indexar la
+# documentación curada del diario en Fase B, correr graphify
+# apuntando explícitamente a research_diary/ (o ajustar este archivo).
+# ============================================================

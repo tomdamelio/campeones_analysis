@@ -86,3 +86,6 @@ data/derivatives/merged_events_DEPRECATED/
 site/
 docs/_build/
 *.js.map
+
+# graphify knowledge-graph output (regenerable; large/noisy in diffs)
+graphify-out/
