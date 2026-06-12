@@ -169,11 +169,14 @@ def main():
             try:
                 r = _fit_tweedie(y, Xf, p)
                 prows.append(dict(subject=sub, p=p, deviance=round(float(r.deviance), 2),
-                                  aic=round(float(r.aic), 1) if np.isfinite(r.aic) else np.nan))
+                                  aic=round(float(r.aic), 1) if np.isfinite(r.aic) else np.nan,
+                                  beta_alpha=round(float(r.params["alpha"]), 4),
+                                  p_alpha=round(float(r.pvalues["alpha"]), 4)))
                 if best is None or r.deviance < best[1]:
                     best = (p, r.deviance)
             except Exception as e:
-                prows.append(dict(subject=sub, p=p, deviance=np.nan, aic=np.nan))
+                prows.append(dict(subject=sub, p=p, deviance=np.nan, aic=np.nan,
+                                  beta_alpha=np.nan, p_alpha=np.nan))
         p_star = best[0] if best else 1.5
         # full (confounds dentro) vs minimal (solo alfa) al p*
         for tag, wc in [("full", True), ("alpha_only", False)]:
@@ -187,7 +190,26 @@ def main():
         print(f"  [Tweedie SMNA] {sub}: p*={p_star}  beta_alpha(full)={rf['beta_alpha']:+.4f} "
               f"(p={rf['p_alpha']:.3f})", flush=True)
     df_tw = pd.DataFrame(rows_tw); df_tw.to_csv(TBL_DIR / "glm_tweedie_smna.csv", index=False)
-    pd.DataFrame(prows).to_csv(TBL_DIR / "glm_tweedie_pprofile.csv", index=False)
+    dfp = pd.DataFrame(prows); dfp.to_csv(TBL_DIR / "glm_tweedie_pprofile.csv", index=False)
+
+    # ---------- sensibilidad de β_alfa a var_power (full model, toda la grilla) ----------
+    # p* se elige por min-deviance y cae pegado al borde 1.3 (la deviance NO es comparable entre p);
+    # acá mostramos que el TITULAR (signo/magnitud de β_alfa) es estable en toda la grilla 1.3-1.7.
+    sens_rows = []
+    for p in P_GRID:
+        bp = dfp[dfp.p == p]["beta_alpha"].to_numpy(float)
+        bp = bp[np.isfinite(bp)]
+        sens_rows.append(dict(p=p, n=int(len(bp)), n_neg=int((bp < 0).sum()),
+                              mean_beta_alpha=round(float(np.mean(bp)), 4) if len(bp) else np.nan,
+                              min_beta=round(float(np.min(bp)), 4) if len(bp) else np.nan,
+                              max_beta=round(float(np.max(bp)), 4) if len(bp) else np.nan))
+    df_sens = pd.DataFrame(sens_rows)
+    df_sens.to_csv(TBL_DIR / "glm_tweedie_beta_vs_p.csv", index=False)
+    print("\n=== SENSIBILIDAD β_alfa a var_power (full model, 6 sujetos) ===")
+    for _, rr in df_sens.iterrows():
+        print(f"  p={rr['p']}: β_alfa {int(rr['n_neg'])}/{int(rr['n'])} neg, "
+              f"media={rr['mean_beta_alpha']:+.4f} (rango {rr['min_beta']:+.4f}..{rr['max_beta']:+.4f})",
+              flush=True)
 
     # ---------- (2) TWEEDIE vs HURDLE sobre amplitud SCR (zero-inflada) ----------
     rows_h = []
